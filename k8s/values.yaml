@@ -6,4 +6,4 @@ app:
 domain: ltu-m7011e-5.se
 email: paucor-5@student.ltu.se
 
-message: "Hello from Kubernetes with SSL!"
+message: "This is a test for the recipe app"
