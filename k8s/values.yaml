@@ -1,9 +1,0 @@
-# values.yaml
-app:
-  name: recipe-app
-  replicas: 1
-
-domain: ltu-m7011e-5.se
-email: paucor-5@student.ltu.se
-
-message: "This is a test for the recipe app"

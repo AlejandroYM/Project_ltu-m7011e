@@ -1,0 +1,11 @@
+app:
+  name: todo-frontend
+  replicas: 1
+
+# Defining the Docker image to use for the frontend application
+image:
+  repository: paulacf03/todo-frontend 
+  tag: v1.0.0 
+
+domain: ltu-m7011e-5.se
+email: paucor-5@student.ltu.se
