@@ -1,5 +1,5 @@
 app:
-  name: todo-frontend
+  name: MyRecipies
   replicas: 1
 
 # Defining the Docker image to use for the frontend application
