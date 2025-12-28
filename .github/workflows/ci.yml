@@ -12,7 +12,6 @@ env:
   IMAGE_TAG: ${{ github.sha }}
 
 jobs:
-  # Job 1: Pruebas del Backend (Ejecución rápida de Unit Tests)
   backend_tests:
     runs-on: ubuntu-latest
     steps:
@@ -24,18 +23,16 @@ jobs:
         with:
           python-version: '3.11'
           
-      - name: Install dependencies (Incluye pytest)
+      - name: Install dependencies
         run: |
           cd backend
           pip install -r requirements.txt
           
-      - name: 🧪 Run Unit Tests (La prueba más rápida y crucial)
-        # **AJUSTA ESTE COMANDO si tu carpeta de tests es diferente, ej: 'pytest tests/test_unit.py'**
+      - name: 🧪 Run Unit Tests
         run: |
-          cd backend/tests # Suponiendo que tus tests están aquí
-          pytest test_unit.py -v # Solo ejecutamos los unit tests aquí por rapidez
-          
-  # Job 2: Pruebas del Frontend
+          cd backend
+          pytest tests/test_unit.py -v
+
   frontend_tests:
     runs-on: ubuntu-latest
     steps:
@@ -53,36 +50,33 @@ jobs:
           npm install
 
       - name: 🧪 Run Frontend Tests
-        # **AJUSTA ESTE COMANDO para correr Jest**
         run: |
           cd frontend
-          npm test -- --watchAll=false # El flag deshabilita el modo interactivo
+          npm test -- --watchAll=false
 
-  # Job 3: Construir y Subir (SÓLO SI LAS PRUEBAS PASARON)
   build_and_push:
     runs-on: ubuntu-latest
-    needs: [backend_tests, frontend_tests] # Importante: Depende de que los jobs anteriores pasen
-
+    needs: [backend_tests, frontend_tests]
     steps:
-    - name: ⬇️ Checkout Repository
-      uses: actions/checkout@v4
+      - name: ⬇️ Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: 🔑 Login to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ env.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: 🔑 Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: 🔨 Build and Push Backend Image
-      uses: docker/build-push-action@v5
-      with:
-        context: ./backend
-        push: true
-        tags: ${{ env.DOCKER_USERNAME }}/todo-api:${{ env.IMAGE_TAG }}
+      - name: 🔨 Build and Push Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ env.DOCKER_USERNAME }}/todo-api:${{ env.IMAGE_TAG }}
         
-    - name: 🔨 Build and Push Frontend Image
-      uses: docker/build-push-action@v5
-      with:
-        context: ./frontend
-        push: true
-        tags: ${{ env.DOCKER_USERNAME }}/todo-frontend:${{ env.IMAGE_TAG }}
+      - name: 🔨 Build and Push Frontend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ env.DOCKER_USERNAME }}/todo-frontend:${{ env.IMAGE_TAG }}
