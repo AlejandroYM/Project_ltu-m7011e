@@ -29,12 +29,12 @@ jobs:
           cd backend
           pip install -r requirements.txt
           
-      - name: 🧪 Run Unit Tests (La prueba más rápida y crucial)
-        # **AJUSTA ESTE COMANDO si tu carpeta de tests es diferente, ej: 'pytest tests/test_unit.py'**
-        run: |
-          cd backend/tests # Suponiendo que tus tests están aquí
-          pytest test_unit.py -v # Solo ejecutamos los unit tests aquí por rapidez
-          
+     - name: Run Unit Tests
+  env:
+    PYTHONPATH: ${{ github.workspace }}/backend
+  run: |
+    cd backend
+    pytest tests/test_unit.py
   # Job 2: Pruebas del Frontend
   frontend_tests:
     runs-on: ubuntu-latest
