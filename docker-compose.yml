@@ -1,0 +1,25 @@
+services:
+  backend:
+    build: ./backend
+    container_name: todo-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - FLASK_APP=app.py
+      - PYTHONUNBUFFERED=1
+    networks:
+      - todo-network
+
+  frontend:
+    build: ./frontend
+    container_name: todo-frontend
+    ports:
+      - "5173:5173" # O el puerto que use tu package.json (ej: 3000 o 5173)
+    depends_on:
+      - backend
+    networks:
+      - todo-network
+
+networks:
+  todo-network:
+    driver: bridge

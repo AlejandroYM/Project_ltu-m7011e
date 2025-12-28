@@ -5,7 +5,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Copy frontend files
-COPY index.html .
+COPY . .
 
 # Expose port 8080
 EXPOSE 8080
