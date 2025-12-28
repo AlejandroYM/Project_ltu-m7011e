@@ -12,9 +12,8 @@ env:
   IMAGE_TAG: ${{ github.sha }}
 
 jobs:
-  # Job 1: Pruebas del Backend (Ejecución rápida de Unit Tests)
-  backend_tests:
-    runs-on: ubuntu-latest
+  backend_tests:  # <--- Aquí debe haber 2 espacios antes de backend_tests
+    runs-on: ubuntu-latest  # <--- Y aquí 4 espacios
     steps:
       - name: ⬇️ Checkout code
         uses: actions/checkout@v4
