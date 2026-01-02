@@ -4,9 +4,9 @@
   "description": "Microservicio de usuarios para Chef Match",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "test": "jest --coverage"
-  },
+  "test": "jest --coverage --forceExit",
+  "start": "node server.js"
+},
   "dependencies": {
     "amqplib": "^0.10.9",
     "dotenv": "^16.0.0",
