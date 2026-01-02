@@ -24,6 +24,4 @@ spec:
           value: "amqp://rabbitmq-service:5672"
         - name: PORT
           value: "{{ $service.port }}"
-        - name: KEYCLOAK_URL
-          value: "http://keycloak:8080/"
 {{- end }}

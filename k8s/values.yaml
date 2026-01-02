@@ -4,7 +4,7 @@ app:
 
 # Configuración de Dominio y Seguridad (REQ23/24)
 domain: ltu-m7011e-5.se
-email: paucor-5@student.ltu.se
+email: aleyec-5@student.ltu.se
 
 # Definición de Microservicios para el loop de Helm (REQ11/12)
 services:
