@@ -6,17 +6,12 @@ on:
   pull_request:
     branches: [ main ]
 
-env:
-  DOCKER_USERNAME: ${{ secrets.aym3 }}
-
 jobs:
   test-services:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Definimos los 3 servicios para que se testen en paralelo
         service: [user-service, recipe-service, recommendation-service]
-    
     steps:
       - name: ⬇️ Checkout code
         uses: actions/checkout@v4
@@ -37,7 +32,6 @@ jobs:
         run: |
           cd services/${{ matrix.service }}
           npm test -- --coverage
-        # Esto asegura que si la cobertura baja del 50%, el pipeline falle
 
   build-and-push:
     runs-on: ubuntu-latest
@@ -54,12 +48,14 @@ jobs:
       - name: 🔑 Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ env.aym3 }}
-          password: ${{ secrets.NieveFuerte33 }}
+          # Usamos los nombres de los secretos, NO los valores reales
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: 🔨 Build and Push
         uses: docker/build-push-action@v5
         with:
           context: ./services/${{ matrix.service }}
           push: true
-          tags: ${{ env.aym3 }}/chef-${{ matrix.service }}:latest
+          # Usamos el secreto del username para formar la etiqueta
+          tags: ${{ secrets.DOCKER_USERNAME }}/chef-${{ matrix.service }}:latest
