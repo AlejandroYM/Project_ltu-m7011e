@@ -1,56 +1,39 @@
-# Node.js / npm
+# --- Node.js ---
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-package-lock.json
+# IMPORTANTE: package-lock.json NO debe estar aquí. Se debe subir.
 
-# React build output
+# --- React / Frontend ---
 build/
 dist/
+
+# --- Python (Residuos del proyecto anterior) ---
+venv/
+__pycache__/
+*.py[cod]
+
+# --- Secretos y Entorno (Seguridad REQ20) ---
+.env
+*.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# Python
-venv/
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-pip-log.txt
-pip-delete-this-directory.txt
-
-# IDEs
+# --- IDEs y OS ---
 .vscode/
 .idea/
 *.swp
-*.swo
-*~
-
-# OS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 
-# Logs
+# --- Logs y Certificados ---
 *.log
 logs/
-
-# Certificates (if any are generated locally)
 *.pem
 *.key
-*.crt
 
-# Environment files with secrets
-.env
-*.env
-
-# Kubernetes local files
+# --- Kubernetes ---
 *.kubeconfig

@@ -1,26 +1,30 @@
-# templates/ingress.yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
+  # Usamos el nombre de la app definido en values.yaml (myrecipies)
   name: {{ .Values.app.name }}
   annotations:
-    # Change to letsencrypt-prod for a real TLS cert
-    # cert-manager.io/cluster-issuer: letsencrypt-prod
+    # REQ24: Certificados automáticos con Cert-Manager
     cert-manager.io/cluster-issuer: letsencrypt-staging
+    # Forzamos el uso de HTTPS
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   ingressClassName: traefik
   tls:
   - hosts:
     - {{ .Values.domain }}
+    # Este secreto guardará el certificado generado automáticamente
     secretName: {{ .Values.app.name }}-tls
   rules:
   - host: {{ .Values.domain }}
     http:
       paths:
+      # RUTA PRINCIPAL: Envía el tráfico al Frontend de React
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: {{ .Values.app.name }}
+            # Debe coincidir con el nombre en tu loop de servicios o values.yaml
+            name: chef-frontend 
             port:
-              number: 80
+              number: 5173

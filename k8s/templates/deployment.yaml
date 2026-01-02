@@ -1,27 +1,29 @@
-# templates/deployment.yaml
+{{- range $key, $service := .Values.services }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.app.name }}
+  name: {{ $service.name }}
 spec:
-  replicas: {{ .Values.app.replicas }}
+  replicas: {{ $service.replicas }}
   selector:
     matchLabels:
-      app: {{ .Values.app.name }}
+      app: {{ $service.name }}
   template:
     metadata:
       labels:
-        app: {{ .Values.app.name }}
+        app: {{ $service.name }}
     spec:
       containers:
-      - name: web
-        image: nginx:alpine
+      - name: {{ $service.name }}
+        image: {{ $service.image }}
         ports:
-        - containerPort: 80
-        volumeMounts:
-        - name: html
-          mountPath: /usr/share/nginx/html
-      volumes:
-      - name: html
-        configMap:
-          name: {{ .Values.app.name }}-html
+        - containerPort: {{ $service.port }}
+        env:
+        - name: RABBITMQ_URL
+          value: "amqp://rabbitmq-service:5672"
+        - name: PORT
+          value: "{{ $service.port }}"
+        - name: KEYCLOAK_URL
+          value: "http://keycloak:8080/"
+{{- end }}

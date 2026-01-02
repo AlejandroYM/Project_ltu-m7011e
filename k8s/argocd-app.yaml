@@ -1,14 +1,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: myrecipies
+  name: chef-match-app
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/paulacortinaferrero-create/Project_ltu-m7011e.git
     targetRevision: main
-    path: k8s
+    path: k8s # Carpeta donde están los archivos de arriba
     helm:
       valueFiles:
         - values.yaml

@@ -1,6 +1,6 @@
-# Chart.yaml
 apiVersion: v2
-name: simple-hello
-description: A simple Hello World application
+name: chef-match-stack
+description: Stack de microservicios para Chef Match (LTU Project)
+type: application
 version: 1.0.0
-appVersion: "1.0"
+appVersion: "1.0.0"
