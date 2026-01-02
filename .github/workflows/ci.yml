@@ -3,8 +3,6 @@ name: CI - Chef Match Microservices
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
 
 jobs:
   test-services:
@@ -15,32 +13,23 @@ jobs:
     steps:
       - name: ⬇️ Checkout code
         uses: actions/checkout@v4
-
       - name: 🟢 Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: services/${{ matrix.service }}/package-lock.json
-
-      - name: 📦 Install dependencies
+      - name: 🧪 Run Tests
         run: |
           cd services/${{ matrix.service }}
           npm install
-
-      - name: 🧪 Run Tests & Coverage (REQ5)
-        run: |
-          cd services/${{ matrix.service }}
           npm test -- --coverage
 
   build-and-push:
     runs-on: ubuntu-latest
     needs: test-services
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     strategy:
       matrix:
-        service: [user-service, recipe-service, recommendation-service]
-    
+        # Aquí incluimos todos
+        service: [user-service, recipe-service, recommendation-service, frontend]
     steps:
       - name: ⬇️ Checkout code
         uses: actions/checkout@v4
@@ -48,14 +37,14 @@ jobs:
       - name: 🔑 Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          # Usamos los nombres de los secretos, NO los valores reales
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: 🔨 Build and Push
         uses: docker/build-push-action@v5
         with:
-          context: ./services/${{ matrix.service }}
+          # Esta línea es la clave: 
+          # Si el servicio es 'frontend', busca en la raíz. Si no, busca en 'services/'
+          context: ${{ matrix.service == 'frontend' && './frontend' || format('./services/{0}', matrix.service) }}
           push: true
-          # Usamos el secreto del username para formar la etiqueta
           tags: ${{ secrets.DOCKER_USERNAME }}/chef-${{ matrix.service }}:latest
