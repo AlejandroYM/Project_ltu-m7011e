@@ -18,10 +18,8 @@ spec:
       - name: {{ $service.name }}
         image: {{ $service.image }}
         ports:
-        - containerPort: {{ $service.port }}
+        - containerPort: {{ $service.port | default 80 }} # Añadimos un valor por defecto
         env:
-        - name: RABBITMQ_URL
-          value: "amqp://rabbitmq-service:5672"
         - name: PORT
-          value: "{{ $service.port }}"
+          value: {{ $service.port | quote }}
 {{- end }}
