@@ -62,4 +62,4 @@ jobs:
         with:
           context: ./services/${{ matrix.service }}
           push: true
-          tags: ${{ env.DOCKER_USERNAME }}/chef-${{ matrix.service }}:latest
+          tags: ${{ env.alejandroym }}/chef-${{ matrix.service }}:latest
