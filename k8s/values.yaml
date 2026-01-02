@@ -1,26 +1,21 @@
-# Configuración de Dominio y Seguridad (REQ23/24)
-domain: aleyec-5.student.ltu.se
-email: aleyec-5@student.ltu.se
-
-# Definición de Microservicios para el loop de Helm (REQ11/12)
 services:
   user:
     name: user-service
-    image: alejandroym/chef-user-service:latest
+    image: aym3/chef-user-service:latest
     port: 3001
     replicas: 2
   recipe:
     name: recipe-service
-    image: alejandroym/chef-recipe-service:latest
+    image: aym3/chef-recipe-service:latest
     port: 3002
     replicas: 1
   recommendation:
     name: recommendation-service
-    image: alejandroym/chef-recommendation-service:latest
+    image: aym3/chef-recommendation-service:latest
     port: 3003
     replicas: 1
   frontend:
     name: chef-frontend
-    image: alejandroym/chef-frontend:latest
+    image: aym3/chef-frontend:latest
     port: 5173
     replicas: 1

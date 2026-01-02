@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 env:
-  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_USERNAME: ${{ secrets.aym3 }}
 
 jobs:
   test-services:
@@ -54,12 +54,12 @@ jobs:
       - name: 🔑 Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ env.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ env.aym3 }}
+          password: ${{ secrets.NieveFuerte33 }}
 
       - name: 🔨 Build and Push
         uses: docker/build-push-action@v5
         with:
           context: ./services/${{ matrix.service }}
           push: true
-          tags: ${{ env.alejandroym }}/chef-${{ matrix.service }}:latest
+          tags: ${{ env.aym3 }}/chef-${{ matrix.service }}:latest
