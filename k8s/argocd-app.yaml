@@ -6,9 +6,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/paulacortinaferrero-create/Project_ltu-m7011e.git
+    repoURL: https://github.com/AlejandroYM/Project_ltu-m7011e.git
     targetRevision: main
-    path: k8s # Carpeta donde están los archivos de arriba
+    path: Project_ltu-m7011e/k8s # Carpeta donde están los archivos de arriba
     helm:
       valueFiles:
         - values.yaml
