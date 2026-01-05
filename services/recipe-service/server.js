@@ -53,7 +53,7 @@ app.post('/api/recipes', keycloak.protect(), (req, res) => {
   res.status(201).json(newRecipe);
 });
 
-// --- 5. EXPORTACIÓN PARA TESTS (REQ5) ---
+// --- 5. EXPORTACIÓN PARA TESTS (REQ5 ) ---
 if (require.main === module) {
   const PORT = process.env.PORT || 3002;
   app.listen(PORT, () => console.log(`🚀 Recipe Service en puerto ${PORT}`));
