@@ -66,4 +66,17 @@ function App() {
         <h1>👨‍🍳 Chef Match</h1>
         <div>
           <span>Hola, <strong>{username}</strong> </span>
-          <button onClick={() => keycloak.logout()} style={{ marginLeft: '10
+          <button onClick={() => keycloak.logout()} style={{ marginLeft: '10px' }}>
+          Cerrar Sesión
+        </button>
+      </div>
+    </header>
+    {/* Aquí puedes añadir el resto de tu lógica de la aplicación */}
+    <main>
+      <p>Bienvenido a Chef Match. El sistema está listo.</p>
+    </main>
+  </div>
+);
+}
+
+export default App;

@@ -46,18 +46,10 @@ services:
   # Servicio de Recetas (Puerto 3002) - REQ14
   recipe-service:
     build: ./services/recipe-service
-    container_name: recipe-service
-    ports:
-      - "3002:3002"
-    environment:
-      - PORT=3002
-      - SESSION_SECRET=secret_recetas_456
-      - KEYCLOAK_URL=http://keycloak:8080/
-    depends_on:
-      - keycloak
-    networks:
-      - chef-network
-      recommendation-service:
+    # ... resto de la configuración ...
+
+  # DEBE ESTAR AL MISMO NIVEL QUE RECIPE-SERVICE
+  recommendation-service:
     build: ./services/recommendation-service
     container_name: recommendation-service
     ports:
