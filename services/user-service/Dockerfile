@@ -14,7 +14,7 @@ RUN npm install --only=production
 COPY . .
 
 # Exponemos el puerto definido en tu server.js
-EXPOSE 3001
+EXPOSE 3004
 
 # Comando para arrancar el servicio
 CMD ["node", "server.js"]
