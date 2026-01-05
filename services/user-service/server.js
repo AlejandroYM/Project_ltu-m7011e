@@ -19,12 +19,11 @@ app.use(session({
   store: memoryStore
 }));
 
-
-
-// --- 3. CONFIGURACIÓN DE RABBITMQ (REQ15 - Event-Driven) ---
+// --- 2. CONFIGURACIÓN DE RABBITMQ (REQ15 - Event-Driven) ---
 let channel;
 async function connectRabbit() {
   try {
+    // IMPORTANTE: Asegúrate que RABBITMQ_URL en Kubernetes sea amqp://rabbitmq:5672
     const conn = await amqplib.connect(process.env.RABBITMQ_URL || 'amqp://localhost');
     channel = await conn.createChannel();
     await channel.assertQueue('user_updates'); 
@@ -35,14 +34,7 @@ async function connectRabbit() {
 }
 connectRabbit();
 
-// --- 4. RUTAS DEL MICROSERVICIO (REQ14) ---
-
-// Endpoint Público: Comprobación de salud (Healthcheck)
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'UP', service: 'user-service', timestamp: new Date() });
-});
-
-// --- 2. CONFIGURACIÓN DE KEYCLOAK (REQ20) ---
+// --- 3. CONFIGURACIÓN DE KEYCLOAK (REQ20) ---
 const keycloakConfig = {
   realm: process.env.KEYCLOAK_REALM || 'ChefMatchRealm',
   'auth-server-url': process.env.KEYCLOAK_URL || 'http://localhost:8080/',
@@ -51,21 +43,25 @@ const keycloakConfig = {
   'public-client': true
 };
 
-// Pasamos el objeto de configuración directamente
 const keycloak = new Keycloak({ store: memoryStore }, keycloakConfig);
 app.use(keycloak.middleware());
 
-// Endpoint Protegido: Actualizar preferencias (REQ2 + REQ15)
-// Cuando el usuario actualiza algo, enviamos un evento a RabbitMQ
+// --- 4. RUTAS DEL MICROSERVICIO (REQ14) ---
+
+// Healthcheck para Kubernetes
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'UP', service: 'user-service', timestamp: new Date() });
+});
+
+// Actualizar preferencias (REQ2 + REQ15)
 app.post('/api/users/preferences', keycloak.protect(), async (req, res) => {
   const { preferences } = req.body;
   const userId = req.kauth.grant.access_token.content.sub;
 
   if (!preferences) {
-    return res.status(400).json({ error: 'Faltan las preferencias' }); // REQ7: Caso de fallo
+    return res.status(400).json({ error: 'Faltan las preferencias' });
   }
 
-  // Enviar mensaje a RabbitMQ para que el Recommendation Service se entere (REQ15)
   const message = {
     userId: userId,
     newPreferences: preferences,
@@ -81,7 +77,7 @@ app.post('/api/users/preferences', keycloak.protect(), async (req, res) => {
   res.json({ message: 'Preferencias actualizadas correctamente', data: message });
 });
 
-// --- 5. MANEJO DE ERRORES (REQ7 - Failure test cases) ---
+// --- 5. MANEJO DE ERRORES ---
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ 
@@ -90,12 +86,14 @@ app.use((err, req, res, next) => {
   });
 });
 
-// --- 6. ARRANQUE DEL SERVIDOR ---
-const PORT = process.env.PORT || 3005;
-app.listen(PORT, () => {
-  console.log(`🚀 User Service escuchando en el puerto ${PORT}`);
-  console.log(`🔒 Protección Keycloak activada`);
-});
+// --- 6. ARRANQUE DEL SERVIDOR (Lógica corregida) ---
+const PORT = process.env.PORT || 3001; // Usamos el puerto por defecto definido en values.yaml
 
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`🚀 User Service escuchando en el puerto ${PORT}`);
+    console.log(`🔒 Protección Keycloak activada`);
+  });
+}
 
 module.exports = app; // Exportar para los tests

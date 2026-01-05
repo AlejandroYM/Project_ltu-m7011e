@@ -2,7 +2,7 @@ services:
   user:
     name: user-service
     image: aym3/chef-user-service:v6
-    port: 3005 # Único para User
+    port: 3001 # Único para User
     replicas: 1
   recipe:
     name: recipe-service
