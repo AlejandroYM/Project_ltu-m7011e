@@ -91,18 +91,11 @@ app.use((err, req, res, next) => {
 });
 
 // --- 6. ARRANQUE DEL SERVIDOR ---
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => {
   console.log(`🚀 User Service escuchando en el puerto ${PORT}`);
   console.log(`🔒 Protección Keycloak activada`);
 });
-// ... todo el código anterior ...
 
-// CAMBIO AQUÍ: Solo arrancar si este archivo se ejecuta directamente
-if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`🚀 User Service escuchando en el puerto ${PORT}`);
-  });
-}
 
 module.exports = app; // Exportar para los tests
