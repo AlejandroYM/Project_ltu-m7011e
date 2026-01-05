@@ -6,7 +6,7 @@ services:
     replicas: 1
   recipe:
     name: recipe-service
-    image: aym3/chef-recipe-service:v2
+    image: aym3/chef-recipe-service:v4
     port: 3002 # Cambia de 3001 a 3002
     replicas: 1
   recommendation:
