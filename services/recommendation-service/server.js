@@ -12,7 +12,7 @@ let userRecommendations = {};
 // --- CONFIGURACIÓN DE RABBITMQ (REQ15 - Consumer) ---
 async function startConsuming() {
   try {
-    const conn = await amqplib.connect(process.env.RABBITMQ_URL || 'amqp://localhost');
+    const conn = await amqplib.connect(process.env.RABBITMQ_URL || 'amqp://guest:guest@rabbitmq-service:5672');
     const channel = await conn.createChannel();
     await channel.assertQueue('user_updates');
 
