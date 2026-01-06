@@ -23,12 +23,11 @@ app.use(session({
 let channel;
 async function connectRabbit() {
   try {
-    // CAMBIO CLAVE: Usamos el nombre del Service de Kubernetes para evitar ETIMEDOUT
-    const rabbitUrl = process.env.RABBITMQ_URL || 'amqp://guest:guest@rabbitmq-service:5672';
-    const conn = await amqplib.connect(rabbitUrl);
+    // IMPORTANTE: Asegúrate que RABBITMQ_URL en Kubernetes sea amqp://rabbitmq:5672
+    const conn = await amqplib.connect(process.env.RABBITMQ_URL || 'amqp://localhost');
     channel = await conn.createChannel();
     await channel.assertQueue('user_updates'); 
-    console.log('✅ Conectado a RabbitMQ - Service: rabbitmq-service');
+    console.log('✅ Conectado a RabbitMQ - Cola: user_updates');
   } catch (err) {
     console.error('❌ Error conectando a RabbitMQ:', err.message);
   }
@@ -47,15 +46,11 @@ const keycloakConfig = {
 const keycloak = new Keycloak({ store: memoryStore }, keycloakConfig);
 app.use(keycloak.middleware());
 
-// --- 4. RUTAS DEL MICROSERVICIO (REQ14 - Observabilidad) ---
+// --- 4. RUTAS DEL MICROSERVICIO (REQ14) ---
 
-// Healthcheck para Kubernetes (Indica que el pod está vivo y funcionando)
+// Healthcheck para Kubernetes
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'UP', 
-    service: 'user-service', 
-    timestamp: new Date() 
-  });
+  res.status(200).json({ status: 'UP', service: 'user-service', timestamp: new Date() });
 });
 
 // Actualizar preferencias (REQ2 + REQ15)
@@ -74,7 +69,6 @@ app.post('/api/users/preferences', keycloak.protect(), async (req, res) => {
     date: new Date()
   };
 
-  // Enviar evento a la cola para que Recommendation Service lo procese
   if (channel) {
     channel.sendToQueue('user_updates', Buffer.from(JSON.stringify(message)));
     console.log('📢 Evento enviado a RabbitMQ:', message.action);
@@ -92,16 +86,14 @@ app.use((err, req, res, next) => {
   });
 });
 
-// --- 6. ARRANQUE DEL SERVIDOR ---
-// Usamos el puerto 3004 para evitar conflictos en el clúster
-const PORT = process.env.PORT || 3004; 
+// --- 6. ARRANQUE DEL SERVIDOR (Lógica corregida) ---
+const PORT = process.env.PORT || 3001; // Usamos el puerto por defecto definido en values.yaml
 
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`🚀 User Service escuchando en el puerto ${PORT}`);
     console.log(`🔒 Protección Keycloak activada`);
-    console.log(`💓 Endpoint de salud disponible en /health`);
   });
 }
 
-module.exports = app;
+module.exports = app; // Exportar para los tests

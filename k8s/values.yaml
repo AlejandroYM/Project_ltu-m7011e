@@ -1,17 +1,17 @@
 services:
   user:
     name: user-service
-    image: aym3/chef-user-service:v9
+    image: aym3/chef-user-service:v8
     port: 3004 # Único para User
     replicas: 1
   recipe:
     name: recipe-service
-    image: aym3/chef-recipe-service:v9
+    image: aym3/chef-recipe-service:v8
     port: 3002 # Cambia de 3001 a 3002
     replicas: 1
   recommendation:
     name: recommendation-service
-    image: aym3/chef-recommendation-service:v9
+    image: aym3/chef-recommendation-service:v8
     port: 3003 # Cambia de 3001 a 3003
     replicas: 1
   frontend:
