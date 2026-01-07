@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chef-match-ingress
+  namespace: todo-app
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    # Si el profesor usa cert-manager para el SSL, añade esto:
+    cert-manager.io/cluster-issuer: letsencrypt-prod 
+spec:
+  rules:
+  - host: ltu-m7011e-5.se
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: chef-frontend
+            port:
+              number: 80
