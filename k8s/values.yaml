@@ -17,5 +17,5 @@ services:
   frontend:
     name: chef-frontend
     image: aym3/chef-frontend:latest
-    port: 80
+    port: 8000
     replicas: 1
