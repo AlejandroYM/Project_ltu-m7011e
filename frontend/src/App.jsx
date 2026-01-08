@@ -6,7 +6,7 @@ import Keycloak from 'keycloak-js';
 const keycloak = new Keycloak({
   url: "https://keycloak.ltu-m7011e-5.se/", 
   realm: "ChefMatchRealm",
-  clientId: "chef-frontend",
+  clientId: "frontend-client",
 });
 
 function App() {
