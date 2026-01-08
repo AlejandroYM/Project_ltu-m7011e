@@ -10,7 +10,7 @@ const keycloak = new Keycloak({
 });
 
 function App() {
-  const [authenticated, setAuthenticated] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false); 
   const [recipes, setRecipes] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [username, setUsername] = useState("");
