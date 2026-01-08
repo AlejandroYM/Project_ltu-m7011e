@@ -1,25 +1,67 @@
 services:
-  backend:
-    build: ./backend
-    container_name: todo-backend
+  # --- INFRAESTRUCTURA ---
+  
+  # RabbitMQ: Necesario para el REQ15 (comunicación asíncrona)
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: chef-rabbitmq
     ports:
-      - "8000:8000"
-    environment:
-      - FLASK_APP=app.py
-      - PYTHONUNBUFFERED=1
+      - "5672:5672"   # Puerto de mensajes
+      - "15672:15672" # Panel de administración (guest/guest)
     networks:
-      - todo-network
+      - chef-network
 
-  frontend:
-    build: ./frontend
-    container_name: todo-frontend
+  # Keycloak: Necesario para el REQ20 (Autenticación)
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: chef-keycloak
+    command: start-dev
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
     ports:
-      - "5173:5173" # O el puerto que use tu package.json (ej: 3000 o 5173)
-    depends_on:
-      - backend
+      - "8080:8080"
     networks:
-      - todo-network
+      - chef-network
+
+  # --- MICROSERVICIOS ---
+
+  # Servicio de Usuarios (Puerto 3001)
+  user-service:
+    build: ./services/user-service
+    container_name: user-service
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - SESSION_SECRET=secret_paula_123
+      - KEYCLOAK_URL=http://keycloak:8080/
+    depends_on:
+      - rabbitmq
+      - keycloak
+    networks:
+      - chef-network
+
+  # Servicio de Recetas (Puerto 3002) - REQ14
+  recipe-service:
+    build: ./services/recipe-service
+    # ... resto de la configuración ...
+
+  # DEBE ESTAR AL MISMO NIVEL QUE RECIPE-SERVICE
+  recommendation-service:
+    build: ./services/recommendation-service
+    container_name: recommendation-service
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    depends_on:
+      - rabbitmq
+    networks:
+      - chef-network
 
 networks:
-  todo-network:
+  chef-network:
     driver: bridge

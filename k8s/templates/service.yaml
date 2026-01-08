@@ -1,12 +1,14 @@
-# templates/service.yaml
+{{- range $name, $service := .Values.services }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Values.app.name }}
+  name: {{ $service.name }}
 spec:
   selector:
-    app: {{ .Values.app.name }}
+    app: {{ $service.name }}
   ports:
-  - port: 80
-    targetPort: 80
-  type: ClusterIP
+    - protocol: TCP
+      port: 80
+      targetPort: {{ $service.port }}
+---
+{{- end }}

@@ -1,26 +1,21 @@
-# templates/ingress.yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ .Values.app.name }}
+  name: chef-match-ingress
+  namespace: todo-app
   annotations:
-    # Change to letsencrypt-prod for a real TLS cert
-    # cert-manager.io/cluster-issuer: letsencrypt-prod
-    cert-manager.io/cluster-issuer: letsencrypt-staging
+    kubernetes.io/ingress.class: traefik
+    # Si el profesor usa cert-manager para el SSL, añade esto:
+    cert-manager.io/cluster-issuer: letsencrypt-prod 
 spec:
-  ingressClassName: traefik
-  tls:
-  - hosts:
-    - {{ .Values.domain }}
-    secretName: {{ .Values.app.name }}-tls
   rules:
-  - host: {{ .Values.domain }}
+  - host: ltu-m7011e-5.se
     http:
       paths:
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: {{ .Values.app.name }}
+            name: chef-frontend
             port:
               number: 80

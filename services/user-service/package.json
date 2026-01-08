@@ -1,0 +1,14 @@
+{
+  "name": "user",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.9",
+    "express": "^4.18.2",
+    "keycloak-connect": "^22.0.0",
+    "express-session": "^1.17.3",
+    "dotenv": "^16.0.3"
+  }
+}
