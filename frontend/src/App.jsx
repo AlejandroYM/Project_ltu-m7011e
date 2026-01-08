@@ -4,7 +4,7 @@ import Keycloak from 'keycloak-js';
 
 // Configuración de Keycloak (REQ20)
 const keycloak = new Keycloak({
-  url: "https://keycloak.ltu-m7011e-5.se/", 
+  url: "https://keycloak.ltu-m7011e-5.se", 
   realm: "ChefMatchRealm",
   clientId: "frontend-client",
 });
@@ -18,7 +18,7 @@ function App() {
 
   useEffect(() => {
     // Inicializar Keycloak al cargar la web
-    keycloak.init({ onLoad: 'login-required', checkLoginIframe: false }).then(auth => {
+    keycloak.init({ onLoad: 'login-required', checkLoginIframe: false,pkceMethod: 'S256' }).then(auth => {
       setAuthenticated(auth);
       if (auth) {
         setUsername(keycloak.tokenParsed.preferred_username);
