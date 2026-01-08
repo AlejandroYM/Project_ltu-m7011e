@@ -17,5 +17,5 @@ services:
   frontend:
     name: chef-frontend
     image: aym3/chef-frontend:latest
-    port: 8000  # Nginx usa el puerto 80 por defecto
+    port: 80  # Nginx usa el puerto 80 por defecto
     replicas: 1
