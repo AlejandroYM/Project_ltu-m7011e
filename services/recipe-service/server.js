@@ -94,7 +94,7 @@ app.use((err, req, res, next) => {
 
 // --- 6. ARRANQUE DEL SERVIDOR ---
 // Usamos el puerto 3004 para evitar conflictos en el clúster
-const PORT = process.env.PORT || 3004; 
+const PORT = process.env.PORT || 8000; 
 
 if (require.main === module) {
   app.listen(PORT, () => {
