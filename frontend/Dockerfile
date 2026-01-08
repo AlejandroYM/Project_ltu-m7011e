@@ -1,14 +1,16 @@
-# Use official Python image
-FROM python:3.11-slim
-
-# Set working directory
+# Etapa 1: Construcción (Build)
+FROM node:20-slim AS build
 WORKDIR /app
-
-# Copy frontend files
+COPY package*.json ./
+RUN npm install
 COPY . .
+RUN npm run build
 
-# Expose port 8080
-EXPOSE 8080
-
-# Start Python HTTP server
-CMD ["python3", "-m", "http.server", "8080"]
+# Etapa 2: Servidor de Producción (Nginx)
+FROM nginx:alpine
+# Copiamos los archivos construidos por Vite a la carpeta de Nginx
+COPY --from=build /app/dist /usr/share/nginx/html
+# Añadimos una configuración básica para que React Router funcione
+RUN echo 'server { listen 80; location / { root /usr/share/nginx/html; index index.html; try_files $uri $uri/ /index.html; } }' > /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
