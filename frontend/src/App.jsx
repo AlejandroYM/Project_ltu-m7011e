@@ -4,7 +4,7 @@ import Keycloak from 'keycloak-js';
 
 // Configuración de Keycloak (REQ20)
 const keycloak = new Keycloak({
-  url: "http://localhost:8080", 
+  url: "https://keycloak.ltu-m7011e-5.se/", 
   realm: "ChefMatchRealm",
   clientId: "chef-frontend",
 });

@@ -5,13 +5,38 @@ metadata:
   namespace: todo-app
   annotations:
     kubernetes.io/ingress.class: traefik
-    # Si el profesor usa cert-manager para el SSL, añade esto:
-    cert-manager.io/cluster-issuer: letsencrypt-prod 
+    # Prioridad alta para evitar la página de test del profesor
+    traefik.ingress.kubernetes.io/router.priority: "1000"
 spec:
   rules:
   - host: ltu-m7011e-5.se
     http:
       paths:
+      # Ruta para el Microservicio de Usuarios
+      - path: /api/users
+        pathType: Prefix
+        backend:
+          service:
+            name: user-service
+            port:
+              number: 80
+      # Ruta para el Microservicio de Recetas
+      - path: /api/recipes
+        pathType: Prefix
+        backend:
+          service:
+            name: recipe-service
+            port:
+              number: 80
+      # Ruta para el Microservicio de Recomendaciones
+      - path: /api/recommendations
+        pathType: Prefix
+        backend:
+          service:
+            name: recommendation-service
+            port:
+              number: 80
+      # Ruta para el Frontend (DEBE IR AL FINAL)
       - path: /
         pathType: Prefix
         backend:
