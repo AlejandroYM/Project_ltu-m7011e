@@ -4,31 +4,21 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ $service.name }}
-  namespace: todo-app
 spec:
-  replicas: {{ $service.replicas }}
-  selector:
-    matchLabels:
-      app: {{ $service.name }}
-  template:
-    metadata:
-      labels:
-        app: {{ $service.name }}
+  # ... selector y template ...
     spec:
       containers:
       - name: {{ $service.name }}
         image: {{ $service.image }}
-        # El puerto interno del contenedor (targetPort de tu values.yaml)
         ports:
         - containerPort: {{ $service.targetPort | default 8000 }}
         env:
         - name: PORT
           value: {{ $service.targetPort | quote }}
-        # Configuración de RabbitMQ
         - name: RABBITMQ_URL
           value: "amqp://rabbitmq-service:5672"
-        # --- ESTA ES LA LÍNEA QUE SOLUCIONA EL ERROR 302 ---
+        # --- AÑADE ESTA VARIABLE OBLIGATORIA ---
         - name: KEYCLOAK_URL
           value: "https://keycloak.ltu-m7011e-5.se"
-        # --------------------------------------------------
+        # ---------------------------------------
 {{- end }}
