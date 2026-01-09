@@ -13,14 +13,14 @@ spec:
     http:
       paths:
       - path: /recipes
-        pathType: Prefix
+        pathType: ImplementationSpecificx
         backend:
           service:
             name: recipe-service
             port:
               number: 8000 # CAMBIADO de 80 a 8000
       - path: /users
-        pathType: Prefix
+        pathType: ImplementationSpecific
         backend:
           service:
             name: user-service
