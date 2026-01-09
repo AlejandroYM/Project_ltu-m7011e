@@ -10,26 +10,25 @@ spec:
   - host: ltu-m7011e-5.se
     http:
       paths:
-      # Añadimos la barra final para asegurar que Traefik encuentre el endpoint del microservicio
-      - path: /recipes/
+      - path: /recipes(/|$)(.*)    # Captura /recipes y cualquier sub-ruta
         pathType: Prefix
         backend:
           service:
             name: recipe-service
             port:
               number: 80
-      - path: /recommendations/
-        pathType: Prefix
-        backend:
-          service:
-            name: recommendation-service
-            port:
-              number: 80
-      - path: /users/
+      - path: /users(/|$)(.*)      # Captura /users y sub-rutas como /preferences
         pathType: Prefix
         backend:
           service:
             name: user-service
+            port:
+              number: 80
+      - path: /recommendations(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: recommendation-service
             port:
               number: 80
       - path: /
