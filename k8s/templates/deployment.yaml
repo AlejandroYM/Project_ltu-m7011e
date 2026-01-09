@@ -4,6 +4,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ $service.name }}
+  namespace: todo-app
 spec:
   replicas: {{ $service.replicas }}
   selector:
@@ -17,15 +18,17 @@ spec:
       containers:
       - name: {{ $service.name }}
         image: {{ $service.image }}
+        # El puerto interno del contenedor (targetPort de tu values.yaml)
         ports:
-        - containerPort: {{ $service.targetPort | default 8000 }} # Usa targetPort (8000 o 80)
+        - containerPort: {{ $service.targetPort | default 8000 }}
         env:
         - name: PORT
-          value: {{ $service.targetPort | quote }} # El contenedor escucha en el targetPort
+          value: {{ $service.targetPort | quote }}
+        # Configuración de RabbitMQ
         - name: RABBITMQ_URL
-          value: "amqp://rabbitmq-service:5672" # Usa el nombre del servicio interno
-        # --- AÑADE ESTO AQUÍ ---
+          value: "amqp://rabbitmq-service:5672"
+        # --- ESTA ES LA LÍNEA QUE SOLUCIONA EL ERROR 302 ---
         - name: KEYCLOAK_URL
           value: "https://keycloak.ltu-m7011e-5.se"
-        # -----------------------
+        # --------------------------------------------------
 {{- end }}
