@@ -5,6 +5,7 @@ metadata:
   namespace: todo-app
   annotations:
     kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.priority: "10" # Da prioridad a las APIs
 spec:
   rules:
   - host: ltu-m7011e-5.se
@@ -17,18 +18,18 @@ spec:
             name: recipe-service
             port:
               number: 80
-      - path: /users
-        pathType: Prefix
-        backend:
-          service:
-            name: user-service
-            port:
-              number: 80
       - path: /recommendations
         pathType: Prefix
         backend:
           service:
             name: recommendation-service
+            port:
+              number: 80
+      - path: /users
+        pathType: Prefix
+        backend:
+          service:
+            name: user-service
             port:
               number: 80
       - path: /
