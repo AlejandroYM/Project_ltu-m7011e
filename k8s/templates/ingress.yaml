@@ -1,24 +1,23 @@
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: chef-match-ingress
-  namespace: todo-app
-  annotations:
-    kubernetes.io/ingress.class: traefik
-    #traefik.ingress.kubernetes.io/router.middlewares: todo-app-stripprefix@kubernetescrd # Si usas Traefik
 spec:
   rules:
   - host: ltu-m7011e-5.se
     http:
       paths:
-      - path: /api/recipes
+      - path: /recipes
         pathType: Prefix
         backend:
           service:
             name: recipe-service
             port:
               number: 80
-      - path: /api/users
+      - path: /recommendations
+        pathType: Prefix
+        backend:
+          service:
+            name: recommendation-service
+            port:
+              number: 80
+      - path: /users
         pathType: Prefix
         backend:
           service:

@@ -39,10 +39,10 @@ function App() {
   const fetchData = async (userId) => {
     try {
       // REQ14: Consumo de APIs RESTful a través del Proxy de Vite
-      const resRecipes = await axios.get('/api/recipes');
+      const resRecipes = await axios.get('/recipes');
       setRecipes(resRecipes.data);
 
-      const resRecs = await axios.get(`/api/recommendations/${userId}`);
+      const resRecs = await axios.get(`/recommendations/${userId}`);
       setRecommendations(resRecs.data.recommendations);
     } catch (err) {
       console.error("Error cargando datos de los microservicios", err);
@@ -52,7 +52,7 @@ function App() {
   // REQ15: Esto dispara un evento en RabbitMQ vía user-service
   const updatePreferences = async (newPref) => {
     try {
-      await axios.post('/api/users/preferences', 
+      await axios.post('/users/preferences', 
         { preferences: newPref },
         { headers: { Authorization: `Bearer ${keycloak.token}` } }
       );
