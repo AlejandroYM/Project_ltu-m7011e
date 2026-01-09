@@ -51,7 +51,7 @@ function App() {
     }
   };
 
-  const updatePreferences = async (newPref) => {
+  const updatePreferences = async (newPref) => { 
     try {
       // Ruta actualizada para el user-service a través del Ingress
       await axios.post('/users/preferences', 
