@@ -1,12 +1,12 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: chef-match-ingress
+  name: chef-api-ingress
   namespace: todo-app
   annotations:
     kubernetes.io/ingress.class: traefik
-    # Esta anotación es la "fuerza bruta" para que Traefik evalúe estas reglas primero
-    traefik.ingress.kubernetes.io/router.priority: "100"
+    # Prioridad máxima para las APIs
+    traefik.ingress.kubernetes.io/router.priority: "1000"
 spec:
   ingressClassName: traefik
   rules:
@@ -14,7 +14,7 @@ spec:
     http:
       paths:
       - path: /recipes
-        pathType: Exact # Exacto obliga a que no se confunda con /
+        pathType: Exact
         backend:
           service:
             name: recipe-service
@@ -34,6 +34,22 @@ spec:
             name: recommendation-service
             port:
               number: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chef-frontend-ingress
+  namespace: todo-app
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    # Prioridad mínima para el Frontend (catch-all)
+    traefik.ingress.kubernetes.io/router.priority: "1"
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: ltu-m7011e-5.se
+    http:
+      paths:
       - path: /
         pathType: Prefix
         backend:
