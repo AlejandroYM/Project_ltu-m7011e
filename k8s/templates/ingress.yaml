@@ -4,30 +4,31 @@ metadata:
   name: chef-match-ingress
   namespace: todo-app
   annotations:
-    # Mantenemos esta por si acaso, pero la de abajo es la que manda hoy
     kubernetes.io/ingress.class: traefik
+    # Esta anotación fuerza a Traefik a dar prioridad máxima a este objeto
+    traefik.ingress.kubernetes.io/router.priority: "10000"
 spec:
-  ingressClassName: traefik # <--- ESTO ES LO QUE TE FALTA
+  ingressClassName: traefik
   rules:
   - host: ltu-m7011e-5.se
     http:
       paths:
       - path: /recipes
-        pathType: Prefix
+        pathType: PathPrefix
         backend:
           service:
             name: recipe-service
             port:
               number: 8000
       - path: /users
-        pathType: Prefix
+        pathType: PathPrefix
         backend:
           service:
             name: user-service
             port:
               number: 8000
       - path: /recommendations
-        pathType: Prefix
+        pathType: PathPrefix
         backend:
           service:
             name: recommendation-service
