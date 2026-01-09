@@ -5,7 +5,8 @@ metadata:
   namespace: todo-app
   annotations:
     kubernetes.io/ingress.class: traefik
-    traefik.ingress.kubernetes.io/router.priority: "10" # Da prioridad a las APIs
+    # Esta anotación es la clave para eliminar el 404 en microservicios
+    traefik.ingress.kubernetes.io/router.middlewares: todo-app-stripprefix@kubernetescrd
 spec:
   rules:
   - host: ltu-m7011e-5.se
@@ -16,13 +17,6 @@ spec:
         backend:
           service:
             name: recipe-service
-            port:
-              number: 80
-      - path: /recommendations
-        pathType: Prefix
-        backend:
-          service:
-            name: recommendation-service
             port:
               number: 80
       - path: /users
