@@ -3,7 +3,10 @@ kind: Ingress
 metadata:
   name: chef-match-ingress
   namespace: todo-app
-  # ELIMINAMOS TODAS LAS ANOTACIONES ANTERIORES
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    # Esta anotación es la "fuerza bruta" para que Traefik evalúe estas reglas primero
+    traefik.ingress.kubernetes.io/router.priority: "100"
 spec:
   ingressClassName: traefik
   rules:
@@ -11,7 +14,7 @@ spec:
     http:
       paths:
       - path: /recipes
-        pathType: Prefix
+        pathType: Exact # Exacto obliga a que no se confunda con /
         backend:
           service:
             name: recipe-service
