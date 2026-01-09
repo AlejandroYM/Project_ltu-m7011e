@@ -5,20 +5,22 @@ metadata:
   namespace: todo-app
   annotations:
     kubernetes.io/ingress.class: traefik
+    # Forzamos a que las reglas de este Ingress tengan prioridad alta
+    traefik.ingress.kubernetes.io/router.priority: "100"
 spec:
   rules:
   - host: ltu-m7011e-5.se
     http:
       paths:
       - path: /recipes
-        pathType: Exact # Cambiado a Exact para que no lo atrape el frontend
+        pathType: Exact 
         backend:
           service:
             name: recipe-service
             port:
               number: 8000
       - path: /users
-        pathType: Prefix # Prefix es mejor para /users/preferences
+        pathType: Prefix
         backend:
           service:
             name: user-service
