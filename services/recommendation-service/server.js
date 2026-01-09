@@ -57,7 +57,7 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'UP', service: 'recommendation-service' });
 });
 
-const PORT = process.env.PORT || 80;
+const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
   console.log(`🚀 Recommendation Service escuchando en puerto ${PORT}`);
 });

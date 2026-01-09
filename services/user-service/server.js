@@ -87,7 +87,7 @@ app.use((err, req, res, next) => {
 });
 
 // --- 6. ARRANQUE DEL SERVIDOR (Lógica corregida) ---
-const PORT = process.env.PORT || 80; // Usamos el puerto por defecto definido en values.yaml
+const PORT = process.env.PORT || 8000; // Usamos el puerto por defecto definido en values.yaml
 
 if (require.main === module) {
   app.listen(PORT, () => {

@@ -63,7 +63,7 @@ app.use((err, req, res, next) => {
 
 // --- 5. ARRANQUE DEL SERVIDOR ---
 // Usamos el puerto 80 para coincidir con tu values.yaml y el Ingress
-const PORT = process.env.PORT || 80; 
+const PORT = process.env.PORT || 8000; 
 
 app.listen(PORT, () => {
   console.log(`🚀 Recipe Service escuchando en el puerto ${PORT}`);

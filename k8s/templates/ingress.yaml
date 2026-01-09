@@ -5,7 +5,7 @@ metadata:
   namespace: todo-app
   annotations:
     kubernetes.io/ingress.class: traefik
-    # Intentamos usar la anotación de reescritura estándar por si acaso
+    # Esta anotación es clave para que /recipes llegue como / al backend si no has cambiado las rutas
     traefik.ingress.kubernetes.io/rule-type: PathPrefixStrip 
 spec:
   rules:
@@ -18,14 +18,14 @@ spec:
           service:
             name: recipe-service
             port:
-              number: 80
+              number: 8000 # CAMBIADO de 80 a 8000
       - path: /users
         pathType: Prefix
         backend:
           service:
             name: user-service
             port:
-              number: 80
+              number: 8000 # CAMBIADO de 80 a 8000
       - path: /
         pathType: Prefix
         backend:
