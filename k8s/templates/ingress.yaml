@@ -5,8 +5,6 @@ metadata:
   namespace: todo-app
   annotations:
     kubernetes.io/ingress.class: traefik
-    # Esta anotación es la clave para eliminar el 404 en microservicios
-    traefik.ingress.kubernetes.io/router.middlewares: todo-app-stripprefix@kubernetescrd
 spec:
   rules:
   - host: ltu-m7011e-5.se
