@@ -3,9 +3,7 @@ kind: Ingress
 metadata:
   name: chef-match-ingress
   namespace: todo-app
-  annotations:
-    kubernetes.io/ingress.class: traefik
-    traefik.ingress.kubernetes.io/router.priority: "1000"
+  # ELIMINAMOS TODAS LAS ANOTACIONES ANTERIORES
 spec:
   ingressClassName: traefik
   rules:
