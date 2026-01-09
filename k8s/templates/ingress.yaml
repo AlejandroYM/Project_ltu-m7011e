@@ -5,13 +5,35 @@ metadata:
   namespace: todo-app
   annotations:
     kubernetes.io/ingress.class: traefik
-    # Si el profesor usa cert-manager para el SSL, añade esto:
-    cert-manager.io/cluster-issuer: letsencrypt-prod 
+    # Esta anotación es clave para que /recipes llegue como / al backend si no has cambiado las rutas
+    traefik.ingress.kubernetes.io/rule-type: PathPrefixStrip 
 spec:
   rules:
   - host: ltu-m7011e-5.se
     http:
       paths:
+      - path: /recipes
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: recipe-service
+            port:
+              number: 8000 # CAMBIADO de 80 a 8000
+      - path: /users
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: user-service
+            port:
+              number: 8000 # CAMBIADO de 80 a 8000
+              # ... debajo de /users añade esto:
+      - path: /recommendations
+        pathType: Prefix
+        backend:
+          service:
+            name: recommendation-service
+            port:
+              number: 8000
       - path: /
         pathType: Prefix
         backend:

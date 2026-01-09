@@ -1,45 +1,28 @@
 const express = require('express');
-const Keycloak = require('keycloak-connect');
 const session = require('express-session');
-const amqplib = require('amqplib');
+const Keycloak = require('keycloak-connect');
 const dotenv = require('dotenv');
 
-// Cargar variables de entorno (.env)
+// Cargar variables de entorno
 dotenv.config();
 
 const app = express();
 app.use(express.json());
 
-// --- 1. CONFIGURACIÓN DE SESIÓN (Requerido por Keycloak-Connect) ---
+// --- 1. CONFIGURACIÓN DE SESIÓN (Requerido por Keycloak) ---
 const memoryStore = new session.MemoryStore();
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'secret_para_desarrollo',
+  secret: process.env.SESSION_SECRET || 'recipe_service_secret',
   resave: false,
   saveUninitialized: true,
   store: memoryStore
 }));
 
-// --- 2. CONFIGURACIÓN DE RABBITMQ (REQ15 - Event-Driven) ---
-let channel;
-async function connectRabbit() {
-  try {
-    // CAMBIO CLAVE: Usamos el nombre del Service de Kubernetes para evitar ETIMEDOUT
-    const rabbitUrl = process.env.RABBITMQ_URL || 'amqp://guest:guest@rabbitmq-service:5672';
-    const conn = await amqplib.connect(rabbitUrl);
-    channel = await conn.createChannel();
-    await channel.assertQueue('user_updates'); 
-    console.log('✅ Conectado a RabbitMQ - Service: rabbitmq-service');
-  } catch (err) {
-    console.error('❌ Error conectando a RabbitMQ:', err.message);
-  }
-}
-connectRabbit();
-
-// --- 3. CONFIGURACIÓN DE KEYCLOAK (REQ20) ---
+// --- 2. CONFIGURACIÓN DE KEYCLOAK (REQ20) ---
 const keycloakConfig = {
   realm: process.env.KEYCLOAK_REALM || 'ChefMatchRealm',
   'auth-server-url': process.env.KEYCLOAK_URL || 'http://localhost:8080/',
-  resource: 'user-service',
+  resource: 'recipe-service', // Cambiado a recipe-service
   'ssl-required': 'external',
   'public-client': true
 };
@@ -47,61 +30,45 @@ const keycloakConfig = {
 const keycloak = new Keycloak({ store: memoryStore }, keycloakConfig);
 app.use(keycloak.middleware());
 
-// --- 4. RUTAS DEL MICROSERVICIO (REQ14 - Observabilidad) ---
+// --- 3. RUTAS DEL MICROSERVICIO ---
 
-// Healthcheck para Kubernetes (Indica que el pod está vivo y funcionando)
+// Healthcheck para Kubernetes
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'UP', 
-    service: 'user-service', 
+    service: 'recipe-service', 
     timestamp: new Date() 
   });
 });
 
-// Actualizar preferencias (REQ2 + REQ15)
-app.post('/api/users/preferences', keycloak.protect(), async (req, res) => {
-  const { preferences } = req.body;
-  const userId = req.kauth.grant.access_token.content.sub;
-
-  if (!preferences) {
-    return res.status(400).json({ error: 'Faltan las preferencias' });
-  }
-
-  const message = {
-    userId: userId,
-    newPreferences: preferences,
-    action: 'PREFERENCES_UPDATED',
-    date: new Date()
-  };
-
-  // Enviar evento a la cola para que Recommendation Service lo procese
-  if (channel) {
-    channel.sendToQueue('user_updates', Buffer.from(JSON.stringify(message)));
-    console.log('📢 Evento enviado a RabbitMQ:', message.action);
-  }
-
-  res.json({ message: 'Preferencias actualizadas correctamente', data: message });
+// Obtener todas las recetas (REQ1 - Catálogo de Recetas)
+// IMPORTANTE: Escucha en /recipes para coincidir con el Ingress
+app.get('/recipes', (req, res) => {
+  const recipes = [
+    { id: 1, name: 'Pasta Carbonara', category: 'Italiana', description: 'Deliciosa pasta con huevo y panceta.' },
+    { id: 2, name: 'Tacos al Pastor', category: 'Mexicana', description: 'Tacos tradicionales con piña y cerdo.' },
+    { id: 3, name: 'Ensalada Vegana', category: 'Vegana', description: 'Mix de verdes frescos y quinoa.' },
+    { id: 4, name: 'Curry Picante', category: 'Picante', description: 'Curry rojo tailandés con mucho sabor.' }
+  ];
+  
+  console.log('✅ Catálogo de recetas enviado');
+  res.json(recipes);
 });
 
-// --- 5. MANEJO DE ERRORES ---
+// --- 4. MANEJO DE ERRORES ---
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ 
-    error: 'Error interno del servidor',
-    details: process.env.NODE_ENV === 'development' ? err.message : {}
-  });
+  res.status(500).json({ error: 'Error interno en Recipe Service' });
 });
 
-// --- 6. ARRANQUE DEL SERVIDOR ---
-// Usamos el puerto 3004 para evitar conflictos en el clúster
-const PORT = process.env.PORT || 3004; 
+// --- 5. ARRANQUE DEL SERVIDOR ---
+// Usamos el puerto 80 para coincidir con tu values.yaml y el Ingress
+const PORT = process.env.PORT || 8000; 
 
-if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`🚀 User Service escuchando en el puerto ${PORT}`);
-    console.log(`🔒 Protección Keycloak activada`);
-    console.log(`💓 Endpoint de salud disponible en /health`);
-  });
-}
+app.listen(PORT, () => {
+  console.log(`🚀 Recipe Service escuchando en el puerto ${PORT}`);
+  console.log(`💓 Healthcheck disponible en /health`);
+  console.log(`📖 Catálogo disponible en /recipes`);
+});
 
 module.exports = app;
