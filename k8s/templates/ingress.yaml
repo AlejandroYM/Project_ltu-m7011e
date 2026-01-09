@@ -5,21 +5,20 @@ metadata:
   namespace: todo-app
   annotations:
     kubernetes.io/ingress.class: traefik
-    # Eliminamos el StripPrefix porque tus servicios YA escuchan en esas rutas
 spec:
   rules:
   - host: ltu-m7011e-5.se
     http:
       paths:
       - path: /recipes
-        pathType: Prefix
+        pathType: Exact # Cambiado a Exact para que no lo atrape el frontend
         backend:
           service:
             name: recipe-service
             port:
               number: 8000
       - path: /users
-        pathType: Prefix
+        pathType: Prefix # Prefix es mejor para /users/preferences
         backend:
           service:
             name: user-service
