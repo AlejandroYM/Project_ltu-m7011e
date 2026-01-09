@@ -2,17 +2,17 @@ services:
   user:
     name: user-service
     image: aym3/chef-user-service:latest
-    port: 8000
+    port: 80
     replicas: 1
   recipe:
     name: recipe-service
     image: aym3/chef-recipe-service:latest
-    port: 8000
+    port: 80
     replicas: 1
   recommendation:
     name: recommendation-service
     image: aym3/chef-recommendation-service:latest
-    port: 8000
+    port: 80
     replicas: 1
   frontend:
     name: chef-frontend
