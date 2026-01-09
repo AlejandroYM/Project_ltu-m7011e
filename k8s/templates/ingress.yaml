@@ -4,28 +4,28 @@ metadata:
   name: chef-match-ingress
   namespace: todo-app
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$1  # VITAL para limpiar el /api/
+    kubernetes.io/ingress.class: traefik  # Cambiado a traefik según tu comando 'get ingress'
 spec:
   rules:
   - host: ltu-m7011e-5.se
     http:
       paths:
-      - path: /api/recipes/(.*)   # Captura todo lo de recetas
+      - path: /api/recipes
         pathType: Prefix
         backend:
           service:
             name: recipe-service
             port:
               number: 80
-      - path: /api/users/(.*)     # Captura todo lo de usuarios/preferencias
+      - path: /api/users
         pathType: Prefix
         backend:
           service:
             name: user-service
             port:
               number: 80
-      - path: /()(.*)             # Todo lo demás al frontend
-        pathType: Prefix
+      - path: /
+        pathType: Prefix # Esto asegura que cualquier ruta no definida arriba vaya al frontend
         backend:
           service:
             name: chef-frontend
