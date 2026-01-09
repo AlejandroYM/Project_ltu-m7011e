@@ -10,21 +10,21 @@ spec:
   - host: ltu-m7011e-5.se
     http:
       paths:
-      - path: /recipes(/|$)(.*)    # Captura /recipes y cualquier sub-ruta
+      - path: /recipes
         pathType: Prefix
         backend:
           service:
             name: recipe-service
             port:
               number: 80
-      - path: /users(/|$)(.*)      # Captura /users y sub-rutas como /preferences
+      - path: /users
         pathType: Prefix
         backend:
           service:
             name: user-service
             port:
               number: 80
-      - path: /recommendations(/|$)(.*)
+      - path: /recommendations
         pathType: Prefix
         backend:
           service:
