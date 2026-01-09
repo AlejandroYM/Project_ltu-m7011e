@@ -26,6 +26,14 @@ spec:
             name: user-service
             port:
               number: 8000 # CAMBIADO de 80 a 8000
+              # ... debajo de /users añade esto:
+      - path: /recommendations
+        pathType: Prefix
+        backend:
+          service:
+            name: recommendation-service
+            port:
+              number: 8000
       - path: /
         pathType: Prefix
         backend:
