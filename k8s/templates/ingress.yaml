@@ -4,16 +4,16 @@ metadata:
   name: chef-match-ingress
   namespace: todo-app
   annotations:
+    # Mantenemos esta por si acaso, pero la de abajo es la que manda hoy
     kubernetes.io/ingress.class: traefik
-    # Forzamos a que las reglas de este Ingress tengan prioridad alta
-    traefik.ingress.kubernetes.io/router.priority: "100"
 spec:
+  ingressClassName: traefik # <--- ESTO ES LO QUE TE FALTA
   rules:
   - host: ltu-m7011e-5.se
     http:
       paths:
       - path: /recipes
-        pathType: Exact 
+        pathType: Prefix
         backend:
           service:
             name: recipe-service
