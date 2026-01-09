@@ -11,17 +11,24 @@ spec:
     http:
       paths:
       - path: /recipes
-        pathType: Prefix
+        pathType: ImplementationSpecific
         backend:
           service:
             name: recipe-service
             port:
               number: 80
       - path: /users
-        pathType: Prefix
+        pathType: ImplementationSpecific
         backend:
           service:
             name: user-service
+            port:
+              number: 80
+      - path: /recommendations
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: recommendation-service
             port:
               number: 80
       - path: /
