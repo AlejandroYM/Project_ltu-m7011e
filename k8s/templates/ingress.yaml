@@ -4,7 +4,8 @@ metadata:
   name: chef-match-ingress
   namespace: todo-app
   annotations:
-    kubernetes.io/ingress.class: traefik  # Cambiado a traefik según tu comando 'get ingress'
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.middlewares: todo-app-stripprefix@kubernetescrd # Si usas Traefik
 spec:
   rules:
   - host: ltu-m7011e-5.se
@@ -25,7 +26,7 @@ spec:
             port:
               number: 80
       - path: /
-        pathType: Prefix # Esto asegura que cualquier ruta no definida arriba vaya al frontend
+        pathType: Prefix
         backend:
           service:
             name: chef-frontend
