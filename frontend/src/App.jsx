@@ -53,29 +53,29 @@ function App() {
     }
   };
 
-  const updatePreferences = async (newPref) => {
-    try {
-      // Usamos /users/preferences. El Ingress lo manda al User Service:8000
-      await axios.post('/users/preferences', 
-        { 
-          userId: keycloak.tokenParsed.sub,
-          category: newPref  // Cambiado de 'preferences' a 'category' para el backend
-        }, 
-        {
-          headers: { 
-            Authorization: `Bearer ${keycloak.token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      alert(`Preferencia "${newPref}" enviada con éxito.`);
-      // Refrescamos recomendaciones tras un pequeño delay para que RabbitMQ procese
-      setTimeout(() => fetchData(keycloak.tokenParsed.sub), 1500);
-    } catch (err) {
-      console.error("Error al comunicar con user-service:", err);
-      alert("Error al actualizar preferencias. Revisa la consola.");
-    }
-  };
+  const updatePreferences = async (newPref) => { 
+  try {
+    // Usamos ruta relativa para que pase por el Ingress
+    await axios.post('/users/preferences', 
+      { 
+        userId: keycloak.tokenParsed.sub,
+        category: newPref // Cambia 'preferences' por 'category' para que el backend lo entienda
+      },
+      { 
+        headers: { 
+          Authorization: `Bearer ${keycloak.token}`,
+          'Content-Type': 'application/json'
+        } 
+      }
+    );
+    alert(`Preferencia "${newPref}" actualizada con éxito.`);
+    // Refrescamos datos tras el envío
+    setTimeout(() => fetchData(keycloak.tokenParsed.sub), 1500);
+  } catch (err) {
+    console.error("Error al comunicar con user-service", err);
+    alert("Error al actualizar preferencias. Revisa la consola.");
+  }
+};
 
   if (loading) return <div style={centerStyle}>Cargando ChefMatch...</div>;
   if (!authenticated) return <div style={centerStyle}>Redirigiendo al login...</div>;
