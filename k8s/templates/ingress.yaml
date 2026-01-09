@@ -5,8 +5,7 @@ metadata:
   namespace: todo-app
   annotations:
     kubernetes.io/ingress.class: traefik
-    # Esta anotación fuerza a Traefik a dar prioridad máxima a este objeto
-    traefik.ingress.kubernetes.io/router.priority: "10000"
+    traefik.ingress.kubernetes.io/router.priority: "1000"
 spec:
   ingressClassName: traefik
   rules:
@@ -14,21 +13,21 @@ spec:
     http:
       paths:
       - path: /recipes
-        pathType: PathPrefix
+        pathType: Prefix
         backend:
           service:
             name: recipe-service
             port:
               number: 8000
       - path: /users
-        pathType: PathPrefix
+        pathType: Prefix
         backend:
           service:
             name: user-service
             port:
               number: 8000
       - path: /recommendations
-        pathType: PathPrefix
+        pathType: Prefix
         backend:
           service:
             name: recommendation-service
