@@ -59,7 +59,7 @@ app.get('/health', (req, res) => {
 });
 
 // Actualizar preferencias (REQ2 + REQ15)
-app.post('/api/users/preferences', keycloak.protect(), async (req, res) => {
+app.post('/users/preferences', keycloak.protect(), async (req, res) => {
   const { preferences } = req.body;
   const userId = req.kauth.grant.access_token.content.sub;
 
@@ -94,7 +94,7 @@ app.use((err, req, res, next) => {
 
 // --- 6. ARRANQUE DEL SERVIDOR ---
 // Usamos el puerto 3004 para evitar conflictos en el clúster
-const PORT = process.env.PORT || 8000; 
+const PORT = process.env.PORT || 80; 
 
 if (require.main === module) {
   app.listen(PORT, () => {

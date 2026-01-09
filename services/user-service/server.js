@@ -54,7 +54,7 @@ app.get('/health', (req, res) => {
 });
 
 // Actualizar preferencias (REQ2 + REQ15)
-app.post('/api/users/preferences', keycloak.protect(), async (req, res) => {
+app.post('/users/preferences', keycloak.protect(), async (req, res) => {
   const { preferences } = req.body;
   const userId = req.kauth.grant.access_token.content.sub;
 
@@ -87,7 +87,7 @@ app.use((err, req, res, next) => {
 });
 
 // --- 6. ARRANQUE DEL SERVIDOR (Lógica corregida) ---
-const PORT = process.env.PORT || 8000; // Usamos el puerto por defecto definido en values.yaml
+const PORT = process.env.PORT || 80; // Usamos el puerto por defecto definido en values.yaml
 
 if (require.main === module) {
   app.listen(PORT, () => {

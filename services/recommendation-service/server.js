@@ -47,7 +47,7 @@ startConsuming();
 // --- API REST (REQ14) ---
 
 // Endpoint para que el Frontend pida las recomendaciones de un usuario
-app.get('/api/recommendations/:userId', (req, res) => {
+app.get('/recommendations/:userId', (req, res) => {
   const userId = req.params.userId;
   const recommendations = userRecommendations[userId] || ["Explora nuestras recetas populares"];
   res.json({ userId, recommendations });
@@ -57,7 +57,7 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'UP', service: 'recommendation-service' });
 });
 
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 80;
 app.listen(PORT, () => {
   console.log(`🚀 Recommendation Service escuchando en puerto ${PORT}`);
 });
