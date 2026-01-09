@@ -12,14 +12,14 @@ spec:
   - host: ltu-m7011e-5.se
     http:
       paths:
-      - path: /recipes/
+      - path: /recipes
         pathType: Prefix
         backend:
           service:
             name: recipe-service
             port:
               number: 80
-      - path: /users/
+      - path: /users
         pathType: Prefix
         backend:
           service:
