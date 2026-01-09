@@ -4,7 +4,7 @@ const session = require('express-session');
 const amqplib = require('amqplib');
 const dotenv = require('dotenv');
 
-// Cargar variables de entorno (.env)
+// Cargar variables de entorno
 dotenv.config();
 
 const app = express();
@@ -19,34 +19,35 @@ app.use(session({
   store: memoryStore
 }));
 
-// --- 2. CONFIGURACIÓN DE RABBITMQ (REQ15 - Event-Driven) ---
+// --- 2. CONFIGURACIÓN DE RABBITMQ (REQ15) ---
 let channel;
 async function connectRabbit() {
   try {
-    // IMPORTANTE: Asegúrate que RABBITMQ_URL en Kubernetes sea amqp://rabbitmq:5672
+    // En K8s usa amqp://rabbitmq-service:5672
     const conn = await amqplib.connect(process.env.RABBITMQ_URL || 'amqp://localhost');
     channel = await conn.createChannel();
     await channel.assertQueue('user_updates'); 
     console.log('✅ Conectado a RabbitMQ - Cola: user_updates');
   } catch (err) {
     console.error('❌ Error conectando a RabbitMQ:', err.message);
+    // Reintentar conexión tras 5 segundos
+    setTimeout(connectRabbit, 5000);
   }
 }
 connectRabbit();
 
-// --- 3. CONFIGURACIÓN DE KEYCLOAK (REQ20) ---
+// --- 3. CONFIGURACIÓN DE KEYCLOAK (Bearer-only para APIs) ---
 const keycloakConfig = {
   realm: process.env.KEYCLOAK_REALM || 'ChefMatchRealm',
-  'auth-server-url': process.env.KEYCLOAK_URL || 'http://localhost:8080/',
+  'auth-server-url': process.env.KEYCLOAK_URL || 'https://keycloak.ltu-m7011e-5.se',
   resource: 'user-service',
-  'ssl-required': 'external',
-  'public-client': true
+  'bearer-only': true  // VITAL: Evita redirecciones 302 en peticiones API
 };
 
 const keycloak = new Keycloak({ store: memoryStore }, keycloakConfig);
 app.use(keycloak.middleware());
 
-// --- 4. RUTAS DEL MICROSERVICIO (REQ14) ---
+// --- 4. RUTAS ---
 
 // Healthcheck para Kubernetes
 app.get('/health', (req, res) => {
@@ -55,11 +56,13 @@ app.get('/health', (req, res) => {
 
 // Actualizar preferencias (REQ2 + REQ15)
 app.post('/users/preferences', keycloak.protect(), async (req, res) => {
-  const { preferences } = req.body;
+  // Aceptamos 'category' (del nuevo frontend) o 'preferences' (del viejo)
+  const preferences = req.body.category || req.body.preferences;
   const userId = req.kauth.grant.access_token.content.sub;
 
   if (!preferences) {
-    return res.status(400).json({ error: 'Faltan las preferencias' });
+    console.log('⚠️ Petición recibida sin preferencias en body:', req.body);
+    return res.status(400).json({ error: 'Faltan las preferencias (category o preferences)' });
   }
 
   const message = {
@@ -70,30 +73,32 @@ app.post('/users/preferences', keycloak.protect(), async (req, res) => {
   };
 
   if (channel) {
-    channel.sendToQueue('user_updates', Buffer.from(JSON.stringify(message)));
-    console.log('📢 Evento enviado a RabbitMQ:', message.action);
+    try {
+      channel.sendToQueue('user_updates', Buffer.from(JSON.stringify(message)));
+      console.log('📢 Evento enviado a RabbitMQ:', message.action, 'para user:', userId);
+      res.json({ message: 'Preferencias actualizadas correctamente', data: message });
+    } catch (sendErr) {
+      console.error('❌ Error al enviar a RabbitMQ:', sendErr);
+      res.status(500).json({ error: 'Error al procesar el evento de mensajería' });
+    }
+  } else {
+    console.error('❌ RabbitMQ no está disponible');
+    res.status(503).json({ error: 'Servicio de mensajería no disponible temporalmente' });
   }
-
-  res.json({ message: 'Preferencias actualizadas correctamente', data: message });
 });
 
 // --- 5. MANEJO DE ERRORES ---
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('🔥 Error detectado:', err.stack);
   res.status(500).json({ 
     error: 'Error interno del servidor',
     details: process.env.NODE_ENV === 'development' ? err.message : {}
   });
 });
 
-// --- 6. ARRANQUE DEL SERVIDOR (Lógica corregida) ---
-const PORT = process.env.PORT || 8000; // Usamos el puerto por defecto definido en values.yaml
-
-if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`🚀 User Service escuchando en el puerto ${PORT}`);
-    console.log(`🔒 Protección Keycloak activada`);
-  });
-}
-
-module.exports = app; // Exportar para los tests
+// --- 6. ARRANQUE DEL SERVIDOR ---
+const PORT = process.env.PORT || 8000;
+app.listen(PORT, () => {
+  console.log(`🚀 User Service ejecutándose en puerto ${PORT}`);
+  console.log(`🔑 Keycloak URL: ${keycloakConfig['auth-server-url']}`);
+});
