@@ -41,7 +41,7 @@ function App() {
   const fetchData = async (userId) => {
     try {
       // Usamos rutas con barra final y sin /api para que coincidan con el Ingress
-      const resRecipes = await axios.get('/recipes');
+      const resRecipes = await axios.get('/recipes/');
       setRecipes(resRecipes.data);
 
       const resRecs = await axios.get(`/recommendations/${userId}/`);
@@ -54,7 +54,7 @@ function App() {
   const updatePreferences = async (newPref) => {
     try {
       // Ruta actualizada para el user-service a través del Ingress
-      await axios.post('/users/preferences', 
+      await axios.post('/users/preferences/', 
         { preferences: newPref },
         { headers: { Authorization: `Bearer ${keycloak.token}` } }
       );
