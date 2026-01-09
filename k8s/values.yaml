@@ -1,17 +1,21 @@
 services:
   user:
     name: user-service
-    port: 8000       # Cambiar a 8000
-    targetPort: 8000 # Asegurar que apunte al 8000 del pod
+    image: aym3/chef-user-service:latest
+    port: 8000
+    replicas: 1
   recipe:
     name: recipe-service
-    port: 8000       # Cambiar a 8000
-    targetPort: 8000
+    image: aym3/chef-recipe-service:latest
+    port: 8000
+    replicas: 1
   recommendation:
     name: recommendation-service
-    port: 8000       # Cambiar a 8000
-    targetPort: 8000
+    image: aym3/chef-recommendation-service:latest
+    port: 8000
+    replicas: 1
   frontend:
     name: chef-frontend
-    port: 80
-    targetPort: 80   # El frontend sigue en el 80 (Nginx)
+    image: aym3/chef-frontend:latest
+    port: 80  # Nginx usa el puerto 80 por defecto
+    replicas: 1
