@@ -4,40 +4,27 @@ metadata:
   name: chef-match-ingress
   namespace: todo-app
   annotations:
-    kubernetes.io/ingress.class: traefik
-    # Prioridad alta para evitar la página de test del profesor
-    traefik.ingress.kubernetes.io/router.priority: "1000"
+    nginx.ingress.kubernetes.io/rewrite-target: /$1  # VITAL para limpiar el /api/
 spec:
   rules:
   - host: ltu-m7011e-5.se
     http:
       paths:
-      # Ruta para el Microservicio de Usuarios
-      - path: /api/users
-        pathType: Prefix
-        backend:
-          service:
-            name: user-service
-            port:
-              number: 80
-      # Ruta para el Microservicio de Recetas
-      - path: /api/recipes
+      - path: /api/recipes/(.*)   # Captura todo lo de recetas
         pathType: Prefix
         backend:
           service:
             name: recipe-service
             port:
               number: 80
-      # Ruta para el Microservicio de Recomendaciones
-      - path: /api/recommendations
+      - path: /api/users/(.*)     # Captura todo lo de usuarios/preferencias
         pathType: Prefix
         backend:
           service:
-            name: recommendation-service
+            name: user-service
             port:
               number: 80
-      # Ruta para el Frontend (DEBE IR AL FINAL)
-      - path: /
+      - path: /()(.*)             # Todo lo demás al frontend
         pathType: Prefix
         backend:
           service:

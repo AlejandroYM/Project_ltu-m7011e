@@ -18,7 +18,12 @@ function App() {
 
   useEffect(() => {
     // Inicializar Keycloak al cargar la web
-    keycloak.init({ onLoad: 'login-required', checkLoginIframe: false,pkceMethod: 'S256' }).then(auth => {
+    keycloak.init({ 
+  onLoad: 'login-required', 
+  checkLoginIframe: false,
+  pkceMethod: 'S256',      // Añade esto para mayor seguridad
+  responseMode: 'query'    // ESTO ES LO QUE SUELE ROMPER EL BUCLE
+}).then(auth => {
       setAuthenticated(auth);
       if (auth) {
         setUsername(keycloak.tokenParsed.preferred_username);
