@@ -13,7 +13,7 @@ spec:
     http:
       paths:
       - path: /recipes
-        pathType: ImplementationSpecificx
+        pathType: ImplementationSpecific
         backend:
           service:
             name: recipe-service
