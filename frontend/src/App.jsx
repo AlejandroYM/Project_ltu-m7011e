@@ -19,17 +19,19 @@ function App() {
   useEffect(() => {
     // Inicializar Keycloak al cargar la web
     keycloak.init({ 
-  onLoad: 'login-required', 
-  checkLoginIframe: false,
-  pkceMethod: 'S256',      // Añade esto para mayor seguridad
-  responseMode: 'query'    // ESTO ES LO QUE SUELE ROMPER EL BUCLE
-}).then(auth => {
+      onLoad: 'login-required', 
+      checkLoginIframe: false,
+      pkceMethod: 'S256',
+      responseMode: 'query'
+    }).then(auth => {
       setAuthenticated(auth);
       if (auth) {
         setUsername(keycloak.tokenParsed.preferred_username);
-        fetchData(keycloak.tokenParsed.sub);
+        // .finally() asegura que la pantalla gris se quite incluso si las APIs fallan
+        fetchData(keycloak.tokenParsed.sub).finally(() => setLoading(false));
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     }).catch((err) => {
       console.error("Fallo en la autenticación", err);
       setLoading(false);
@@ -38,30 +40,31 @@ function App() {
 
   const fetchData = async (userId) => {
     try {
-      // REQ14: Consumo de APIs RESTful a través del Proxy de Vite
-      const resRecipes = await axios.get('/recipes');
+      // Usamos rutas con barra final y sin /api para que coincidan con el Ingress
+      const resRecipes = await axios.get('/recipes/');
       setRecipes(resRecipes.data);
 
-      const resRecs = await axios.get(`/recommendations/${userId}`);
-      setRecommendations(resRecs.data.recommendations);
+      const resRecs = await axios.get(`/recommendations/${userId}/`);
+      setRecommendations(resRecs.data.recommendations || []);
     } catch (err) {
       console.error("Error cargando datos de los microservicios", err);
     }
   };
 
-  // REQ15: Esto dispara un evento en RabbitMQ vía user-service
   const updatePreferences = async (newPref) => {
     try {
-      await axios.post('/users/preferences', 
+      // Ruta actualizada para el user-service a través del Ingress
+      await axios.post('/users/preferences/', 
         { preferences: newPref },
         { headers: { Authorization: `Bearer ${keycloak.token}` } }
       );
       
       alert(`Enviado a RabbitMQ: Preferencia "${newPref}"`);
       
-      // Refrescamos después de un breve delay para dar tiempo al Recommendation Service
+      // Refrescamos después de un breve delay
       setTimeout(() => fetchData(keycloak.tokenParsed.sub), 1500);
     } catch (err) {
+      console.error(err);
       alert("Error al comunicar con el user-service");
     }
   };
@@ -84,7 +87,7 @@ function App() {
       </header>
 
       <main>
-        {/* SECCIÓN DE RECOMENDACIONES (REQ2 - Comportamiento Dinámico) */}
+        {/* SECCIÓN DE RECOMENDACIONES (REQ2) */}
         <section style={{ backgroundColor: '#f0f7ff', padding: '20px', borderRadius: '10px', marginBottom: '30px', border: '1px solid #d0e7ff' }}>
           <h3 style={{ marginTop: 0 }}>✨ Recomendaciones Personalizadas (REQ2)</h3>
           <p style={{ fontSize: '0.9rem', color: '#666' }}>Estas sugerencias se actualizan vía RabbitMQ cuando cambias tus gustos:</p>
@@ -105,19 +108,23 @@ function App() {
           </div>
         </section>
 
-        {/* SECCIÓN DE RECETAS (REQ14 - API REST) */}
+        {/* SECCIÓN DE RECETAS (REQ14) */}
         <section>
           <h3>Explorar Catálogo de Recetas</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px' }}>
-            {recipes.map(recipe => (
-              <div key={recipe.id} style={cardStyle}>
-                <h4 style={{ margin: '0 0 10px 0' }}>{recipe.title}</h4>
-                <span style={tagStyle}>{recipe.category}</span>
-                <p style={{ fontSize: '0.85rem', color: '#555', marginTop: '10px' }}>
-                  <strong>Ingredientes:</strong> {recipe.ingredients ? recipe.ingredients.join(', ') : 'Varios'}
-                </p>
-              </div>
-            ))}
+            {recipes.length > 0 ? (
+              recipes.map(recipe => (
+                <div key={recipe.id} style={cardStyle}>
+                  <h4 style={{ margin: '0 0 10px 0' }}>{recipe.title}</h4>
+                  <span style={tagStyle}>{recipe.category}</span>
+                  <p style={{ fontSize: '0.85rem', color: '#555', marginTop: '10px' }}>
+                    <strong>Ingredientes:</strong> {recipe.ingredients ? recipe.ingredients.join(', ') : 'Varios'}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p>No se encontraron recetas en el catálogo.</p>
+            )}
           </div>
         </section>
       </main>
@@ -125,7 +132,7 @@ function App() {
   );
 }
 
-// Estilos rápidos en constante
+// Estilos
 const btnStyle = {
   marginRight: '10px',
   padding: '8px 12px',
