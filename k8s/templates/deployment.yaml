@@ -18,11 +18,14 @@ spec:
       - name: {{ $service.name }}
         image: {{ $service.image }}
         ports:
-        - containerPort: {{ $service.port | default 80 }}
+        - containerPort: {{ $service.targetPort | default 8000 }} # Usa targetPort (8000 o 80)
         env:
         - name: PORT
-          value: {{ $service.port | quote }}
-        # Configuración de RabbitMQ (Vital para evitar el CrashLoopBackOff)
+          value: {{ $service.targetPort | quote }} # El contenedor escucha en el targetPort
         - name: RABBITMQ_URL
-          value: "amqp://rabbitmq-service:5672"
+          value: "amqp://rabbitmq-service:5672" # Usa el nombre del servicio interno
+        # --- AÑADE ESTO AQUÍ ---
+        - name: KEYCLOAK_URL
+          value: "https://keycloak.ltu-m7011e-5.se"
+        # -----------------------
 {{- end }}
