@@ -1,21 +1,26 @@
+# values.yaml definitivo
 services:
   user:
     name: user-service
     image: aym3/chef-user-service:latest
     port: 8000
+    targetPort: 8000
     replicas: 1
   recipe:
     name: recipe-service
     image: aym3/chef-recipe-service:latest
     port: 8000
+    targetPort: 8000
     replicas: 1
   recommendation:
     name: recommendation-service
     image: aym3/chef-recommendation-service:latest
     port: 8000
+    targetPort: 8000
     replicas: 1
   frontend:
     name: chef-frontend
     image: aym3/chef-frontend:latest
-    port: 80  # Nginx usa el puerto 80 por defecto
+    port: 80
+    targetPort: 80
     replicas: 1

@@ -5,24 +5,20 @@ kind: Deployment
 metadata:
   name: {{ $service.name }}
 spec:
-  replicas: {{ $service.replicas }}
-  selector:
-    matchLabels:
-      app: {{ $service.name }}
-  template:
-    metadata:
-      labels:
-        app: {{ $service.name }}
+  # ... selector y template ...
     spec:
       containers:
       - name: {{ $service.name }}
         image: {{ $service.image }}
         ports:
-        - containerPort: {{ $service.port | default 80 }}
+        - containerPort: {{ $service.targetPort | default 8000 }}
         env:
         - name: PORT
-          value: {{ $service.port | quote }}
-        # Configuración de RabbitMQ (Vital para evitar el CrashLoopBackOff)
+          value: {{ $service.targetPort | quote }}
         - name: RABBITMQ_URL
           value: "amqp://rabbitmq-service:5672"
+        # --- AÑADE ESTA VARIABLE OBLIGATORIA ---
+        - name: KEYCLOAK_URL
+          value: "https://keycloak.ltu-m7011e-5.se"
+        # ---------------------------------------
 {{- end }}

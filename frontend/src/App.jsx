@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import Keycloak from 'keycloak-js';
 
-// Configuración de Keycloak (REQ20)
+// Configuración de Keycloak (Asegúrate de que coincida con main.jsx)
 const keycloak = new Keycloak({
   url: "https://keycloak.ltu-m7011e-5.se", 
   realm: "ChefMatchRealm",
@@ -38,100 +38,90 @@ function App() {
   }, []);
 
   const fetchData = async (userId) => {
-    // 1. Obtener Recetas (Recipe Service)
     try {
+      // 1. Obtener Recetas (Ruta relativa -> Ingress -> Recipe Service:8000)
       const resRecipes = await axios.get('/recipes');
-      // Verificamos que sea un array para evitar error .map()
-      setRecipes(Array.isArray(resRecipes.data) ? resRecipes.data : []);
-    } catch (err) {
-      console.error("Error en recetas:", err);
-      setRecipes([]); 
-    }
+      setRecipes(resRecipes.data);
 
-    // 2. Obtener Recomendaciones (Recommendation Service)
-    try {
-      const resRecs = await axios.get(`/recommendations/${userId}`);
-      // Tu server de recomendaciones devuelve un objeto { userId, recommendations: [] }
-      const list = resRecs.data.recommendations || [];
-      setRecommendations(Array.isArray(list) ? list : []);
+      // 2. Obtener Recomendaciones (Ruta relativa -> Ingress -> Recommendation Service:8000)
+      const resRecs = await axios.get(`/recommendations/${userId}`, {
+        headers: { Authorization: `Bearer ${keycloak.token}` }
+      });
+      setRecommendations(resRecs.data);
     } catch (err) {
-      console.error("Error en recomendaciones:", err);
-      setRecommendations([]);
+      console.error("Error cargando datos:", err);
     }
   };
 
   const updatePreferences = async (newPref) => { 
-    try {
-      // User Service a través de Ingress
-      await axios.post('/users/preferences', 
-        { preferences: newPref },
-        { headers: { Authorization: `Bearer ${keycloak.token}` } }
-      );
-      
-      alert(`Enviado a RabbitMQ: Preferencia "${newPref}"`);
-      
-      // Esperamos 1.5s para que RabbitMQ procese el mensaje antes de refrescar
-      setTimeout(() => fetchData(keycloak.tokenParsed.sub), 1500);
-    } catch (err) {
-      console.error("Error al comunicar con user-service", err);
-      alert("Error al actualizar preferencias.");
-    }
-  };
+  try {
+    // Usamos ruta relativa para que pase por el Ingress
+    await axios.post('/users/preferences', 
+      { 
+        userId: keycloak.tokenParsed.sub,
+        category: newPref // Cambia 'preferences' por 'category' para que el backend lo entienda
+      },
+      { 
+        headers: { 
+          Authorization: `Bearer ${keycloak.token}`,
+          'Content-Type': 'application/json'
+        } 
+      }
+    );
+    alert(`Preferencia "${newPref}" actualizada con éxito.`);
+    // Refrescamos datos tras el envío
+    setTimeout(() => fetchData(keycloak.tokenParsed.sub), 1500);
+  } catch (err) {
+    console.error("Error al comunicar con user-service", err);
+    alert("Error al actualizar preferencias. Revisa la consola.");
+  }
+};
 
-  if (loading) return <div style={centerStyle}>Cargando sistema de seguridad...</div>;
-  if (!authenticated) return <div style={centerStyle}>No autenticado.</div>;
+  if (loading) return <div style={centerStyle}>Cargando ChefMatch...</div>;
+  if (!authenticated) return <div style={centerStyle}>Redirigiendo al login...</div>;
 
   return (
-    <div style={{ fontFamily: 'Arial, sans-serif', padding: '30px', maxWidth: '1200px', margin: '0 auto', color: '#333' }}>
-      
-      {/* HEADER */}
-      <header style={{ borderBottom: '2px solid #eee', paddingBottom: '20px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ margin: 0, color: '#d35400' }}>👨‍🍳 Chef Match</h1>
+    <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px', backgroundColor: '#fdfdfd' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #eee', paddingBottom: '10px' }}>
+        <h1 style={{ color: '#d35400' }}>👨‍🍳 ChefMatch</h1>
         <div>
-          <span>Hola, <strong>{username}</strong> </span>
+          <span>Bienvenido, <strong>{username}</strong></span>
           <button onClick={() => keycloak.logout()} style={logoutBtnStyle}>Cerrar Sesión</button>
         </div>
       </header>
 
-      <main>
-        {/* SECCIÓN DE RECOMENDACIONES (REQ2) */}
-        <section style={recsBoxStyle}>
-          <h3 style={{ marginTop: 0 }}>✨ Recomendaciones Personalizadas (REQ2)</h3>
-          <p style={{ fontSize: '0.9rem', color: '#666' }}>Se actualizan automáticamente vía RabbitMQ:</p>
-          
-          <ul>
-            {recommendations.length > 0 ? (
-              recommendations.map((rec, i) => <li key={i} style={{ marginBottom: '5px', fontWeight: 'bold' }}>{rec}</li>)
-            ) : (
-              <li style={{ color: '#888' }}>Haz clic en un botón de abajo para empezar a recibir sugerencias.</li>
-            )}
-          </ul>
+      <main style={{ marginTop: '30px' }}>
+        <section>
+          <h3>¿Qué te apetece hoy?</h3>
+          <p>Selecciona una categoría para actualizar tus recomendaciones:</p>
+          <button onClick={() => updatePreferences('Italiana')} style={btnStyle}>Italiana 🍝</button>
+          <button onClick={() => updatePreferences('Mexicana')} style={btnStyle}>Mexicana 🌮</button>
+          <button onClick={() => updatePreferences('Vegana')} style={btnStyle}>Vegana 🥗</button>
+        </section>
 
-          <div style={{ marginTop: '15px' }}>
-            <span style={{ marginRight: '10px' }}>Simular cambio de gustos:</span>
-            <button onClick={() => updatePreferences('Comida Italiana')} style={btnStyle}>Italiana 🍝</button>
-            <button onClick={() => updatePreferences('Comida Vegana')} style={btnStyle}>Vegana 🥗</button>
-            <button onClick={() => updatePreferences('Comida Picante')} style={btnStyle}>Picante 🌶️</button>
+        <section style={{ marginTop: '40px' }}>
+          <h3>✨ Tus Recomendaciones Personalizadas</h3>
+          <div style={recsBoxStyle}>
+            {recommendations.length > 0 ? (
+              <ul>
+                {recommendations.map((rec, index) => <li key={index}>{rec}</li>)}
+              </ul>
+            ) : (
+              <p>Selecciona una categoría arriba para obtener recomendaciones.</p>
+            )}
           </div>
         </section>
 
-        {/* SECCIÓN DE RECETAS (REQ14) */}
-        <section>
-          <h3>Explorar Catálogo de Recetas</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-            {recipes.length > 0 ? (
-              recipes.map(recipe => (
-                <div key={recipe.id} style={cardStyle}>
-                  <h4 style={{ margin: '0 0 10px 0', color: '#2c3e50' }}>{recipe.name}</h4>
-                  <span style={tagStyle}>{recipe.category}</span>
-                  <p style={{ fontSize: '0.85rem', color: '#555', marginTop: '10px' }}>
-                    {recipe.description}
-                  </p>
-                </div>
-              ))
-            ) : (
-              <p>No se encontraron recetas en el catálogo.</p>
-            )}
+        <section style={{ marginTop: '40px' }}>
+          <h3>📖 Catálogo Global de Recetas</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px' }}>
+            {recipes.map(recipe => (
+              <div key={recipe.id} style={cardStyle}>
+                <h4 style={{ margin: '0 0 10px 0', color: '#2c3e50' }}>{recipe.name}</h4>
+                <span style={tagStyle}>{recipe.category}</span>
+                <p style={{ fontSize: '0.85rem', color: '#555', marginTop: '10px' }}>{recipe.description}</p>
+              </div>
+            ))}
           </div>
         </section>
       </main>
@@ -139,12 +129,12 @@ function App() {
   );
 }
 
-// Estilos
+// Estilos rápidos
 const centerStyle = { textAlign: 'center', marginTop: '50px', fontSize: '1.2rem' };
-const btnStyle = { marginRight: '10px', padding: '8px 12px', backgroundColor: '#fff', border: '1px solid #d35400', color: '#d35400', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' };
+const btnStyle = { marginRight: '10px', padding: '10px 15px', backgroundColor: '#fff', border: '1px solid #d35400', color: '#d35400', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' };
 const logoutBtnStyle = { marginLeft: '10px', padding: '5px 15px', cursor: 'pointer', borderRadius: '4px', border: '1px solid #ccc' };
 const recsBoxStyle = { backgroundColor: '#fff9f5', padding: '20px', borderRadius: '10px', marginBottom: '30px', border: '1px solid #ffeada' };
-const cardStyle = { border: '1px solid #eee', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', backgroundColor: '#fff' };
-const tagStyle = { backgroundColor: '#27ae60', color: 'white', padding: '3px 10px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 'bold', textTransform: 'uppercase' };
+const cardStyle = { border: '1px solid #eee', padding: '20px', borderRadius: '10px', backgroundColor: '#fff', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' };
+const tagStyle = { backgroundColor: '#e67e22', color: '#fff', padding: '3px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' };
 
 export default App;
