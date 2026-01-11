@@ -10,10 +10,10 @@ dotenv.config();
 
 const app = express();
 
-// --- 1. MIDDLEWARES (Configuración de máxima compatibilidad) ---
+// --- 1. MIDDLEWARES ---
 app.use(express.json());
 
-// CORS configurado para permitir todo y evitar bloqueos en el navegador
+// CORS ultra-permisivo para evitar bloqueos del navegador
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -45,16 +45,17 @@ async function connectRabbit() {
 }
 connectRabbit();
 
-// --- 4. CONFIGURACIÓN DE KEYCLOAK (Sincronizada con tu "iss") ---
+// --- 4. CONFIGURACIÓN DE KEYCLOAK ---
 const keycloakConfig = {
   realm: 'ChefMatchRealm',
   'auth-server-url': 'https://keycloak.ltu-m7011e-5.se',
   resource: 'user-service',
+  'clientId': 'user-service',
   'bearer-only': true,
   'credentials': {
     'secret': 'BMBPc41R99uSJXaC8V9MKefx0k14gKR3'
   },
-  'verify-token-audience': false, // Lo dejamos en false para evitar bloqueos estrictos
+  'verify-token-audience': false, 
   'ssl-required': 'none',
   'confidential-port': 0
 };
@@ -62,19 +63,20 @@ const keycloakConfig = {
 const keycloak = new Keycloak({ store: memoryStore }, keycloakConfig);
 app.use(keycloak.middleware());
 
-// --- 5. RUTAS ---
+// --- 5. RUTAS (Ajustadas con el prefijo /users para el Ingress) ---
 
-// Healthcheck para verificar si el Ingress llega al Pod
-app.get('/health', (req, res) => {
-  console.log('🔍 Healthcheck recibido');
+// Ahora https://ltu-m7011e-5.se/users/health funcionará
+app.get('/users/health', (req, res) => {
+  console.log('🔍 Healthcheck solicitado');
   res.status(200).json({ status: 'UP', service: 'user-service' });
 });
 
-// Ruta principal del botón "Italiana"
+// Ruta que recibe el botón "Italiana" del frontend
 app.post('/users/preferences', keycloak.protect(), async (req, res) => {
   try {
-    console.log('📩 --- NUEVA PETICIÓN RECIBIDA ---');
+    console.log('📩 --- NUEVA PETICIÓN RECIBIDA EN /users/preferences ---');
     
+    // Extraer datos
     const preferences = req.body.category || req.body.preferences;
     const userId = req.kauth.grant.access_token.content.sub;
 
@@ -82,8 +84,7 @@ app.post('/users/preferences', keycloak.protect(), async (req, res) => {
     console.log(`🍴 Preferencia: ${preferences}`);
 
     if (!preferences) {
-      console.warn('⚠️ Petición sin preferencias');
-      return res.status(400).json({ error: 'Faltan preferencias' });
+      return res.status(400).json({ error: 'Faltan preferencias en el body' });
     }
 
     const message = {
@@ -98,11 +99,11 @@ app.post('/users/preferences', keycloak.protect(), async (req, res) => {
       console.log('📢 Evento enviado a RabbitMQ con éxito');
       res.json({ message: 'Preferencias actualizadas correctamente', data: message });
     } else {
-      console.error('❌ RabbitMQ no disponible');
+      console.error('❌ Canal RabbitMQ no disponible');
       res.status(503).json({ error: 'RabbitMQ no disponible' });
     }
   } catch (err) {
-    console.error('🔥 Error interno:', err);
+    console.error('🔥 Error interno procesando preferencias:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
