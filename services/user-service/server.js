@@ -10,11 +10,17 @@ dotenv.config();
 
 const app = express();
 
-// --- 1. MIDDLEWARES ---
+// --- 1. MIDDLEWARES (Configuración de máxima compatibilidad) ---
 app.use(express.json());
-app.use(cors()); // Permite peticiones desde el dominio del frontend
 
-// --- 2. CONFIGURACIÓN DE SESIÓN (Requerida por Keycloak-Connect) ---
+// CORS configurado para permitir todo y evitar bloqueos en el navegador
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// --- 2. CONFIGURACIÓN DE SESIÓN ---
 const memoryStore = new session.MemoryStore();
 app.use(session({
   secret: process.env.SESSION_SECRET || 'secret_para_desarrollo',
@@ -39,18 +45,18 @@ async function connectRabbit() {
 }
 connectRabbit();
 
-// --- 4. CONFIGURACIÓN DE KEYCLOAK (Final y Sincronizada) ---
+// --- 4. CONFIGURACIÓN DE KEYCLOAK (Sincronizada con tu "iss") ---
 const keycloakConfig = {
-  'realm': 'ChefMatchRealm',
+  realm: 'ChefMatchRealm',
   'auth-server-url': 'https://keycloak.ltu-m7011e-5.se',
-  'resource': 'user-service',
-  'clientId': 'user-service',
+  resource: 'user-service',
   'bearer-only': true,
   'credentials': {
     'secret': 'BMBPc41R99uSJXaC8V9MKefx0k14gKR3'
   },
-  'verify-token-audience': true, // Ya confirmado que el token trae "aud": "user-service"
-  'ssl-required': 'none'
+  'verify-token-audience': false, // Lo dejamos en false para evitar bloqueos estrictos
+  'ssl-required': 'none',
+  'confidential-port': 0
 };
 
 const keycloak = new Keycloak({ store: memoryStore }, keycloakConfig);
@@ -58,22 +64,26 @@ app.use(keycloak.middleware());
 
 // --- 5. RUTAS ---
 
-// Healthcheck
+// Healthcheck para verificar si el Ingress llega al Pod
 app.get('/health', (req, res) => {
+  console.log('🔍 Healthcheck recibido');
   res.status(200).json({ status: 'UP', service: 'user-service' });
 });
 
-// Actualizar preferencias (Botón "Italiana")
+// Ruta principal del botón "Italiana"
 app.post('/users/preferences', keycloak.protect(), async (req, res) => {
   try {
+    console.log('📩 --- NUEVA PETICIÓN RECIBIDA ---');
+    
     const preferences = req.body.category || req.body.preferences;
     const userId = req.kauth.grant.access_token.content.sub;
 
-    console.log(`📩 Petición recibida del usuario: ${userId}`);
-    console.log(`🍴 Preferencia seleccionada: ${preferences}`);
+    console.log(`👤 Usuario ID: ${userId}`);
+    console.log(`🍴 Preferencia: ${preferences}`);
 
     if (!preferences) {
-      return res.status(400).json({ error: 'Faltan las preferencias en el body' });
+      console.warn('⚠️ Petición sin preferencias');
+      return res.status(400).json({ error: 'Faltan preferencias' });
     }
 
     const message = {
@@ -88,16 +98,16 @@ app.post('/users/preferences', keycloak.protect(), async (req, res) => {
       console.log('📢 Evento enviado a RabbitMQ con éxito');
       res.json({ message: 'Preferencias actualizadas correctamente', data: message });
     } else {
-      console.error('❌ Canal RabbitMQ no disponible');
-      res.status(503).json({ error: 'Servicio de mensajería no disponible' });
+      console.error('❌ RabbitMQ no disponible');
+      res.status(503).json({ error: 'RabbitMQ no disponible' });
     }
   } catch (err) {
-    console.error('🔥 Error procesando la petición:', err);
+    console.error('🔥 Error interno:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
-// --- 6. ARRANQUE DEL SERVIDOR ---
+// --- 6. ARRANQUE ---
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
   console.log(`🚀 User Service ejecutándose en puerto ${PORT}`);
