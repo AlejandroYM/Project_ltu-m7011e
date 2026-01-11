@@ -12,7 +12,7 @@ const app = express();
 
 // --- 1. MIDDLEWARES ---
 app.use(express.json());
-app.use(cors()); // Permite la comunicación desde el dominio del frontend
+app.use(cors()); // Permite peticiones desde el frontend
 
 // --- 2. CONFIGURACIÓN DE SESIÓN (Requerida por Keycloak-Connect) ---
 const memoryStore = new session.MemoryStore();
@@ -39,13 +39,16 @@ async function connectRabbit() {
 }
 connectRabbit();
 
-// --- 4. CONFIGURACIÓN DE KEYCLOAK ---
+// --- 4. CONFIGURACIÓN DE KEYCLOAK (Final y Sincronizada) ---
 const keycloakConfig = {
-  realm: process.env.KEYCLOAK_REALM || 'ChefMatchRealm',
-  'auth-server-url': process.env.KEYCLOAK_URL || 'https://keycloak.ltu-m7011e-5.se',
-  resource: 'frontend-client', // Sincronizado con tu Client ID de Keycloak para evitar 403
+  realm: 'ChefMatchRealm',
+  'auth-server-url': 'https://keycloak.ltu-m7011e-5.se',
+  resource: 'user-service',
   'bearer-only': true,
-  'verify-token-audience': false, // Ignora discrepancias menores de audiencia
+  'credentials': {
+    'secret': 'BMBPc41R99uSJXaC8V9MKefx0k14gKR3' // Tu Client Secret verificado
+  },
+  'verify-token-audience': false, // Ignora discrepancias de audiencia
   'ssl-required': 'none'
 };
 
@@ -54,7 +57,7 @@ app.use(keycloak.middleware());
 
 // --- 5. RUTAS ---
 
-// Healthcheck para Kubernetes
+// Healthcheck
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'UP', service: 'user-service' });
 });
@@ -63,13 +66,9 @@ app.get('/health', (req, res) => {
 app.post('/users/preferences', keycloak.protect(), async (req, res) => {
   try {
     const preferences = req.body.category || req.body.preferences;
-    
-    // Extraer datos del token
-    const tokenContent = req.kauth.grant.access_token.content;
-    const userId = tokenContent.sub;
+    const userId = req.kauth.grant.access_token.content.sub;
 
-    console.log(`📩 Petición recibida del usuario: ${userId}`);
-    console.log(`🍴 Preferencia: ${preferences}`);
+    console.log(`📩 Petición del usuario: ${userId} -> Preferencia: ${preferences}`);
 
     if (!preferences) {
       return res.status(400).json({ error: 'Faltan preferencias' });
@@ -79,7 +78,7 @@ app.post('/users/preferences', keycloak.protect(), async (req, res) => {
       userId: userId,
       newPreferences: preferences,
       action: 'PREFERENCES_UPDATED',
-      date: new Date()
+      date: new Date().toISOString()
     };
 
     if (channel) {
@@ -91,11 +90,11 @@ app.post('/users/preferences', keycloak.protect(), async (req, res) => {
     }
   } catch (err) {
     console.error('🔥 Error en el servidor:', err);
-    res.status(500).json({ error: 'Error interno' });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
-// --- 6. ARRANQUE DEL SERVIDOR ---
+// --- 6. ARRANQUE ---
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
   console.log(`🚀 User Service ejecutándose en puerto ${PORT}`);
