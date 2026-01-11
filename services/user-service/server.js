@@ -12,7 +12,7 @@ const app = express();
 
 // --- 1. MIDDLEWARES ---
 app.use(express.json());
-app.use(cors()); // Importante para evitar bloqueos del navegador
+app.use(cors()); // Permite la comunicación desde el dominio del frontend
 
 // --- 2. CONFIGURACIÓN DE SESIÓN (Requerida por Keycloak-Connect) ---
 const memoryStore = new session.MemoryStore();
@@ -39,13 +39,13 @@ async function connectRabbit() {
 }
 connectRabbit();
 
-// --- 4. CONFIGURACIÓN DE KEYCLOAK (Bearer-only para APIs) ---
+// --- 4. CONFIGURACIÓN DE KEYCLOAK ---
 const keycloakConfig = {
   realm: process.env.KEYCLOAK_REALM || 'ChefMatchRealm',
   'auth-server-url': process.env.KEYCLOAK_URL || 'https://keycloak.ltu-m7011e-5.se',
-  resource: 'user-service',
+  resource: 'frontend-client', // Sincronizado con tu Client ID de Keycloak para evitar 403
   'bearer-only': true,
-  'verify-token-audience': false, // SOLUCIÓN AL 403: Ignora discrepancias de audiencia
+  'verify-token-audience': false, // Ignora discrepancias menores de audiencia
   'ssl-required': 'none'
 };
 
@@ -64,15 +64,15 @@ app.post('/users/preferences', keycloak.protect(), async (req, res) => {
   try {
     const preferences = req.body.category || req.body.preferences;
     
-    // Extraer datos del token para debugging
+    // Extraer datos del token
     const tokenContent = req.kauth.grant.access_token.content;
     const userId = tokenContent.sub;
 
     console.log(`📩 Petición recibida del usuario: ${userId}`);
-    console.log(`🍴 Preferencia seleccionada: ${preferences}`);
+    console.log(`🍴 Preferencia: ${preferences}`);
 
     if (!preferences) {
-      return res.status(400).json({ error: 'Faltan las preferencias en el body' });
+      return res.status(400).json({ error: 'Faltan preferencias' });
     }
 
     const message = {
@@ -87,12 +87,11 @@ app.post('/users/preferences', keycloak.protect(), async (req, res) => {
       console.log('📢 Evento enviado a RabbitMQ con éxito');
       res.json({ message: 'Preferencias actualizadas correctamente', data: message });
     } else {
-      console.error('❌ Canal RabbitMQ no disponible');
-      res.status(503).json({ error: 'Servicio de mensajería no disponible' });
+      res.status(503).json({ error: 'RabbitMQ no disponible' });
     }
   } catch (err) {
-    console.error('🔥 Error procesando la petición:', err);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('🔥 Error en el servidor:', err);
+    res.status(500).json({ error: 'Error interno' });
   }
 });
 
