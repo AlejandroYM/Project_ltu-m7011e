@@ -13,17 +13,17 @@ const app = express();
 // --- 1. MIDDLEWARES ---
 app.use(express.json());
 
-// CORS ultra-permisivo para evitar bloqueos del navegador
+// CORS Configuración para producción en Kubernetes
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// --- 2. CONFIGURACIÓN DE SESIÓN ---
+// --- 2. CONFIGURACIÓN DE SESIÓN (Requerida por Keycloak) ---
 const memoryStore = new session.MemoryStore();
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'secret_para_desarrollo',
+  secret: 'alguna_clave_secreta_para_sesion',
   resave: false,
   saveUninitialized: true,
   store: memoryStore
@@ -40,7 +40,7 @@ async function connectRabbit() {
     console.log('✅ Conectado a RabbitMQ - Cola: user_updates');
   } catch (err) {
     console.error('❌ Error conectando a RabbitMQ:', err.message);
-    setTimeout(connectRabbit, 5000);
+    setTimeout(connectRabbit, 5000); // Reintentar si falla
   }
 }
 connectRabbit();
@@ -55,28 +55,28 @@ const keycloakConfig = {
   'credentials': {
     'secret': 'BMBPc41R99uSJXaC8V9MKefx0k14gKR3'
   },
-  'verify-token-audience': false, 
-  'ssl-required': 'none',
-  'confidential-port': 0
+  'verify-token-audience': false, // Desactivado para diagnóstico inicial
+  'ssl-required': 'none'
 };
 
 const keycloak = new Keycloak({ store: memoryStore }, keycloakConfig);
 app.use(keycloak.middleware());
 
-// --- 5. RUTAS (Ajustadas con el prefijo /users para el Ingress) ---
+// --- 5. DEFINICIÓN DEL ROUTER (Prefijo /users) ---
+const userRouter = express.Router();
 
-// Ahora https://ltu-m7011e-5.se/users/health funcionará
-app.get('/users/health', (req, res) => {
-  console.log('🔍 Healthcheck solicitado');
+// Healthcheck: Accesible en /users/health
+userRouter.get('/health', (req, res) => {
+  console.log('🔍 Healthcheck solicitado en /users/health');
   res.status(200).json({ status: 'UP', service: 'user-service' });
 });
 
-// Ruta que recibe el botón "Italiana" del frontend
-app.post('/users/preferences', keycloak.protect(), async (req, res) => {
+// Preferencias: Accesible en /users/preferences
+// keycloak.protect() validará el token antes de entrar aquí
+userRouter.post('/preferences', keycloak.protect(), async (req, res) => {
+  console.log('📩 --- NUEVA PETICIÓN RECIBIDA EN /users/preferences ---');
+  
   try {
-    console.log('📩 --- NUEVA PETICIÓN RECIBIDA EN /users/preferences ---');
-    
-    // Extraer datos
     const preferences = req.body.category || req.body.preferences;
     const userId = req.kauth.grant.access_token.content.sub;
 
@@ -84,7 +84,8 @@ app.post('/users/preferences', keycloak.protect(), async (req, res) => {
     console.log(`🍴 Preferencia: ${preferences}`);
 
     if (!preferences) {
-      return res.status(400).json({ error: 'Faltan preferencias en el body' });
+      console.warn('⚠️ No se enviaron preferencias en el body');
+      return res.status(400).json({ error: 'Faltan preferencias' });
     }
 
     const message = {
@@ -103,10 +104,13 @@ app.post('/users/preferences', keycloak.protect(), async (req, res) => {
       res.status(503).json({ error: 'RabbitMQ no disponible' });
     }
   } catch (err) {
-    console.error('🔥 Error interno procesando preferencias:', err);
+    console.error('🔥 Error interno en el microservicio:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
+
+// APLICAR EL ROUTER: Todas las rutas de userRouter empezarán por /users
+app.use('/users', userRouter);
 
 // --- 6. ARRANQUE ---
 const PORT = process.env.PORT || 8000;
