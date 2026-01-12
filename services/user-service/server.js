@@ -10,6 +10,10 @@ dotenv.config();
 
 const app = express();
 
+// --- 0. CONFIGURACIÓN PARA PROXY (INGRESS KUBERNETES) ---
+// Esto es lo que permite que Keycloak valide el token aunque pase por el Ingress
+app.set('trust proxy', true); 
+
 // --- 1. MIDDLEWARES ---
 app.use(express.json());
 
@@ -55,7 +59,7 @@ const keycloakConfig = {
   'credentials': {
     'secret': 'BMBPc41R99uSJXaC8V9MKefx0k14gKR3'
   },
-  'verify-token-audience': false, // Desactivado para diagnóstico inicial
+  'verify-token-audience': false, // Desactivado para evitar errores de validación estrictos
   'ssl-required': 'none'
 };
 
@@ -72,7 +76,6 @@ userRouter.get('/health', (req, res) => {
 });
 
 // Preferencias: Accesible en /users/preferences
-// keycloak.protect() validará el token antes de entrar aquí
 userRouter.post('/preferences', keycloak.protect(), async (req, res) => {
   console.log('📩 --- NUEVA PETICIÓN RECIBIDA EN /users/preferences ---');
   
@@ -109,7 +112,7 @@ userRouter.post('/preferences', keycloak.protect(), async (req, res) => {
   }
 });
 
-// APLICAR EL ROUTER: Todas las rutas de userRouter empezarán por /users
+// APLICAR EL ROUTER: Aquí es donde conectamos el prefijo /users
 app.use('/users', userRouter);
 
 // --- 6. ARRANQUE ---
