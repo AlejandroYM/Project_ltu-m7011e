@@ -1,3 +1,4 @@
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 const express = require('express');
 const Keycloak = require('keycloak-connect');
 const session = require('express-session');
@@ -59,6 +60,7 @@ const keycloakConfig = {
   'credentials': {
     'secret': 'BMBPc41R99uSJXaC8V9MKefx0k14gKR3'
   },
+  'policy-enforcer': {},
   'verify-token-audience': false, // Desactivado para evitar errores de validación estrictos
   'ssl-required': 'none'
 };
