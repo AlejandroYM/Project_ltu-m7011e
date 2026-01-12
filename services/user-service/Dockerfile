@@ -17,4 +17,4 @@ COPY . .
 EXPOSE 8000
 
 # Comando para arrancar el servicio
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "DEBUG=keycloak-connect:* node server.js"]
