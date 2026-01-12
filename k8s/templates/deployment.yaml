@@ -4,8 +4,18 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ $service.name }}
+  namespace: todo-app
+  labels:
+    app: {{ $service.name }}
 spec:
-  # ... selector y template ...
+  replicas: {{ $service.replicas | default 1 }}
+  selector:
+    matchLabels:
+      app: {{ $service.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $service.name }}
     spec:
       containers:
       - name: {{ $service.name }}
@@ -14,11 +24,12 @@ spec:
         - containerPort: {{ $service.targetPort | default 8000 }}
         env:
         - name: PORT
-          value: {{ $service.targetPort | quote }}
+          value: {{ $service.targetPort | default 8000 | quote }}
         - name: RABBITMQ_URL
           value: "amqp://rabbitmq-service:5672"
-        # --- AÑADE ESTA VARIABLE OBLIGATORIA ---
         - name: KEYCLOAK_URL
           value: "https://keycloak.ltu-m7011e-5.se"
-        # ---------------------------------------
+        - name: KEYCLOAK_REALM
+          value: "ChefMatchRealm"
+---
 {{- end }}
