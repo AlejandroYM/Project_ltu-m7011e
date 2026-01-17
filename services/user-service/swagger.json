@@ -1,0 +1,27 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "ChefMatch User Service API",
+    "version": "1.0.0"
+  },
+  "servers": [{ "url": "/users" }],
+  "paths": {
+    "/health": {
+      "get": {
+        "description": "Retorna el estado del servicio",
+        "responses": {
+          "200": { "description": "Servicio UP" }
+        }
+      }
+    },
+    "/preferences": {
+      "post": {
+        "description": "Actualiza preferencias",
+        "responses": {
+          "200": { "description": "OK" },
+          "403": { "description": "No autorizado" }
+        }
+      }
+    }
+  }
+}

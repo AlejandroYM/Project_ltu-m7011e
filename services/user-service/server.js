@@ -6,30 +6,61 @@ const amqplib = require('amqplib');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
-const swaggerJsdoc = require('swagger-jsdoc');
 
 dotenv.config();
 const app = express();
 
-// --- 1. CONFIGURACIÓN SWAGGER (REQ16) ---
-const swaggerOptions = {
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'ChefMatch User Service API',
-      version: '1.0.0',
-      description: 'API para la gestión de preferencias de usuario y comunicación con RabbitMQ',
-    },
-    servers: [{ url: '/users' }], // Importante para que las peticiones vayan al path correcto
+// --- 1. CONFIGURACIÓN SWAGGER (REQ16) - DEFINICIÓN DIRECTA PARA EVITAR ERRORES ---
+const swaggerDocument = {
+  openapi: '3.0.0',
+  info: {
+    title: 'ChefMatch User Service API',
+    version: '1.0.0',
+    description: 'API para la gestión de preferencias de usuario y comunicación con RabbitMQ',
   },
-  apis: ['./server.js'], 
+  servers: [{ url: '/users' }],
+  paths: {
+    '/health': {
+      get: {
+        summary: 'Estado del servicio',
+        responses: {
+          200: { description: 'Servicio funcionando correctamente' }
+        }
+      }
+    },
+    '/preferences': {
+      post: {
+        summary: 'Actualiza preferencias del usuario (Requiere JWT)',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  category: { type: 'string', example: 'Vegana' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: { description: 'Preferencia enviada a RabbitMQ' },
+          403: { description: 'No autorizado' }
+        }
+      }
+    }
+  }
 };
-const swaggerDocs = swaggerJsdoc(swaggerOptions);
 
 // --- 2. MIDDLEWARES ---
 app.set('trust proxy', true); 
 app.use(express.json());
-app.use(cors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }));
+app.use(cors({ 
+  origin: '*', 
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], 
+  allowedHeaders: ['Content-Type', 'Authorization'] 
+}));
 
 const memoryStore = new session.MemoryStore();
 app.use(session({ 
@@ -71,41 +102,11 @@ app.use(keycloak.middleware());
 
 const userRouter = express.Router();
 
-// --- 5. RUTAS Y DOCUMENTACIÓN (REQ14 & REQ16) ---
+// --- 5. RUTAS ---
 
-/**
- * @openapi
- * /health:
- * get:
- * description: Retorna el estado del servicio
- * responses:
- * 200:
- * description: Servicio funcionando correctamente
- */
 userRouter.get('/health', (req, res) => {
   res.status(200).json({ status: 'UP', service: 'user-service' });
 });
-
-/**
- * @openapi
- * /preferences:
- * post:
- * description: Actualiza las preferencias del usuario
- * requestBody:
- * required: true
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * category:
- * type: string
- * responses:
- * 200:
- * description: OK
- * 403:
- * description: No autorizado
- */
 
 userRouter.post('/preferences', keycloak.protect(), async (req, res) => {
   try {
@@ -131,9 +132,9 @@ userRouter.post('/preferences', keycloak.protect(), async (req, res) => {
   }
 });
 
-// --- 6. REGISTRO DE RUTAS ---
-// La ruta de Swagger debe ir ANTES que el router de /users
-app.use('/users/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+// --- 6. REGISTRO DE DOCUMENTACIÓN Y RUTAS ---
+// Al usar swaggerDocument directamente, eliminamos el riesgo de errores de YAML
+app.use('/users/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 app.use('/users', userRouter);
 
 // --- 7. ARRANQUE ---
