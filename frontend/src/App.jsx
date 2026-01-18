@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import Keycloak from 'keycloak-js';
-import './App.css'; // Asegúrate de que el CSS sea el nuevo que te pasé
+import toast, { Toaster } from 'react-hot-toast'; // Notificaciones modernas
+import './App.css';
 
 // Configuración de Keycloak
 const keycloak = new Keycloak({
@@ -18,7 +19,6 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Inicializar Keycloak
     keycloak.init({ 
       onLoad: 'login-required', 
       checkLoginIframe: false,
@@ -34,17 +34,16 @@ function App() {
       }
     }).catch((err) => {
       console.error("Fallo en la autenticación", err);
+      toast.error("Error al conectar con el servidor de identidad");
       setLoading(false);
     });
   }, []);
 
   const fetchData = async (userId) => {
     try {
-      // 1. Obtener Recetas
       const resRecipes = await axios.get('/recipes');
       setRecipes(resRecipes.data);
 
-      // 2. Obtener Recomendaciones
       const resRecs = await axios.get(`/recommendations/${userId}`, {
         headers: { Authorization: `Bearer ${keycloak.token}` }
       });
@@ -55,6 +54,7 @@ function App() {
   };
 
   const updatePreferences = async (newPref) => { 
+    const loadId = toast.loading(`Actualizando a cocina ${newPref}...`);
     try {
       await axios.post('/users/preferences', 
         { 
@@ -68,97 +68,113 @@ function App() {
           } 
         }
       );
-      alert(`¡Preferencia "${newPref}" guardada! Actualizando tus recomendaciones...`);
-      // Refrescamos datos tras un segundo para dar tiempo al bus de eventos
+      
+      toast.success(`¡Preferencias actualizadas! 👨‍🍳`, { id: loadId });
+      
+      // Refrescamos datos
       setTimeout(() => fetchData(keycloak.tokenParsed.sub), 1000);
     } catch (err) {
-      console.error("Error al comunicar con user-service", err);
-      alert("Error al actualizar preferencias.");
+      toast.error("No se pudo guardar la preferencia", { id: loadId });
     }
   };
 
   if (loading) {
     return (
       <div className="loader-container">
-        <h2 className="logo-text" style={{fontSize: '2rem'}}>👨‍🍳 ChefMatch</h2>
-        <p style={{marginTop: '10px'}}>Cargando tu cocina digital...</p>
+        <div className="logo-text" style={{fontSize: '3rem', marginBottom: '1rem'}}>👨‍🍳 ChefMatch</div>
+        <div className="spinner"></div>
+        <p style={{marginTop: '20px', letterSpacing: '2px', opacity: 0.7}}>PREPARANDO INGREDIENTES...</p>
       </div>
     );
   }
 
-  if (!authenticated) return <div className="loader-container">Redirigiendo al login...</div>;
+  if (!authenticated) return <div className="loader-container">Redirigiendo...</div>;
 
   return (
     <div className="app-container">
-      {/* HEADER SUPERIOR */}
+      {/* Componente que renderiza las notificaciones flotantes */}
+      <Toaster position="top-right" toastOptions={{
+        style: { background: '#1e293b', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }
+      }} />
+
       <header className="main-header">
-        <div className="logo-text">👨‍🍳 ChefMatch</div>
+        <div className="logo-text">ChefMatch</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <span>Bienvenido, <strong style={{color: '#f97316'}}>{username}</strong></span>
+          <div className="user-badge">
+            <span style={{ opacity: 0.7, fontSize: '0.8rem' }}>CHEF EJECUTIVO</span>
+            <span style={{ fontWeight: '800' }}>{username.toUpperCase()}</span>
+          </div>
           <button onClick={() => keycloak.logout()} className="logout-btn">
-            Cerrar Sesión
+            SALIR
           </button>
         </div>
       </header>
 
-      {/* CONTENIDO PRINCIPAL */}
       <main style={{ padding: '2rem 3rem', maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
         
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '3rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '2rem', marginBottom: '3rem' }}>
           
           {/* BLOQUE DE PREFERENCIAS */}
-          <section className="glass-panel">
-            <h3 style={{fontSize: '1.5rem', marginBottom: '0.5rem'}}>¿Qué cocinamos hoy?</h3>
-            <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>Selecciona una categoría para personalizar tu experiencia.</p>
-            <div className="category-grid">
-              <button onClick={() => updatePreferences('Italiana')} className="btn-modern">Italiana 🍝</button>
-              <button onClick={() => updatePreferences('Mexicana')} className="btn-modern">Mexicana 🌮</button>
-              <button onClick={() => updatePreferences('Vegana')} className="btn-modern">Vegana 🥗</button>
-              <button onClick={() => updatePreferences('Japonesa')} className="btn-modern">Japonesa 🍣</button>
+          <section className="glass-panel" style={{ position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'relative', zIndex: 2 }}>
+              <h3 style={{fontSize: '1.8rem', marginBottom: '0.5rem'}}>¿Qué te apetece hoy?</h3>
+              <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>Personaliza tu algoritmo de recomendaciones con un click.</p>
+              <div className="category-grid">
+                <button onClick={() => updatePreferences('Italiana')} className="btn-modern">Italiana 🍝</button>
+                <button onClick={() => updatePreferences('Mexicana')} className="btn-modern">Mexicana 🌮</button>
+                <button onClick={() => updatePreferences('Vegana')} className="btn-modern">Vegana 🥗</button>
+                <button onClick={() => updatePreferences('Japonesa')} className="btn-modern">Japonesa 🍣</button>
+              </div>
             </div>
           </section>
 
-          {/* BLOQUE DE RECOMENDACIONES */}
-          <section className="glass-panel" style={{ borderLeft: '4px solid #f97316' }}>
-            <h3 style={{ color: '#f97316', fontSize: '1.5rem', marginBottom: '1rem' }}>✨ Recomendaciones</h3>
-            <div style={{ marginTop: '0.5rem' }}>
+          {/* BLOQUE DE RECOMENDACIONES (EMPTY STATE MEJORADO) */}
+          <section className="glass-panel" style={{ borderTop: '4px solid #f97316' }}>
+            <h3 style={{ color: '#f97316', fontSize: '1.3rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span className="pulse-dot"></span> Sugerencias IA
+            </h3>
+            <div>
               {recommendations.length > 0 ? (
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {recommendations.map((rec, index) => (
-                    <div key={index} style={{ 
-                      background: 'rgba(249, 115, 22, 0.1)', 
-                      padding: '12px 20px', 
-                      borderRadius: '12px',
-                      border: '1px solid rgba(249, 115, 22, 0.2)',
-                      fontWeight: '500'
-                    }}>
-                      {rec}
+                    <div key={index} className="recommendation-chip">
+                       ✨ {rec}
                     </div>
                   ))}
                 </div>
               ) : (
-                <p style={{ color: '#64748b', fontStyle: 'italic' }}>
-                  Elige una categoría a la izquierda para ver qué te recomendamos.
-                </p>
+                <div style={{ textAlign: 'center', padding: '20px', opacity: 0.5 }}>
+                  <div style={{ fontSize: '3rem', marginBottom: '10px' }}>🥣</div>
+                  <p>Dinos qué categoría te gusta para empezar a sugerirte platos.</p>
+                </div>
               )}
             </div>
           </section>
         </div>
 
-        {/* CATÁLOGO GLOBAL */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '1.8rem' }}>📖 Catálogo de Recetas</h2>
-          <span style={{ color: '#64748b' }}>{recipes.length} recetas disponibles</span>
+        {/* CATÁLOGO GLOBAL CON IMÁGENES */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+          <h2 style={{ fontSize: '2rem', fontWeight: '800' }}>Explorar Recetas</h2>
+          <div className="status-tag">SISTEMA ONLINE</div>
         </div>
 
         <div className="recipe-grid">
-          {recipes.map(recipe => (
-            <div key={recipe.id} className="glass-panel recipe-card">
-              <span className="badge">{recipe.category}</span>
-              <h4 style={{ margin: '1rem 0 0.5rem 0', fontSize: '1.3rem', color: '#f8fafc' }}>{recipe.name}</h4>
-              <p style={{ fontSize: '0.95rem', color: '#94a3b8', lineHeight: '1.6' }}>
-                {recipe.description}
-              </p>
+          {recipes.map((recipe, index) => (
+            <div key={recipe.id || index} className="glass-panel recipe-card">
+              <div className="recipe-image-container">
+                <img 
+                  src={`https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80&sig=${index}`} 
+                  alt={recipe.name}
+                  className="recipe-img"
+                />
+                <span className="badge-floating">{recipe.category}</span>
+              </div>
+              <div style={{ padding: '1.2rem' }}>
+                <h4 style={{ fontSize: '1.4rem', marginBottom: '0.8rem', color: '#fff' }}>{recipe.name}</h4>
+                <p style={{ fontSize: '0.9rem', color: '#94a3b8', lineHeight: '1.6' }}>
+                  {recipe.description}
+                </p>
+              </div>
             </div>
           ))}
         </div>
