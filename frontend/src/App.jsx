@@ -92,7 +92,6 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* Componente que renderiza las notificaciones flotantes */}
       <Toaster position="top-right" toastOptions={{
         style: { background: '#1e293b', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }
       }} />
@@ -128,7 +127,7 @@ function App() {
             </div>
           </section>
 
-          {/* BLOQUE DE RECOMENDACIONES (EMPTY STATE MEJORADO) */}
+          {/* BLOQUE DE RECOMENDACIONES */}
           <section className="glass-panel" style={{ borderTop: '4px solid #f97316' }}>
             <h3 style={{ color: '#f97316', fontSize: '1.3rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span className="pulse-dot"></span> Sugerencias IA
@@ -152,7 +151,7 @@ function App() {
           </section>
         </div>
 
-        {/* CATÁLOGO GLOBAL CON IMÁGENES */}
+        {/* CATÁLOGO GLOBAL */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
           <h2 style={{ fontSize: '2rem', fontWeight: '800' }}>Explorar Recetas</h2>
           <div className="status-tag">SISTEMA ONLINE</div>
@@ -162,8 +161,11 @@ function App() {
           {recipes.map((recipe, index) => (
             <div key={recipe.id || index} className="glass-panel recipe-card">
               <div className="recipe-image-container">
+                {/* CAMBIO AQUÍ: Usamos loremflickr con la categoría dinámica. 
+                   Se añade index al final para que cada tarjeta pida una imagen distinta. 
+                */}
                 <img 
-                  src={`https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80&sig=${index}`} 
+                  src={`https://loremflickr.com/600/400/${recipe.category.toLowerCase()},food,dish/all?lock=${index}`} 
                   alt={recipe.name}
                   className="recipe-img"
                 />
