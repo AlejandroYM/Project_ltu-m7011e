@@ -17,6 +17,15 @@ function App() {
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // Mapeo manual de imágenes profesionales para evitar errores de APIs externas
+  const categoryImages = {
+    italiana: "https://images.unsplash.com/photo-1498579150354-977475b7ea0b?auto=format&fit=crop&w=800&q=80",
+    mexicana: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=800&q=80",
+    vegana:   "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&q=80",
+    japonesa: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?auto=format&fit=crop&w=800&q=80",
+    default:  "https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=800&q=80"
+  };
+
   useEffect(() => {
     keycloak.init({ 
       onLoad: 'login-required', 
@@ -141,17 +150,12 @@ function App() {
           {recipes.map((recipe, index) => (
             <div key={recipe.id || index} className="glass-panel recipe-card">
               <div className="recipe-image-container">
-                {/* USO DE UNSPLASH SOURCE CON PARÁMETROS DE CALIDAD:
-                  - 800x600: Mayor resolución.
-                  - gourmet,food,plated: Asegura estética profesional.
-                  - sig: Para que cada imagen sea única incluso en la misma categoría.
-                */}
-              <img 
-                src={`https://source.unsplash.com/800x600/?${recipe.category.toLowerCase()},food,plated,delicious&sig=${index}`} 
-                alt={recipe.name}
-                className="recipe-img"
-                loading="lazy"
-              />
+                <img 
+                  src={categoryImages[recipe.category.toLowerCase()] || categoryImages.default} 
+                  alt={recipe.name}
+                  className="recipe-img"
+                  loading="lazy"
+                />
                 <span className="badge-floating">{recipe.category}</span>
               </div>
               <div style={{ padding: '1.2rem' }}>
