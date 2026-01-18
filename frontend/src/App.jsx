@@ -146,11 +146,11 @@ function App() {
                   - gourmet,food,plated: Asegura estética profesional.
                   - sig: Para que cada imagen sea única incluso en la misma categoría.
                 */}
-              <img
-                src={`https://loremflickr.com/800/600/${recipe.category.toLowerCase()},food,dish,professional/all?lock=${index}`} 
+              <img 
+                src={`https://source.unsplash.com/800x600/?${recipe.category.toLowerCase()},food,plated,delicious&sig=${index}`} 
                 alt={recipe.name}
                 className="recipe-img"
-                onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?q=80&w=800&auto=format&fit=crop'; }}
+                loading="lazy"
               />
                 <span className="badge-floating">{recipe.category}</span>
               </div>
