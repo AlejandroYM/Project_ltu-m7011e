@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import Keycloak from 'keycloak-js';
+import './App.css'; // Asegúrate de que el CSS sea el nuevo que te pasé
 
-// Configuración de Keycloak (Asegúrate de que coincida con main.jsx)
+// Configuración de Keycloak
 const keycloak = new Keycloak({
   url: "https://keycloak.ltu-m7011e-5.se", 
   realm: "ChefMatchRealm",
@@ -39,11 +40,11 @@ function App() {
 
   const fetchData = async (userId) => {
     try {
-      // 1. Obtener Recetas (Ruta relativa -> Ingress -> Recipe Service:8000)
+      // 1. Obtener Recetas
       const resRecipes = await axios.get('/recipes');
       setRecipes(resRecipes.data);
 
-      // 2. Obtener Recomendaciones (Ruta relativa -> Ingress -> Recommendation Service:8000)
+      // 2. Obtener Recomendaciones
       const resRecs = await axios.get(`/recommendations/${userId}`, {
         headers: { Authorization: `Bearer ${keycloak.token}` }
       });
@@ -54,87 +55,116 @@ function App() {
   };
 
   const updatePreferences = async (newPref) => { 
-  try {
-    // Usamos ruta relativa para que pase por el Ingress
-    await axios.post('/users/preferences', 
-      { 
-        userId: keycloak.tokenParsed.sub,
-        category: newPref // Cambia 'preferences' por 'category' para que el backend lo entienda
-      },
-      { 
-        headers: { 
-          Authorization: `Bearer ${keycloak.token}`,
-          'Content-Type': 'application/json'
-        } 
-      }
-    );
-    alert(`Preferencia "${newPref}" actualizada con éxito.`);
-    // Refrescamos datos tras el envío
-    setTimeout(() => fetchData(keycloak.tokenParsed.sub), 1500);
-  } catch (err) {
-    console.error("Error al comunicar con user-service", err);
-    alert("Error al actualizar preferencias. Revisa la consola.");
-  }
-};
+    try {
+      await axios.post('/users/preferences', 
+        { 
+          userId: keycloak.tokenParsed.sub,
+          category: newPref 
+        },
+        { 
+          headers: { 
+            Authorization: `Bearer ${keycloak.token}`,
+            'Content-Type': 'application/json'
+          } 
+        }
+      );
+      alert(`¡Preferencia "${newPref}" guardada! Actualizando tus recomendaciones...`);
+      // Refrescamos datos tras un segundo para dar tiempo al bus de eventos
+      setTimeout(() => fetchData(keycloak.tokenParsed.sub), 1000);
+    } catch (err) {
+      console.error("Error al comunicar con user-service", err);
+      alert("Error al actualizar preferencias.");
+    }
+  };
 
-  if (loading) return <div style={centerStyle}>Cargando ChefMatch...</div>;
-  if (!authenticated) return <div style={centerStyle}>Redirigiendo al login...</div>;
+  if (loading) {
+    return (
+      <div className="loader-container">
+        <h2 className="logo-text" style={{fontSize: '2rem'}}>👨‍🍳 ChefMatch</h2>
+        <p style={{marginTop: '10px'}}>Cargando tu cocina digital...</p>
+      </div>
+    );
+  }
+
+  if (!authenticated) return <div className="loader-container">Redirigiendo al login...</div>;
 
   return (
-    <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px', backgroundColor: '#fdfdfd' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #eee', paddingBottom: '10px' }}>
-        <h1 style={{ color: '#d35400' }}>👨‍🍳 ChefMatch</h1>
-        <div>
-          <span>Bienvenido, <strong>{username}</strong></span>
-          <button onClick={() => keycloak.logout()} style={logoutBtnStyle}>Cerrar Sesión</button>
+    <div className="app-container">
+      {/* HEADER SUPERIOR */}
+      <header className="main-header">
+        <div className="logo-text">👨‍🍳 ChefMatch</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <span>Bienvenido, <strong style={{color: '#f97316'}}>{username}</strong></span>
+          <button onClick={() => keycloak.logout()} className="logout-btn">
+            Cerrar Sesión
+          </button>
         </div>
       </header>
 
-      <main style={{ marginTop: '30px' }}>
-        <section>
-          <h3>¿Qué te apetece hoy?</h3>
-          <p>Selecciona una categoría para actualizar tus recomendaciones:</p>
-          <button onClick={() => updatePreferences('Italiana')} style={btnStyle}>Italiana 🍝</button>
-          <button onClick={() => updatePreferences('Mexicana')} style={btnStyle}>Mexicana 🌮</button>
-          <button onClick={() => updatePreferences('Vegana')} style={btnStyle}>Vegana 🥗</button>
-        </section>
+      {/* CONTENIDO PRINCIPAL */}
+      <main style={{ padding: '2rem 3rem', maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '3rem' }}>
+          
+          {/* BLOQUE DE PREFERENCIAS */}
+          <section className="glass-panel">
+            <h3 style={{fontSize: '1.5rem', marginBottom: '0.5rem'}}>¿Qué cocinamos hoy?</h3>
+            <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>Selecciona una categoría para personalizar tu experiencia.</p>
+            <div className="category-grid">
+              <button onClick={() => updatePreferences('Italiana')} className="btn-modern">Italiana 🍝</button>
+              <button onClick={() => updatePreferences('Mexicana')} className="btn-modern">Mexicana 🌮</button>
+              <button onClick={() => updatePreferences('Vegana')} className="btn-modern">Vegana 🥗</button>
+              <button onClick={() => updatePreferences('Japonesa')} className="btn-modern">Japonesa 🍣</button>
+            </div>
+          </section>
 
-        <section style={{ marginTop: '40px' }}>
-          <h3>✨ Tus Recomendaciones Personalizadas</h3>
-          <div style={recsBoxStyle}>
-            {recommendations.length > 0 ? (
-              <ul>
-                {recommendations.map((rec, index) => <li key={index}>{rec}</li>)}
-              </ul>
-            ) : (
-              <p>Selecciona una categoría arriba para obtener recomendaciones.</p>
-            )}
-          </div>
-        </section>
+          {/* BLOQUE DE RECOMENDACIONES */}
+          <section className="glass-panel" style={{ borderLeft: '4px solid #f97316' }}>
+            <h3 style={{ color: '#f97316', fontSize: '1.5rem', marginBottom: '1rem' }}>✨ Recomendaciones</h3>
+            <div style={{ marginTop: '0.5rem' }}>
+              {recommendations.length > 0 ? (
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  {recommendations.map((rec, index) => (
+                    <div key={index} style={{ 
+                      background: 'rgba(249, 115, 22, 0.1)', 
+                      padding: '12px 20px', 
+                      borderRadius: '12px',
+                      border: '1px solid rgba(249, 115, 22, 0.2)',
+                      fontWeight: '500'
+                    }}>
+                      {rec}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ color: '#64748b', fontStyle: 'italic' }}>
+                  Elige una categoría a la izquierda para ver qué te recomendamos.
+                </p>
+              )}
+            </div>
+          </section>
+        </div>
 
-        <section style={{ marginTop: '40px' }}>
-          <h3>📖 Catálogo Global de Recetas</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px' }}>
-            {recipes.map(recipe => (
-              <div key={recipe.id} style={cardStyle}>
-                <h4 style={{ margin: '0 0 10px 0', color: '#2c3e50' }}>{recipe.name}</h4>
-                <span style={tagStyle}>{recipe.category}</span>
-                <p style={{ fontSize: '0.85rem', color: '#555', marginTop: '10px' }}>{recipe.description}</p>
-              </div>
-            ))}
-          </div>
-        </section>
+        {/* CATÁLOGO GLOBAL */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: '1.8rem' }}>📖 Catálogo de Recetas</h2>
+          <span style={{ color: '#64748b' }}>{recipes.length} recetas disponibles</span>
+        </div>
+
+        <div className="recipe-grid">
+          {recipes.map(recipe => (
+            <div key={recipe.id} className="glass-panel recipe-card">
+              <span className="badge">{recipe.category}</span>
+              <h4 style={{ margin: '1rem 0 0.5rem 0', fontSize: '1.3rem', color: '#f8fafc' }}>{recipe.name}</h4>
+              <p style={{ fontSize: '0.95rem', color: '#94a3b8', lineHeight: '1.6' }}>
+                {recipe.description}
+              </p>
+            </div>
+          ))}
+        </div>
       </main>
     </div>
   );
 }
-
-// Estilos rápidos
-const centerStyle = { textAlign: 'center', marginTop: '50px', fontSize: '1.2rem' };
-const btnStyle = { marginRight: '10px', padding: '10px 15px', backgroundColor: '#fff', border: '1px solid #d35400', color: '#d35400', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' };
-const logoutBtnStyle = { marginLeft: '10px', padding: '5px 15px', cursor: 'pointer', borderRadius: '4px', border: '1px solid #ccc' };
-const recsBoxStyle = { backgroundColor: '#fff9f5', padding: '20px', borderRadius: '10px', marginBottom: '30px', border: '1px solid #ffeada' };
-const cardStyle = { border: '1px solid #eee', padding: '20px', borderRadius: '10px', backgroundColor: '#fff', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' };
-const tagStyle = { backgroundColor: '#e67e22', color: '#fff', padding: '3px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' };
 
 export default App;
