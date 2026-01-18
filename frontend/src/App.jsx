@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import Keycloak from 'keycloak-js';
-import toast, { Toaster } from 'react-hot-toast'; // Notificaciones modernas
+import toast, { Toaster } from 'react-hot-toast'; 
 import './App.css';
 
-// Configuración de Keycloak
 const keycloak = new Keycloak({
   url: "https://keycloak.ltu-m7011e-5.se", 
   realm: "ChefMatchRealm",
@@ -57,21 +56,10 @@ function App() {
     const loadId = toast.loading(`Actualizando a cocina ${newPref}...`);
     try {
       await axios.post('/users/preferences', 
-        { 
-          userId: keycloak.tokenParsed.sub,
-          category: newPref 
-        },
-        { 
-          headers: { 
-            Authorization: `Bearer ${keycloak.token}`,
-            'Content-Type': 'application/json'
-          } 
-        }
+        { userId: keycloak.tokenParsed.sub, category: newPref },
+        { headers: { Authorization: `Bearer ${keycloak.token}`, 'Content-Type': 'application/json' } }
       );
-      
       toast.success(`¡Preferencias actualizadas! 👨‍🍳`, { id: loadId });
-      
-      // Refrescamos datos
       setTimeout(() => fetchData(keycloak.tokenParsed.sub), 1000);
     } catch (err) {
       toast.error("No se pudo guardar la preferencia", { id: loadId });
@@ -103,17 +91,13 @@ function App() {
             <span style={{ opacity: 0.7, fontSize: '0.8rem' }}>CHEF EJECUTIVO</span>
             <span style={{ fontWeight: '800' }}>{username.toUpperCase()}</span>
           </div>
-          <button onClick={() => keycloak.logout()} className="logout-btn">
-            SALIR
-          </button>
+          <button onClick={() => keycloak.logout()} className="logout-btn">SALIR</button>
         </div>
       </header>
 
       <main style={{ padding: '2rem 3rem', maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
-        
         <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '2rem', marginBottom: '3rem' }}>
           
-          {/* BLOQUE DE PREFERENCIAS */}
           <section className="glass-panel" style={{ position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'relative', zIndex: 2 }}>
               <h3 style={{fontSize: '1.8rem', marginBottom: '0.5rem'}}>¿Qué te apetece hoy?</h3>
@@ -127,7 +111,6 @@ function App() {
             </div>
           </section>
 
-          {/* BLOQUE DE RECOMENDACIONES */}
           <section className="glass-panel" style={{ borderTop: '4px solid #f97316' }}>
             <h3 style={{ color: '#f97316', fontSize: '1.3rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span className="pulse-dot"></span> Sugerencias IA
@@ -136,9 +119,7 @@ function App() {
               {recommendations.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {recommendations.map((rec, index) => (
-                    <div key={index} className="recommendation-chip">
-                       ✨ {rec}
-                    </div>
+                    <div key={index} className="recommendation-chip">✨ {rec}</div>
                   ))}
                 </div>
               ) : (
@@ -151,7 +132,6 @@ function App() {
           </section>
         </div>
 
-        {/* CATÁLOGO GLOBAL */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
           <h2 style={{ fontSize: '2rem', fontWeight: '800' }}>Explorar Recetas</h2>
           <div className="status-tag">SISTEMA ONLINE</div>
@@ -161,11 +141,13 @@ function App() {
           {recipes.map((recipe, index) => (
             <div key={recipe.id || index} className="glass-panel recipe-card">
               <div className="recipe-image-container">
-                {/* CAMBIO AQUÍ: Usamos loremflickr con la categoría dinámica. 
-                   Se añade index al final para que cada tarjeta pida una imagen distinta. 
+                {/* USO DE UNSPLASH SOURCE CON PARÁMETROS DE CALIDAD:
+                  - 800x600: Mayor resolución.
+                  - gourmet,food,plated: Asegura estética profesional.
+                  - sig: Para que cada imagen sea única incluso en la misma categoría.
                 */}
                 <img 
-                  src={`https://loremflickr.com/600/400/${recipe.category.toLowerCase()},food,dish/all?lock=${index}`} 
+                  src={`https://source.unsplash.com/featured/800x600?${recipe.category.toLowerCase()},gourmet,food,plated&sig=${index}`} 
                   alt={recipe.name}
                   className="recipe-img"
                 />
@@ -173,9 +155,7 @@ function App() {
               </div>
               <div style={{ padding: '1.2rem' }}>
                 <h4 style={{ fontSize: '1.4rem', marginBottom: '0.8rem', color: '#fff' }}>{recipe.name}</h4>
-                <p style={{ fontSize: '0.9rem', color: '#94a3b8', lineHeight: '1.6' }}>
-                  {recipe.description}
-                </p>
+                <p style={{ fontSize: '0.9rem', color: '#94a3b8', lineHeight: '1.6' }}>{recipe.description}</p>
               </div>
             </div>
           ))}
