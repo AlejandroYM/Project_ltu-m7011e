@@ -13,11 +13,13 @@ const keycloak = new Keycloak({
 function App() {
   const [authenticated, setAuthenticated] = useState(false); 
   const [recipes, setRecipes] = useState([]);
+  const [filteredRecipes, setFilteredRecipes] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showModal, setShowModal] = useState(false);
 
-  // Mapeo manual de imágenes profesionales para evitar errores de APIs externas
   const categoryImages = {
     italiana: "https://images.unsplash.com/photo-1498579150354-977475b7ea0b?auto=format&fit=crop&w=800&q=80",
     mexicana: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=800&q=80",
@@ -37,12 +39,9 @@ function App() {
       if (auth) {
         setUsername(keycloak.tokenParsed.preferred_username || "Chef");
         fetchData(keycloak.tokenParsed.sub).finally(() => setLoading(false));
-      } else {
-        setLoading(false);
       }
-    }).catch((err) => {
-      console.error("Fallo en la autenticación", err);
-      toast.error("Error al conectar con el servidor de identidad");
+    }).catch(() => {
+      toast.error("Error de autenticación");
       setLoading(false);
     });
   }, []);
@@ -51,53 +50,85 @@ function App() {
     try {
       const resRecipes = await axios.get('/recipes');
       setRecipes(resRecipes.data);
+      setFilteredRecipes(resRecipes.data);
 
       const resRecs = await axios.get(`/recommendations/${userId}`, {
         headers: { Authorization: `Bearer ${keycloak.token}` }
       });
       setRecommendations(resRecs.data);
     } catch (err) {
-      console.error("Error cargando datos:", err);
+      console.error("Error al cargar datos:", err);
     }
   };
 
+  // REQ 5: Búsqueda y Filtrado
+  const handleSearch = (e) => {
+    const term = e.target.value.toLowerCase();
+    setSearchTerm(term);
+    const filtered = recipes.filter(r => 
+      r.name.toLowerCase().includes(term) || 
+      r.category.toLowerCase().includes(term)
+    );
+    setFilteredRecipes(filtered);
+  };
+
+  // REQ 1: Actualizar Perfil/Preferencias
   const updatePreferences = async (newPref) => { 
-    const loadId = toast.loading(`Actualizando a cocina ${newPref}...`);
+    const loadId = toast.loading(`Guardando preferencia: ${newPref}...`);
     try {
       await axios.post('/users/preferences', 
         { userId: keycloak.tokenParsed.sub, category: newPref },
         { headers: { Authorization: `Bearer ${keycloak.token}`, 'Content-Type': 'application/json' } }
       );
-      toast.success(`¡Preferencias actualizadas! 👨‍🍳`, { id: loadId });
+      toast.success(`Preferencias de perfil actualizadas`, { id: loadId });
       setTimeout(() => fetchData(keycloak.tokenParsed.sub), 1000);
     } catch (err) {
-      toast.error("No se pudo guardar la preferencia", { id: loadId });
+      toast.error("Error al actualizar perfil", { id: loadId });
     }
   };
 
-  if (loading) {
-    return (
-      <div className="loader-container">
-        <div className="logo-text" style={{fontSize: '3rem', marginBottom: '1rem'}}>👨‍🍳 ChefMatch</div>
-        <div className="spinner"></div>
-        <p style={{marginTop: '20px', letterSpacing: '2px', opacity: 0.7}}>PREPARANDO INGREDIENTES...</p>
-      </div>
-    );
-  }
+  // REQ 2: Crear nueva receta (Gestión)
+  const handleCreateRecipe = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const payload = {
+      name: formData.get('name'),
+      category: formData.get('category'),
+      description: formData.get('description')
+    };
+    try {
+      await axios.post('/recipes', payload);
+      toast.success("¡Receta añadida con éxito!");
+      setShowModal(false);
+      fetchData(keycloak.tokenParsed.sub);
+    } catch (err) {
+      toast.error("No se pudo publicar la receta");
+    }
+  };
 
-  if (!authenticated) return <div className="loader-container">Redirigiendo...</div>;
+  if (loading) return <div className="loader-container"><div className="spinner"></div></div>;
 
   return (
     <div className="app-container">
-      <Toaster position="top-right" toastOptions={{
-        style: { background: '#1e293b', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }
-      }} />
+      <Toaster position="top-right" />
 
       <header className="main-header">
         <div className="logo-text">ChefMatch</div>
+        
+        {/* Barra de búsqueda integrada */}
+        <div className="header-search">
+          <input 
+            type="text" 
+            placeholder="Buscar recetas, ingredientes o dietas..." 
+            value={searchTerm}
+            onChange={handleSearch}
+            className="modern-search-input"
+          />
+        </div>
+
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div className="user-badge">
-            <span style={{ opacity: 0.7, fontSize: '0.8rem' }}>CHEF EJECUTIVO</span>
+            <span style={{ opacity: 0.7, fontSize: '0.75rem' }}>STUDENT PROFILE</span>
             <span style={{ fontWeight: '800' }}>{username.toUpperCase()}</span>
           </div>
           <button onClick={() => keycloak.logout()} className="logout-btn">SALIR</button>
@@ -107,65 +138,79 @@ function App() {
       <main style={{ padding: '2rem 3rem', maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '2rem', marginBottom: '3rem' }}>
           
-          <section className="glass-panel" style={{ position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'relative', zIndex: 2 }}>
-              <h3 style={{fontSize: '1.8rem', marginBottom: '0.5rem'}}>¿Qué te apetece hoy?</h3>
-              <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>Personaliza tu algoritmo de recomendaciones con un click.</p>
-              <div className="category-grid">
-                <button onClick={() => updatePreferences('Italiana')} className="btn-modern">Italiana 🍝</button>
-                <button onClick={() => updatePreferences('Mexicana')} className="btn-modern">Mexicana 🌮</button>
-                <button onClick={() => updatePreferences('Vegana')} className="btn-modern">Vegana 🥗</button>
-                <button onClick={() => updatePreferences('Japonesa')} className="btn-modern">Japonesa 🍣</button>
-              </div>
+          <section className="glass-panel">
+            <h3>Gestión de Perfil</h3>
+            <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>Marca tus preferencias para mejorar las recomendaciones.</p>
+            <div className="category-grid">
+              {['Italiana', 'Mexicana', 'Vegana', 'Japonesa'].map(cat => (
+                <button key={cat} onClick={() => updatePreferences(cat)} className="btn-modern">
+                  {cat}
+                </button>
+              ))}
             </div>
           </section>
 
           <section className="glass-panel" style={{ borderTop: '4px solid #f97316' }}>
-            <h3 style={{ color: '#f97316', fontSize: '1.3rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span className="pulse-dot"></span> Sugerencias IA
+            <h3 style={{ color: '#f97316', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span className="pulse-dot"></span> Recomendaciones IA
             </h3>
-            <div>
+            <div style={{ marginTop: '1rem' }}>
               {recommendations.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {recommendations.map((rec, index) => (
-                    <div key={index} className="recommendation-chip">✨ {rec}</div>
-                  ))}
-                </div>
+                recommendations.map((rec, i) => <div key={i} className="recommendation-chip">✨ {rec}</div>)
               ) : (
-                <div style={{ textAlign: 'center', padding: '20px', opacity: 0.5 }}>
-                  <div style={{ fontSize: '3rem', marginBottom: '10px' }}>🥣</div>
-                  <p>Dinos qué categoría te gusta para empezar a sugerirte platos.</p>
-                </div>
+                <p style={{ opacity: 0.5 }}>Dinos qué te gusta para generar sugerencias.</p>
               )}
             </div>
           </section>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <h2 style={{ fontSize: '2rem', fontWeight: '800' }}>Explorar Recetas</h2>
-          <div className="status-tag">SISTEMA ONLINE</div>
+          <h2 style={{ fontSize: '2rem', fontWeight: '800' }}>Catálogo Explorar</h2>
+          <button onClick={() => setShowModal(true)} className="btn-create">+ Nueva Receta</button>
         </div>
 
         <div className="recipe-grid">
-          {recipes.map((recipe, index) => (
+          {filteredRecipes.map((recipe, index) => (
             <div key={recipe.id || index} className="glass-panel recipe-card">
               <div className="recipe-image-container">
                 <img 
                   src={categoryImages[recipe.category.toLowerCase()] || categoryImages.default} 
                   alt={recipe.name}
                   className="recipe-img"
-                  loading="lazy"
                 />
                 <span className="badge-floating">{recipe.category}</span>
               </div>
               <div style={{ padding: '1.2rem' }}>
                 <h4 style={{ fontSize: '1.4rem', marginBottom: '0.8rem', color: '#fff' }}>{recipe.name}</h4>
-                <p style={{ fontSize: '0.9rem', color: '#94a3b8', lineHeight: '1.6' }}>{recipe.description}</p>
+                <p style={{ fontSize: '0.9rem', color: '#94a3b8', lineHeight: '1.5' }}>{recipe.description}</p>
               </div>
             </div>
           ))}
         </div>
       </main>
+
+      {/* Modal para Crear Receta (CRUD REQ 2) */}
+      {showModal && (
+        <div className="modal-overlay">
+          <div className="glass-panel modal-box">
+            <h3 style={{marginBottom: '1rem'}}>Publicar Nueva Receta</h3>
+            <form onSubmit={handleCreateRecipe}>
+              <input name="name" placeholder="Título de la receta" required className="form-input" />
+              <select name="category" className="form-input">
+                <option value="Italiana">Italiana</option>
+                <option value="Mexicana">Mexicana</option>
+                <option value="Vegana">Vegana</option>
+                <option value="Japonesa">Japonesa</option>
+              </select>
+              <textarea name="description" placeholder="Ingredientes y pasos..." required className="form-input" rows="4" />
+              <div style={{display: 'flex', gap: '10px'}}>
+                <button type="submit" className="btn-modern" style={{background: '#f97316'}}>Publicar</button>
+                <button type="button" onClick={() => setShowModal(false)} className="btn-modern">Cerrar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
