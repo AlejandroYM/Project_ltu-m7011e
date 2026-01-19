@@ -61,17 +61,24 @@ function App() {
     }
   };
 
-  // 1. FUNCIÓN PARA VER DETALLES (REQ 2)
+  // Función para ver detalles corregida
   const viewRecipeDetail = (recipe) => {
-    toast(`${recipe.description}`, {
-      duration: 8000,
+    if (!recipe.description) {
+      toast.error("Esta receta no tiene una descripción detallada.");
+      return;
+    }
+
+    toast(recipe.description, {
+      duration: 10000,
       icon: '👨‍🍳',
       style: {
         borderRadius: '15px',
         background: '#1e293b',
         color: '#fff',
         border: '1px solid #f97316',
-        minWidth: '300px'
+        padding: '20px',
+        fontSize: '15px',
+        maxWidth: '450px'
       }
     });
   };
@@ -80,8 +87,8 @@ function App() {
     const term = e.target.value.toLowerCase();
     setSearchTerm(term);
     const filtered = recipes.filter(r => 
-      r.name.toLowerCase().includes(term) || 
-      r.category.toLowerCase().includes(term)
+      (r.name && r.name.toLowerCase().includes(term)) || 
+      (r.category && r.category.toLowerCase().includes(term))
     );
     setFilteredRecipes(filtered);
   };
@@ -94,14 +101,12 @@ function App() {
         { headers: { Authorization: `Bearer ${keycloak.token}`, 'Content-Type': 'application/json' } }
       );
       toast.success(`Preferencias actualizadas`, { id: loadId });
-      // Damos 2 segundos para que la IA procese antes de pedir datos nuevos
       setTimeout(() => fetchData(keycloak.tokenParsed.sub), 2000);
     } catch (err) {
       toast.error("Error al actualizar perfil", { id: loadId });
     }
   };
 
-  // SOLUCIÓN AL ERROR DE PUBLICACIÓN (Añadido el Token)
   const handleCreateRecipe = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -112,13 +117,16 @@ function App() {
     };
     try {
       await axios.post('/recipes', payload, {
-        headers: { Authorization: `Bearer ${keycloak.token}` }
+        headers: { 
+          Authorization: `Bearer ${keycloak.token}`,
+          'Content-Type': 'application/json'
+        }
       });
       toast.success("¡Receta publicada!");
       setShowModal(false);
       fetchData(keycloak.tokenParsed.sub);
     } catch (err) {
-      toast.error("Error: Revisa la conexión con el servidor");
+      toast.error("Error al publicar. Verifica tu conexión.");
     }
   };
 
@@ -181,7 +189,7 @@ function App() {
             <div key={recipe.id || index} className="glass-panel recipe-card">
               <div className="recipe-image-container">
                 <img 
-                  src={categoryImages[recipe.category.toLowerCase()] || categoryImages.default} 
+                  src={categoryImages[recipe.category?.toLowerCase()] || categoryImages.default} 
                   alt={recipe.name}
                   className="recipe-img"
                 />
@@ -189,11 +197,17 @@ function App() {
               </div>
               <div style={{ padding: '1.2rem' }}>
                 <h4 style={{ fontSize: '1.4rem', color: '#fff' }}>{recipe.name}</h4>
-                <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '10px 0' }}>
-                  {recipe.description.substring(0, 50)}...
+                <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '10px 0', lineHeight: '1.4' }}>
+                  {recipe.description 
+                    ? (recipe.description.length > 60 ? recipe.description.substring(0, 60) + "..." : recipe.description)
+                    : "Haz clic abajo para ver los detalles de esta preparación."
+                  }
                 </p>
-                {/* 2. EL BOTÓN DENTRO DE LA TARJETA */}
-                <button onClick={() => viewRecipeDetail(recipe)} className="btn-create" style={{padding: '8px 15px', fontSize:'0.75rem'}}>
+                <button 
+                  onClick={() => viewRecipeDetail(recipe)} 
+                  className="btn-create" 
+                  style={{padding: '8px 15px', fontSize:'0.75rem', marginTop: '5px'}}
+                >
                   Ver Receta Completa
                 </button>
               </div>
