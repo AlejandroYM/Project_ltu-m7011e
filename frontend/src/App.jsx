@@ -61,7 +61,21 @@ function App() {
     }
   };
 
-  // REQ 5: Búsqueda y Filtrado
+  // 1. FUNCIÓN PARA VER DETALLES (REQ 2)
+  const viewRecipeDetail = (recipe) => {
+    toast(`${recipe.description}`, {
+      duration: 8000,
+      icon: '👨‍🍳',
+      style: {
+        borderRadius: '15px',
+        background: '#1e293b',
+        color: '#fff',
+        border: '1px solid #f97316',
+        minWidth: '300px'
+      }
+    });
+  };
+
   const handleSearch = (e) => {
     const term = e.target.value.toLowerCase();
     setSearchTerm(term);
@@ -72,22 +86,22 @@ function App() {
     setFilteredRecipes(filtered);
   };
 
-  // REQ 1: Actualizar Perfil/Preferencias
   const updatePreferences = async (newPref) => { 
-    const loadId = toast.loading(`Guardando preferencia: ${newPref}...`);
+    const loadId = toast.loading(`Guardando preferencia...`);
     try {
       await axios.post('/users/preferences', 
         { userId: keycloak.tokenParsed.sub, category: newPref },
         { headers: { Authorization: `Bearer ${keycloak.token}`, 'Content-Type': 'application/json' } }
       );
-      toast.success(`Preferencias de perfil actualizadas`, { id: loadId });
-      setTimeout(() => fetchData(keycloak.tokenParsed.sub), 1000);
+      toast.success(`Preferencias actualizadas`, { id: loadId });
+      // Damos 2 segundos para que la IA procese antes de pedir datos nuevos
+      setTimeout(() => fetchData(keycloak.tokenParsed.sub), 2000);
     } catch (err) {
       toast.error("Error al actualizar perfil", { id: loadId });
     }
   };
 
-  // REQ 2: Crear nueva receta (Gestión)
+  // SOLUCIÓN AL ERROR DE PUBLICACIÓN (Añadido el Token)
   const handleCreateRecipe = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -97,12 +111,14 @@ function App() {
       description: formData.get('description')
     };
     try {
-      await axios.post('/recipes', payload);
-      toast.success("¡Receta añadida con éxito!");
+      await axios.post('/recipes', payload, {
+        headers: { Authorization: `Bearer ${keycloak.token}` }
+      });
+      toast.success("¡Receta publicada!");
       setShowModal(false);
       fetchData(keycloak.tokenParsed.sub);
     } catch (err) {
-      toast.error("No se pudo publicar la receta");
+      toast.error("Error: Revisa la conexión con el servidor");
     }
   };
 
@@ -114,21 +130,18 @@ function App() {
 
       <header className="main-header">
         <div className="logo-text">ChefMatch</div>
-        
-        {/* Barra de búsqueda integrada */}
         <div className="header-search">
           <input 
             type="text" 
-            placeholder="Buscar recetas, ingredientes o dietas..." 
+            placeholder="Buscar recetas..." 
             value={searchTerm}
             onChange={handleSearch}
             className="modern-search-input"
           />
         </div>
-
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div className="user-badge">
-            <span style={{ opacity: 0.7, fontSize: '0.75rem' }}>STUDENT PROFILE</span>
+            <span style={{ opacity: 0.7, fontSize: '0.75rem' }}>ESTUDIANTE</span>
             <span style={{ fontWeight: '800' }}>{username.toUpperCase()}</span>
           </div>
           <button onClick={() => keycloak.logout()} className="logout-btn">SALIR</button>
@@ -137,36 +150,30 @@ function App() {
 
       <main style={{ padding: '2rem 3rem', maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '2rem', marginBottom: '3rem' }}>
-          
           <section className="glass-panel">
             <h3>Gestión de Perfil</h3>
-            <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>Marca tus preferencias para mejorar las recomendaciones.</p>
-            <div className="category-grid">
+            <div className="category-grid" style={{marginTop:'1rem'}}>
               {['Italiana', 'Mexicana', 'Vegana', 'Japonesa'].map(cat => (
-                <button key={cat} onClick={() => updatePreferences(cat)} className="btn-modern">
-                  {cat}
-                </button>
+                <button key={cat} onClick={() => updatePreferences(cat)} className="btn-modern">{cat}</button>
               ))}
             </div>
           </section>
 
           <section className="glass-panel" style={{ borderTop: '4px solid #f97316' }}>
-            <h3 style={{ color: '#f97316', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span className="pulse-dot"></span> Recomendaciones IA
-            </h3>
+            <h3 style={{ color: '#f97316' }}>✨ Recomendaciones IA</h3>
             <div style={{ marginTop: '1rem' }}>
               {recommendations.length > 0 ? (
-                recommendations.map((rec, i) => <div key={i} className="recommendation-chip">✨ {rec}</div>)
+                recommendations.map((rec, i) => <div key={i} className="recommendation-chip">{rec}</div>)
               ) : (
-                <p style={{ opacity: 0.5 }}>Dinos qué te gusta para generar sugerencias.</p>
+                <p style={{ opacity: 0.5 }}>Actualiza tu perfil para recibir sugerencias.</p>
               )}
             </div>
           </section>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <h2 style={{ fontSize: '2rem', fontWeight: '800' }}>Catálogo Explorar</h2>
-          <button onClick={() => setShowModal(true)} className="btn-create">+ Nueva Receta</button>
+          <h2 style={{ fontSize: '2rem' }}>Explorar Recetas</h2>
+          <button onClick={() => setShowModal(true)} className="btn-create">+ Añadir Receta</button>
         </div>
 
         <div className="recipe-grid">
@@ -181,31 +188,36 @@ function App() {
                 <span className="badge-floating">{recipe.category}</span>
               </div>
               <div style={{ padding: '1.2rem' }}>
-                <h4 style={{ fontSize: '1.4rem', marginBottom: '0.8rem', color: '#fff' }}>{recipe.name}</h4>
-                <p style={{ fontSize: '0.9rem', color: '#94a3b8', lineHeight: '1.5' }}>{recipe.description}</p>
+                <h4 style={{ fontSize: '1.4rem', color: '#fff' }}>{recipe.name}</h4>
+                <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '10px 0' }}>
+                  {recipe.description.substring(0, 50)}...
+                </p>
+                {/* 2. EL BOTÓN DENTRO DE LA TARJETA */}
+                <button onClick={() => viewRecipeDetail(recipe)} className="btn-create" style={{padding: '8px 15px', fontSize:'0.75rem'}}>
+                  Ver Receta Completa
+                </button>
               </div>
             </div>
           ))}
         </div>
       </main>
 
-      {/* Modal para Crear Receta (CRUD REQ 2) */}
       {showModal && (
         <div className="modal-overlay">
           <div className="glass-panel modal-box">
-            <h3 style={{marginBottom: '1rem'}}>Publicar Nueva Receta</h3>
-            <form onSubmit={handleCreateRecipe}>
-              <input name="name" placeholder="Título de la receta" required className="form-input" />
+            <h3>Nueva Receta</h3>
+            <form onSubmit={handleCreateRecipe} style={{marginTop:'1rem'}}>
+              <input name="name" placeholder="Título" required className="form-input" />
               <select name="category" className="form-input">
                 <option value="Italiana">Italiana</option>
                 <option value="Mexicana">Mexicana</option>
                 <option value="Vegana">Vegana</option>
                 <option value="Japonesa">Japonesa</option>
               </select>
-              <textarea name="description" placeholder="Ingredientes y pasos..." required className="form-input" rows="4" />
+              <textarea name="description" placeholder="Instrucciones..." required className="form-input" rows="4" />
               <div style={{display: 'flex', gap: '10px'}}>
-                <button type="submit" className="btn-modern" style={{background: '#f97316'}}>Publicar</button>
-                <button type="button" onClick={() => setShowModal(false)} className="btn-modern">Cerrar</button>
+                <button type="submit" className="btn-create">Publicar</button>
+                <button type="button" onClick={() => setShowModal(false)} className="btn-modern">Cancelar</button>
               </div>
             </form>
           </div>
