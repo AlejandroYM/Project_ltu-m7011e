@@ -1,74 +1,42 @@
 const express = require('express');
-const session = require('express-session');
-const Keycloak = require('keycloak-connect');
-const dotenv = require('dotenv');
-
-// Cargar variables de entorno
-dotenv.config();
+const mongoose = require('mongoose');
+const Recipe = require('./models/Recipe'); // Importar el modelo
+require('dotenv').config();
 
 const app = express();
 app.use(express.json());
 
-// --- 1. CONFIGURACIÓN DE SESIÓN (Requerido por Keycloak) ---
-const memoryStore = new session.MemoryStore();
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'recipe_service_secret',
-  resave: false,
-  saveUninitialized: true,
-  store: memoryStore
-}));
+// 1. Mantener tus recetas estáticas actuales
+const staticRecipes = [
+  { id: 1, name: 'Pasta Carbonara', description: 'Classic Italian pasta dish' },
+  { id: 2, name: 'Tacos al Pastor', description: 'Delicious Mexican tacos' }
+];
 
-// --- 2. CONFIGURACIÓN DE KEYCLOAK (REQ20) ---
-const keycloakConfig = {
-  realm: process.env.KEYCLOAK_REALM || 'ChefMatchRealm',
-  'auth-server-url': process.env.KEYCLOAK_URL || 'http://localhost:8080/',
-  resource: 'recipe-service', // Cambiado a recipe-service
-  'ssl-required': 'external',
-  'public-client': true
-};
+// 2. Conectar a MongoDB para las recetas nuevas
+mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/chefmatch')
+  .then(() => console.log('Conectado a MongoDB'))
+  .catch(err => console.error('Error DB:', err));
 
-const keycloak = new Keycloak({ store: memoryStore }, keycloakConfig);
-app.use(keycloak.middleware());
-
-// --- 3. RUTAS DEL MICROSERVICIO ---
-
-// Healthcheck para Kubernetes
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'UP', 
-    service: 'recipe-service', 
-    timestamp: new Date() 
-  });
+// 3. Modificar GET para mostrar AMBAS
+app.get('/recipes', async (req, res) => {
+  try {
+    const dynamicRecipes = await Recipe.find(); // Obtener de la DB
+    res.json([...staticRecipes, ...dynamicRecipes]); // Combinar ambos arrays
+  } catch (err) {
+    res.json(staticRecipes); // Si falla la DB, al menos mostrar las estáticas
+  }
 });
 
-// Obtener todas las recetas (REQ1 - Catálogo de Recetas)
-// IMPORTANTE: Escucha en /recipes para coincidir con el Ingress
-app.get('/recipes', (req, res) => {
-  const recipes = [
-    { id: 1, name: 'Pasta Carbonara', category: 'Italiana', description: 'Deliciosa pasta con huevo y panceta.' },
-    { id: 2, name: 'Tacos al Pastor', category: 'Mexicana', description: 'Tacos tradicionales con piña y cerdo.' },
-    { id: 3, name: 'Ensalada Vegana', category: 'Vegana', description: 'Mix de verdes frescos y quinoa.' },
-    { id: 4, name: 'Curry Picante', category: 'Picante', description: 'Curry rojo tailandés con mucho sabor.' }
-  ];
-  
-  console.log('✅ Catálogo de recetas enviado');
-  res.json(recipes);
+// 4. Ruta para añadir recetas nuevas (REQ2)
+app.post('/recipes', async (req, res) => {
+  try {
+    const newRecipe = new Recipe(req.body);
+    await newRecipe.save();
+    res.status(201).json(newRecipe);
+  } catch (err) {
+    res.status(400).json({ error: 'Error al guardar la receta' });
+  }
 });
 
-// --- 4. MANEJO DE ERRORES ---
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Error interno en Recipe Service' });
-});
-
-// --- 5. ARRANQUE DEL SERVIDOR ---
-// Usamos el puerto 80 para coincidir con tu values.yaml y el Ingress
-const PORT = process.env.PORT || 8000; 
-
-app.listen(PORT, () => {
-  console.log(`🚀 Recipe Service escuchando en el puerto ${PORT}`);
-  console.log(`💓 Healthcheck disponible en /health`);
-  console.log(`📖 Catálogo disponible en /recipes`);
-});
-
-module.exports = app;
+const PORT = process.env.PORT || 3002;
+app.listen(PORT, () => console.log(`Servidor en puerto ${PORT}`));
