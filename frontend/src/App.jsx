@@ -48,7 +48,8 @@ function App() {
 
   const fetchData = async (userId) => {
     try {
-      const resRecipes = await axios.get('/recipes');
+      // Apuntamos directamente al puerto del microservicio de recetas
+      const resRecipes = await axios.get('http://localhost:3002/recipes');
       setRecipes(resRecipes.data);
       setFilteredRecipes(resRecipes.data);
 
@@ -116,7 +117,7 @@ function App() {
       description: formData.get('description')
     };
     try {
-      await axios.post('/recipes', payload, {
+      await axios.post('http://localhost:3002/recipes', payload, {
         headers: { 
           Authorization: `Bearer ${keycloak.token}`,
           'Content-Type': 'application/json'

@@ -1,33 +1,36 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const Recipe = require('./models/Recipe'); // Importar el modelo
+const cors = require('cors'); // <--- 1. IMPORTAR CORS
+const Recipe = require('./models/Recipe');
 require('dotenv').config();
 
 const app = express();
+
+app.use(cors()); // <--- 2. LA NOTA DE ORO: PERMITIR PETICIONES EXTERNAS
 app.use(express.json());
 
-// 1. Mantener tus recetas estáticas actuales
+// 1. Tus recetas estáticas
 const staticRecipes = [
   { id: 1, name: 'Pasta Carbonara', description: 'Classic Italian pasta dish' },
   { id: 2, name: 'Tacos al Pastor', description: 'Delicious Mexican tacos' }
 ];
 
-// 2. Conectar a MongoDB para las recetas nuevas
+// 2. Conexión a MongoDB
 mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/chefmatch')
   .then(() => console.log('Conectado a MongoDB'))
   .catch(err => console.error('Error DB:', err));
 
-// 3. Modificar GET para mostrar AMBAS
+// 3. GET combinado (Estático + Base de Datos)
 app.get('/recipes', async (req, res) => {
   try {
-    const dynamicRecipes = await Recipe.find(); // Obtener de la DB
-    res.json([...staticRecipes, ...dynamicRecipes]); // Combinar ambos arrays
+    const dynamicRecipes = await Recipe.find();
+    res.json([...staticRecipes, ...dynamicRecipes]);
   } catch (err) {
-    res.json(staticRecipes); // Si falla la DB, al menos mostrar las estáticas
+    res.json(staticRecipes);
   }
 });
 
-// 4. Ruta para añadir recetas nuevas (REQ2)
+// 4. POST para nuevas recetas
 app.post('/recipes', async (req, res) => {
   try {
     const newRecipe = new Recipe(req.body);
