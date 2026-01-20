@@ -46,7 +46,17 @@ services:
   # Servicio de Recetas (Puerto 3002) - REQ14
   recipe-service:
     build: ./services/recipe-service
-    # ... resto de la configuración ...
+    container_name: recipe-service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - MONGO_URI=mongodb://mongo:27017/chefmatch
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    depends_on:
+      - rabbitmq
+    networks:
+      - chef-network
 
   # DEBE ESTAR AL MISMO NIVEL QUE RECIPE-SERVICE
   recommendation-service:

@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: chef-api-ingress
-  namespace: todo-app
+  namespace: chef-match
   annotations:
     kubernetes.io/ingress.class: traefik
     # Prioridad máxima para las APIs
