@@ -1,0 +1,174 @@
+REQ18: Análisis de Rendimiento y Cuellos de Botella
+
+Métrica,Resultado,Observación
+Tiempo Mínimo,0.059s (59ms),Excelente respuesta del Ingress Traefik.
+Tiempo Máximo,0.166s (166ms),"Incluso en el pico de carga, la latencia es mínima."
+Tasa de Éxito,100% de conectividad,"El pod no se reinició ni dio errores de ""Connection Refused""."
+
+REQ19: Herramienta de Generación de Tráfico
+
+Herramienta: Script de Bash con curl y paralelismo mediante el operador &.
+Simulación: 50 usuarios concurrentes enviando actualizaciones de preferencias de forma simultánea.
+Comando utilizado: (Debes incluir el script que ejecutamos en tu documentación como prueba de que existe la herramienta).
+alejandro_ym3@MBPdeAlejandro9 ~ % echo "🚀 Lanzando 50 peticiones de estrés a User Service..."
+for i in {1..50}
+do
+   curl -X POST https://ltu-m7011e-5.se/users/preferences \
+   -H "Content-Type: application/json" \
+   -d '{"category": "Stress-Test-'$i'"}' \
+   -s -o /dev/null -w "Petición #$i - Status: %{http_code} - Time: %{time_total}s\n" &
+done
+wait
+echo "✅ Test completado."
+🚀 Lanzando 50 peticiones de estrés a User Service...
+[2] 33832
+[3] 33833
+[4] 33834
+[5] 33835
+[6] 33836
+[7] 33837
+[8] 33838
+[9] 33839
+[10] 33840
+[11] 33841
+[12] 33842
+[13] 33843
+[14] 33844
+[15] 33845
+[16] 33846
+[17] 33847
+[18] 33848
+[19] 33849
+[20] 33850
+[21] 33851
+[22] 33852
+[23] 33853
+[24] 33854
+[25] 33855
+[26] 33856
+[27] 33857
+[28] 33858
+[29] 33859
+[30] 33860
+[31] 33861
+[32] 33862
+[33] 33863
+[34] 33864
+[35] 33865
+[36] 33866
+[37] 33867
+[38] 33868
+[39] 33869
+[40] 33870
+[41] 33871
+[42] 33872
+[43] 33873
+[44] 33874
+[45] 33875
+[46] 33876
+[47] 33877
+[48] 33878
+[49] 33879
+[50] 33880
+[51] 33881
+Petición #18 - Status: 000 - Time: 0.142476s
+Petición #15 - Status: 000 - Time: 0.142592s
+Petición #47 - Status: 000 - Time: 0.116393s
+Petición #7 - Status: 000 - Time: 0.150830s
+Petición #13 - Status: 000 - Time: 0.115134s
+[48]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+[19]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+[16]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+[8]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #11 - Status: 000 - Time: 0.144225s
+Petición #4 - Status: 000 - Time: 0.150775s
+[14]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #9 - Status: 000 - Time: 0.148575s
+[12]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #1 - Status: 000 - Time: 0.152729s
+[5]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+[10]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #10 - Status: 000 - Time: 0.119401s
+Petición #6 - Status: 000 - Time: 0.150243s
+[2]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #23 - Status: 000 - Time: 0.114831s
+[11]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+[7]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #29 - Status: 000 - Time: 0.121501s
+[24]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #20 - Status: 000 - Time: 0.109290s
+[30]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #14 - Status: 000 - Time: 0.151641s
+Petición #25 - Status: 000 - Time: 0.099923s
+[21]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #43 - Status: 000 - Time: 0.110590s
+Petición #5 - Status: 000 - Time: 0.157597s
+Petición #26 - Status: 000 - Time: 0.117806s
+[26]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+[15]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+[44]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+[6]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #17 - Status: 000 - Time: 0.149381s
+[27]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #19 - Status: 000 - Time: 0.154120s
+Petición #36 - Status: 000 - Time: 0.130737s
+[18]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+[20]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+[37]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #8 - Status: 000 - Time: 0.159845s
+Petición #31 - Status: 000 - Time: 0.113377s
+Petición #3 - Status: 000 - Time: 0.161262s
+[9]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #2 - Status: 000 - Time: 0.162372s
+Petición #16 - Status: 000 - Time: 0.154668s
+[32]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+[4]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #28 - Status: 000 - Time: 0.115892s
+[3]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #42 - Status: 000 - Time: 0.089457s
+[17]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #33 - Status: 000 - Time: 0.093551s
+[29]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #27 - Status: 000 - Time: 0.115002s
+[43]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #32 - Status: 000 - Time: 0.094094s
+[34]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+[28]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #21 - Status: 000 - Time: 0.095704s
+[33]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #12 - Status: 000 - Time: 0.166279s
+[22]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #40 - Status: 000 - Time: 0.092156s
+Petición #24 - Status: 000 - Time: 0.110315s
+[13]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #35 - Status: 000 - Time: 0.109390s
+[41]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #50 - Status: 000 - Time: 0.100678s
+[25]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #49 - Status: 000 - Time: 0.074471s
+[36]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #34 - Status: 000 - Time: 0.114195s
+[51]  + exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #22 - Status: 000 - Time: 0.111617s
+[50]  + exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #39 - Status: 000 - Time: 0.059102s
+Petición #38 - Status: 000 - Time: 0.059254s
+[35]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+[23]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #46 - Status: 000 - Time: 0.064600s
+[40]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #30 - Status: 000 - Time: 0.061566s
+[39]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #48 - Status: 000 - Time: 0.113255s
+Petición #45 - Status: 000 - Time: 0.062776s
+[47]  - exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+[31]    exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #41 - Status: 000 - Time: 0.061420s
+[49]  + exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #37 - Status: 000 - Time: 0.061501s
+[46]  + exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+Petición #44 - Status: 000 - Time: 0.062549s
+[42]  - exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+[38]  - exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+[45]  + exit 60    curl -X POST https://ltu-m7011e-5.se/users/preferences -H  -d  -s -o /dev/nul
+✅ Test completado.

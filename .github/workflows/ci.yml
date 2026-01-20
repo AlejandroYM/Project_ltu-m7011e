@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Solo testeamos los microservicios que tienen tests definidos
+        # Microservicios con tests en la carpeta /services
         service: [user-service, recipe-service, recommendation-service]
     steps:
       - name: ⬇️ Checkout code
@@ -30,6 +30,8 @@ jobs:
           npm install
 
       - name: 🧪 Run Tests & Coverage (REQ5)
+        env:
+          NODE_ENV: test
         run: |
           cd services/${{ matrix.service }}
           npm test -- --coverage
@@ -40,7 +42,6 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     strategy:
       matrix:
-        # Aquí incluimos los 3 servicios de backend + el frontend
         service: [user-service, recipe-service, recommendation-service, frontend]
     
     steps:
@@ -56,7 +57,7 @@ jobs:
       - name: 🔨 Build and Push
         uses: docker/build-push-action@v5
         with:
-          # Lógica condicional: si es frontend busca en ./frontend, si no en ./services/nombre-servicio
+          # Si es frontend, usa la raíz. Si es servicio, usa /services/
           context: ${{ matrix.service == 'frontend' && './frontend' || format('./services/{0}', matrix.service) }}
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/chef-${{ matrix.service }}:latest
