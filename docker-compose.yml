@@ -1,5 +1,12 @@
 services:
   # --- INFRAESTRUCTURA ---
+  mongo:
+    image: mongo:latest
+    container_name: chef-mongo
+    ports:
+      - "27017:27017"
+    networks:
+      - chef-network
   
   # RabbitMQ: Necesario para el REQ15 (comunicación asíncrona)
   rabbitmq:
