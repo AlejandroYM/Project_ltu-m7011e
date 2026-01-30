@@ -10,6 +10,7 @@ services:
     name: recipe-service
     image: aym3/chef-recipe-service:latest
     replicas: 1
+    port: 3002
     targetPort: 3002
     env:  # database connection settings
       - name: MONGO_URI
