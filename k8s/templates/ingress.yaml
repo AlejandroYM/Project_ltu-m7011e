@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: chef-api-ingress
-  namespace: chef-match
+  namespace: todo-app
   annotations:
     kubernetes.io/ingress.class: traefik
     # Prioridad máxima para las APIs
@@ -23,7 +23,7 @@ spec:
               number: 5173
       # path para las recetas
       - path: /recipes
-        pathType: Exact
+        pathType: Prefix
         backend:
           service:
             name: recipe-service
