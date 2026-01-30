@@ -9,10 +9,9 @@ services:
   recipe:
     name: recipe-service
     image: aym3/chef-recipe-service:latest
-    port: 8000
-    targetPort: 8000
     replicas: 1
-    env: # for the database connection
+    targetPort: 3002
+    env:  # database connection settings
       - name: MONGO_URI
         value: "mongodb://mongo-service:27017/chefmatch"
   recommendation:

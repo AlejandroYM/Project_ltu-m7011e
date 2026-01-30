@@ -49,7 +49,7 @@ function App() {
   const fetchData = async (userId) => {
     try {
       // Apuntamos directamente al puerto del microservicio de recetas
-      const resRecipes = await axios.get('http://localhost:3002/recipes');
+      const resRecipes = await axios.get('https://ltu-m7011e-5.se/recipes');
       setRecipes(resRecipes.data);
       setFilteredRecipes(resRecipes.data);
 
@@ -120,9 +120,9 @@ function App() {
     // CAMBIO: Usa la URL completa del dominio de producción
     await axios.post('https://ltu-m7011e-5.se/recipes', payload, {
       headers: { 
-        Authorization: `Bearer ${keycloak.token}`,
+        Authorization: `Bearer ${keycloak.token}`, // IMPORTANTE: El token
         'Content-Type': 'application/json'
-      }
+    }
     });
     toast.success("¡Receta publicada!");
     // ...
