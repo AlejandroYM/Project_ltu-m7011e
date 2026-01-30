@@ -1,13 +1,13 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors'); // <--- 1. IMPORTAR CORS
+const app = express();
+app.use(cors()); // <--- 2. LA NOTA DE ORO: PERMITIR PETICIONES EXTERNAS
+app.use(express.json());
 const Recipe = require('./models/Recipe');
 require('dotenv').config();
 
-const app = express();
 
-app.use(cors()); // <--- 2. LA NOTA DE ORO: PERMITIR PETICIONES EXTERNAS
-app.use(express.json());
 
 // 1. Tus recetas estáticas
 const staticRecipes = [

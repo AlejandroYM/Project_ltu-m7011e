@@ -117,18 +117,18 @@ function App() {
       description: formData.get('description')
     };
     try {
-      await axios.post('http://localhost:3002/recipes', payload, {
-        headers: { 
-          Authorization: `Bearer ${keycloak.token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      toast.success("¡Receta publicada!");
-      setShowModal(false);
-      fetchData(keycloak.tokenParsed.sub);
-    } catch (err) {
-      toast.error("Error al publicar. Verifica tu conexión.");
-    }
+    // CAMBIO: Usa la URL completa del dominio de producción
+    await axios.post('https://ltu-m7011e-5.se/recipes', payload, {
+      headers: { 
+        Authorization: `Bearer ${keycloak.token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    toast.success("¡Receta publicada!");
+    // ...
+  } catch (err) {
+    toast.error("Error al publicar. Verifica tu conexión.");
+  }
   };
 
   if (loading) return <div className="loader-container"><div className="spinner"></div></div>;
