@@ -12,6 +12,9 @@ services:
     port: 8000
     targetPort: 8000
     replicas: 1
+    env: # for the database connection
+      - name: MONGO_URI
+        value: "mongodb://mongo-service:27017/chefmatch"
   recommendation:
     name: recommendation-service
     image: aym3/chef-recommendation-service:latest

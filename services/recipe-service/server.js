@@ -33,11 +33,11 @@ app.get('/recipes', async (req, res) => {
 // 4. POST para nuevas recetas
 app.post('/recipes', async (req, res) => {
   try {
-    const newRecipe = new Recipe(req.body);
+    const newRecipe = new Recipe(req.body); // Usando tu modelo de Mongoose
     await newRecipe.save();
     res.status(201).json(newRecipe);
   } catch (err) {
-    res.status(400).json({ error: 'Error al guardar la receta' });
+    res.status(400).json({ error: "Error al guardar la receta" });
   }
 });
 
