@@ -1,14 +1,13 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const cors = require('cors'); // <--- 1. IMPORTAR CORS
+const cors = require('cors');
 const app = express();
-app.use(cors()); // <--- 2. LA NOTA DE ORO: PERMITIR PETICIONES EXTERNAS
+app.use(cors());
 app.use(express.json());
 const Recipe = require('./models/Recipe');
 require('dotenv').config();
 
-
-// 1. Tus recetas estáticas (Actualizado con 2 por categoría y detalles)
+// 1. Tus recetas estáticas (Actualizado con AMERICANA y POSTRES)
 const staticRecipes = [
   // ITALIANA
   { 
@@ -80,6 +79,42 @@ const staticRecipes = [
     description: 'Sopa reconfortante con fideos.',
     ingredients: ['Caldo de pollo', 'Fideos Ramen', 'Pechuga de pollo', 'Huevo cocido', 'Cebollino'],
     instructions: '1. Calentar el caldo con soja y miso. \n2. Cocer los fideos aparte. \n3. Montar el bol con caldo, fideos y toppings (pollo, huevo, cebollino).'
+  },
+
+  // NUEVA: AMERICANA
+  { 
+    id: 9, 
+    name: 'Hamburguesa Clásica', 
+    category: 'Americana', 
+    description: 'Jugosa hamburguesa con queso cheddar.',
+    ingredients: ['Carne de res molida', 'Pan de brioche', 'Queso Cheddar', 'Lechuga y Tomate', 'Pepinillos'],
+    instructions: '1. Formar las carnes sin apretar mucho. \n2. Cocinar a la plancha 3 min por lado. \n3. Derretir el queso encima. \n4. Tostar el pan y montar con las verduras.'
+  },
+  { 
+    id: 10, 
+    name: 'Costillas BBQ', 
+    category: 'Americana', 
+    description: 'Costillas de cerdo en salsa barbacoa.',
+    ingredients: ['Costillar de cerdo', 'Salsa BBQ casera', 'Pimentón ahumado', 'Miel', 'Ajo en polvo'],
+    instructions: '1. Adobar las costillas con especias en seco. \n2. Hornear a baja temperatura (150°C) por 2 horas envueltas en aluminio. \n3. Destapar, pincelar con salsa BBQ y gratinar 15 min.'
+  },
+
+  // NUEVA: POSTRES
+  { 
+    id: 11, 
+    name: 'Tiramisú', 
+    category: 'Postres', 
+    description: 'Postre italiano de café y mascarpone.',
+    ingredients: ['Bizcochos de soletilla', 'Queso Mascarpone', 'Café espresso fuerte', 'Cacao en polvo', 'Azúcar'],
+    instructions: '1. Batir mascarpone con azúcar. \n2. Mojar bizcochos en café. \n3. Montar capas alternas de bizcocho y crema. \n4. Espolvorear cacao al final.'
+  },
+  { 
+    id: 12, 
+    name: 'Cheesecake de Fresa', 
+    category: 'Postres', 
+    description: 'Tarta de queso suave con frutas.',
+    ingredients: ['Galletas maría', 'Mantequilla', 'Queso crema', 'Nata para montar', 'Mermelada de fresa'],
+    instructions: '1. Triturar galletas con mantequilla para la base. \n2. Batir queso y nata y verter sobre la base. \n3. Refrigerar 4 horas mínimo. \n4. Cubrir con mermelada antes de servir.'
   }
 ];
 
@@ -101,7 +136,7 @@ app.get('/recipes', async (req, res) => {
 // 4. POST para nuevas recetas
 app.post('/recipes', async (req, res) => {
   try {
-    const newRecipe = new Recipe(req.body); // Usando tu modelo de Mongoose
+    const newRecipe = new Recipe(req.body);
     await newRecipe.save();
     res.status(201).json(newRecipe);
   } catch (err) {

@@ -21,36 +21,42 @@ function App() {
   const [showModal, setShowModal] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
 
-  // 1. IMÁGENES GENÉRICAS POR CATEGORÍA (Respaldo)
+  // 1. IMÁGENES GENÉRICAS POR CATEGORÍA
   const categoryImages = {
     italiana: "https://images.unsplash.com/photo-1498579150354-977475b7ea0b?auto=format&fit=crop&w=800&q=80",
     mexicana: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=800&q=80",
     vegana:   "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&q=80",
     japonesa: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?auto=format&fit=crop&w=800&q=80",
+    americana:"https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=800&q=80",
+    postres:  "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?auto=format&fit=crop&w=800&q=80",
     default:  "https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=800&q=80"
   };
 
-  // 2. IMÁGENES ESPECÍFICAS POR RECETA (NUEVO)
+  // 2. IMÁGENES ESPECÍFICAS POR RECETA
   const specificImages = {
     // Italiana
     "pasta carbonara": "https://images.unsplash.com/photo-1612874742237-6526221588e3?auto=format&fit=crop&w=800&q=80",
     "pizza margarita": "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=800&q=80",
     // Mexicana
     "tacos al pastor": "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?auto=format&fit=crop&w=800&q=80",
-    "guacamole tradicional": "https://images.unsplash.com/photo-1587132137056-bfbf0166836e?auto=format&fit=crop&w=800&q=80",
+    "guacamole tradicional": "https://images.unsplash.com/photo-1615485925694-a03913062777?auto=format&fit=crop&w=800&q=80", // <-- FOTO ARREGLADA (Ahora es aguacate real)
     // Vegana
     "curry de garbanzos": "https://images.unsplash.com/photo-1565557623262-b51c2513a641?auto=format&fit=crop&w=800&q=80",
     "buddha bowl": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80",
     // Japonesa
     "sushi maki roll": "https://images.unsplash.com/photo-1553621042-f6e147245754?auto=format&fit=crop&w=800&q=80",
-    "ramen de pollo": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=800&q=80"
+    "ramen de pollo": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=800&q=80",
+    // Americana (NUEVAS)
+    "hamburguesa clásica": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=80",
+    "costillas bbq": "https://images.unsplash.com/photo-1544025162-d76690b67f14?auto=format&fit=crop&w=800&q=80",
+    // Postres (NUEVAS)
+    "tiramisú": "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?auto=format&fit=crop&w=800&q=80",
+    "cheesecake de fresa": "https://images.unsplash.com/photo-1508737804141-4c3b688e2546?auto=format&fit=crop&w=800&q=80"
   };
 
-  // Función auxiliar para obtener la imagen correcta
   const getRecipeImage = (recipe) => {
     if (!recipe || !recipe.name) return categoryImages.default;
     const nameKey = recipe.name.toLowerCase().trim();
-    // Primero busca por nombre exacto, luego por categoría, luego default
     return specificImages[nameKey] || categoryImages[recipe.category?.toLowerCase()] || categoryImages.default;
   };
 
@@ -169,7 +175,8 @@ function App() {
           <section className="glass-panel">
             <h3>Gestión de Perfil</h3>
             <div className="category-grid" style={{marginTop:'1rem'}}>
-              {['Italiana', 'Mexicana', 'Vegana', 'Japonesa'].map(cat => (
+              {/* Actualizada la lista de categorías */}
+              {['Italiana', 'Mexicana', 'Vegana', 'Japonesa', 'Americana', 'Postres'].map(cat => (
                 <button key={cat} onClick={() => updatePreferences(cat)} className="btn-modern">{cat}</button>
               ))}
             </div>
@@ -196,7 +203,6 @@ function App() {
           {filteredRecipes.map((recipe, index) => (
             <div key={recipe.id || index} className="glass-panel recipe-card">
               <div className="recipe-image-container">
-                {/* CAMBIO AQUI: Usamos la nueva función getRecipeImage */}
                 <img 
                   src={getRecipeImage(recipe)} 
                   alt={recipe.name}
@@ -236,6 +242,8 @@ function App() {
                 <option value="Mexicana">Mexicana</option>
                 <option value="Vegana">Vegana</option>
                 <option value="Japonesa">Japonesa</option>
+                <option value="Americana">Americana</option>
+                <option value="Postres">Postres</option>
               </select>
               <textarea name="description" placeholder="Breve descripción..." required className="form-input" rows="2" />
               <div style={{display: 'flex', gap: '10px'}}>
@@ -261,7 +269,6 @@ function App() {
               </button>
             </div>
             
-            {/* CAMBIO AQUI TAMBIÉN: Usamos getRecipeImage para el modal */}
             <img 
               src={getRecipeImage(selectedRecipe)} 
               alt={selectedRecipe.name}
