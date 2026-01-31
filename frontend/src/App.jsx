@@ -18,15 +18,40 @@ function App() {
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [showModal, setShowModal] = useState(false); // Modal para crear receta
-  const [selectedRecipe, setSelectedRecipe] = useState(null); // Modal para ver detalles
+  const [showModal, setShowModal] = useState(false);
+  const [selectedRecipe, setSelectedRecipe] = useState(null);
 
+  // 1. IMÁGENES GENÉRICAS POR CATEGORÍA (Respaldo)
   const categoryImages = {
     italiana: "https://images.unsplash.com/photo-1498579150354-977475b7ea0b?auto=format&fit=crop&w=800&q=80",
     mexicana: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=800&q=80",
     vegana:   "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&q=80",
     japonesa: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?auto=format&fit=crop&w=800&q=80",
     default:  "https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=800&q=80"
+  };
+
+  // 2. IMÁGENES ESPECÍFICAS POR RECETA (NUEVO)
+  const specificImages = {
+    // Italiana
+    "pasta carbonara": "https://images.unsplash.com/photo-1612874742237-6526221588e3?auto=format&fit=crop&w=800&q=80",
+    "pizza margarita": "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=800&q=80",
+    // Mexicana
+    "tacos al pastor": "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?auto=format&fit=crop&w=800&q=80",
+    "guacamole tradicional": "https://images.unsplash.com/photo-1587132137056-bfbf0166836e?auto=format&fit=crop&w=800&q=80",
+    // Vegana
+    "curry de garbanzos": "https://images.unsplash.com/photo-1565557623262-b51c2513a641?auto=format&fit=crop&w=800&q=80",
+    "buddha bowl": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80",
+    // Japonesa
+    "sushi maki roll": "https://images.unsplash.com/photo-1553621042-f6e147245754?auto=format&fit=crop&w=800&q=80",
+    "ramen de pollo": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=800&q=80"
+  };
+
+  // Función auxiliar para obtener la imagen correcta
+  const getRecipeImage = (recipe) => {
+    if (!recipe || !recipe.name) return categoryImages.default;
+    const nameKey = recipe.name.toLowerCase().trim();
+    // Primero busca por nombre exacto, luego por categoría, luego default
+    return specificImages[nameKey] || categoryImages[recipe.category?.toLowerCase()] || categoryImages.default;
   };
 
   useEffect(() => {
@@ -49,7 +74,6 @@ function App() {
 
   const fetchData = async (userId) => {
     try {
-      // Apuntamos directamente al puerto del microservicio de recetas
       const resRecipes = await axios.get('https://ltu-m7011e-5.se/recipes');
       setRecipes(resRecipes.data);
       setFilteredRecipes(resRecipes.data);
@@ -63,7 +87,6 @@ function App() {
     }
   };
 
-  // Función para ver detalles actualizada: Solo activa el estado del modal
   const viewRecipeDetail = (recipe) => {
     setSelectedRecipe(recipe);
   };
@@ -108,8 +131,8 @@ function App() {
         }
       });
       toast.success("¡Receta publicada!");
-      setShowModal(false); // Cierra el modal de creación tras el éxito
-      fetchData(keycloak.tokenParsed.sub); // Recarga la lista
+      setShowModal(false);
+      fetchData(keycloak.tokenParsed.sub);
     } catch (err) {
       toast.error("Error al publicar. Verifica tu conexión.");
     }
@@ -173,8 +196,9 @@ function App() {
           {filteredRecipes.map((recipe, index) => (
             <div key={recipe.id || index} className="glass-panel recipe-card">
               <div className="recipe-image-container">
+                {/* CAMBIO AQUI: Usamos la nueva función getRecipeImage */}
                 <img 
-                  src={categoryImages[recipe.category?.toLowerCase()] || categoryImages.default} 
+                  src={getRecipeImage(recipe)} 
                   alt={recipe.name}
                   className="recipe-img"
                 />
@@ -185,7 +209,7 @@ function App() {
                 <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '10px 0', lineHeight: '1.4' }}>
                   {recipe.description 
                     ? (recipe.description.length > 60 ? recipe.description.substring(0, 60) + "..." : recipe.description)
-                    : "Haz clic abajo para ver los detalles de esta preparación."
+                    : "Haz clic abajo para ver los detalles."
                   }
                 </p>
                 <button 
@@ -201,7 +225,6 @@ function App() {
         </div>
       </main>
 
-      {/* MODAL PARA CREAR NUEVA RECETA */}
       {showModal && (
         <div className="modal-overlay">
           <div className="glass-panel modal-box">
@@ -215,7 +238,6 @@ function App() {
                 <option value="Japonesa">Japonesa</option>
               </select>
               <textarea name="description" placeholder="Breve descripción..." required className="form-input" rows="2" />
-              {/* Nota: Para producción, aquí deberías añadir campos para ingredientes e instrucciones en el formulario también */}
               <div style={{display: 'flex', gap: '10px'}}>
                 <button type="submit" className="btn-create">Publicar</button>
                 <button type="button" onClick={() => setShowModal(false)} className="btn-modern">Cancelar</button>
@@ -225,11 +247,9 @@ function App() {
         </div>
       )}
 
-      {/* MODAL PARA VER DETALLES DE RECETA (NUEVO) */}
       {selectedRecipe && (
         <div className="modal-overlay">
           <div className="glass-panel modal-box" style={{ maxWidth: '700px', width: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
-            {/* Cabecera del Modal */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h3 style={{ fontSize: '2rem', color: '#f97316', margin: 0 }}>{selectedRecipe.name}</h3>
               <button 
@@ -241,19 +261,17 @@ function App() {
               </button>
             </div>
             
-            {/* Imagen Principal */}
+            {/* CAMBIO AQUI TAMBIÉN: Usamos getRecipeImage para el modal */}
             <img 
-              src={categoryImages[selectedRecipe.category?.toLowerCase()] || categoryImages.default} 
+              src={getRecipeImage(selectedRecipe)} 
               alt={selectedRecipe.name}
               style={{ width: '100%', height: '300px', objectFit: 'cover', borderRadius: '12px', marginBottom: '1.5rem' }}
             />
             
-            {/* Descripción */}
             <p style={{ fontStyle: 'italic', marginBottom: '2rem', color: '#cbd5e1', fontSize: '1.1rem', lineHeight: '1.6' }}>
               {selectedRecipe.description}
             </p>
 
-            {/* Ingredientes */}
             <div style={{ marginBottom: '2rem' }}>
               <h4 style={{ color: '#fff', borderBottom: '2px solid #f97316', paddingBottom: '0.5rem', marginBottom: '1rem', display: 'inline-block' }}>
                 🥘 Ingredientes
@@ -277,7 +295,6 @@ function App() {
               </ul>
             </div>
 
-            {/* Instrucciones */}
             <div>
               <h4 style={{ color: '#fff', borderBottom: '2px solid #f97316', paddingBottom: '0.5rem', marginBottom: '1rem', display: 'inline-block' }}>
                 📝 Instrucciones Paso a Paso
@@ -295,7 +312,6 @@ function App() {
               </div>
             </div>
 
-            {/* Footer del Modal */}
             <div style={{ marginTop: '2rem', textAlign: 'right', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem' }}>
               <button onClick={() => setSelectedRecipe(null)} className="btn-create" style={{ padding: '10px 30px' }}>
                 Cerrar Receta
@@ -304,7 +320,6 @@ function App() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
