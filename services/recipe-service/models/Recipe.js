@@ -1,13 +1,14 @@
 const mongoose = require('mongoose');
 
 const recipeSchema = new mongoose.Schema({
-  name: { type: String, required: true }, // ESTE ES EL ÚNICO OBLIGATORIO
-  category: { type: String, default: 'General' },
-  description: { type: String, default: '' },
-  ingredients: { type: [String], default: [] }, // Array vacío por defecto
-  instructions: { type: String, default: '' },
-  authorId: String,
-  createdAt: { type: Date, default: Date.now }
+  name: { type: String, required: true },
+  category: { type: String, required: true },
+  description: { type: String, required: true },
+  // Hacemos que ingredientes e instrucciones sean opcionales (default vacío)
+  // para que no falle al crear una receta rápida desde el formulario actual.
+  ingredients: { type: [String], default: [] },
+  instructions: { type: String, default: "" },
+  imageUrl: { type: String } 
 });
 
 module.exports = mongoose.model('Recipe', recipeSchema);

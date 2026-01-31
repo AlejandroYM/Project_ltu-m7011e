@@ -1,6 +1,8 @@
 {
   "name": "service",
   "version": "1.0.0",
+  "description": "Microservicio de recetas",
+  "main": "server.js",
   "scripts": {
     "test": "echo 'No tests yet' && exit 0",
     "start": "node server.js"
