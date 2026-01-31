@@ -18,7 +18,8 @@ function App() {
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [showModal, setShowModal] = useState(false);
+  const [showModal, setShowModal] = useState(false); // Modal para crear receta
+  const [selectedRecipe, setSelectedRecipe] = useState(null); // Modal para ver detalles
 
   const categoryImages = {
     italiana: "https://images.unsplash.com/photo-1498579150354-977475b7ea0b?auto=format&fit=crop&w=800&q=80",
@@ -62,26 +63,9 @@ function App() {
     }
   };
 
-  // Función para ver detalles corregida
+  // Función para ver detalles actualizada: Solo activa el estado del modal
   const viewRecipeDetail = (recipe) => {
-    if (!recipe.description) {
-      toast.error("Esta receta no tiene una descripción detallada.");
-      return;
-    }
-
-    toast(recipe.description, {
-      duration: 10000,
-      icon: '👨‍🍳',
-      style: {
-        borderRadius: '15px',
-        background: '#1e293b',
-        color: '#fff',
-        border: '1px solid #f97316',
-        padding: '20px',
-        fontSize: '15px',
-        maxWidth: '450px'
-      }
-    });
+    setSelectedRecipe(recipe);
   };
 
   const handleSearch = (e) => {
@@ -117,18 +101,18 @@ function App() {
       description: formData.get('description')
     };
     try {
-    // CAMBIO: Usa la URL completa del dominio de producción
-    await axios.post('https://ltu-m7011e-5.se/recipes', payload, {
-      headers: { 
-        Authorization: `Bearer ${keycloak.token}`, // IMPORTANTE: El token
-        'Content-Type': 'application/json'
+      await axios.post('https://ltu-m7011e-5.se/recipes', payload, {
+        headers: { 
+          Authorization: `Bearer ${keycloak.token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      toast.success("¡Receta publicada!");
+      setShowModal(false); // Cierra el modal de creación tras el éxito
+      fetchData(keycloak.tokenParsed.sub); // Recarga la lista
+    } catch (err) {
+      toast.error("Error al publicar. Verifica tu conexión.");
     }
-    });
-    toast.success("¡Receta publicada!");
-    // ...
-  } catch (err) {
-    toast.error("Error al publicar. Verifica tu conexión.");
-  }
   };
 
   if (loading) return <div className="loader-container"><div className="spinner"></div></div>;
@@ -217,6 +201,7 @@ function App() {
         </div>
       </main>
 
+      {/* MODAL PARA CREAR NUEVA RECETA */}
       {showModal && (
         <div className="modal-overlay">
           <div className="glass-panel modal-box">
@@ -229,7 +214,8 @@ function App() {
                 <option value="Vegana">Vegana</option>
                 <option value="Japonesa">Japonesa</option>
               </select>
-              <textarea name="description" placeholder="Instrucciones..." required className="form-input" rows="4" />
+              <textarea name="description" placeholder="Breve descripción..." required className="form-input" rows="2" />
+              {/* Nota: Para producción, aquí deberías añadir campos para ingredientes e instrucciones en el formulario también */}
               <div style={{display: 'flex', gap: '10px'}}>
                 <button type="submit" className="btn-create">Publicar</button>
                 <button type="button" onClick={() => setShowModal(false)} className="btn-modern">Cancelar</button>
@@ -238,6 +224,87 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* MODAL PARA VER DETALLES DE RECETA (NUEVO) */}
+      {selectedRecipe && (
+        <div className="modal-overlay">
+          <div className="glass-panel modal-box" style={{ maxWidth: '700px', width: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
+            {/* Cabecera del Modal */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '2rem', color: '#f97316', margin: 0 }}>{selectedRecipe.name}</h3>
+              <button 
+                onClick={() => setSelectedRecipe(null)} 
+                className="btn-modern"
+                style={{ background: 'rgba(255,255,255,0.1)', border: 'none', fontSize: '1.2rem', padding: '5px 15px' }}
+              >
+                ✕
+              </button>
+            </div>
+            
+            {/* Imagen Principal */}
+            <img 
+              src={categoryImages[selectedRecipe.category?.toLowerCase()] || categoryImages.default} 
+              alt={selectedRecipe.name}
+              style={{ width: '100%', height: '300px', objectFit: 'cover', borderRadius: '12px', marginBottom: '1.5rem' }}
+            />
+            
+            {/* Descripción */}
+            <p style={{ fontStyle: 'italic', marginBottom: '2rem', color: '#cbd5e1', fontSize: '1.1rem', lineHeight: '1.6' }}>
+              {selectedRecipe.description}
+            </p>
+
+            {/* Ingredientes */}
+            <div style={{ marginBottom: '2rem' }}>
+              <h4 style={{ color: '#fff', borderBottom: '2px solid #f97316', paddingBottom: '0.5rem', marginBottom: '1rem', display: 'inline-block' }}>
+                🥘 Ingredientes
+              </h4>
+              <ul style={{ 
+                paddingLeft: '0', 
+                listStyle: 'none', 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
+                gap: '10px' 
+              }}>
+                {selectedRecipe.ingredients && selectedRecipe.ingredients.length > 0 ? (
+                  selectedRecipe.ingredients.map((ing, i) => (
+                    <li key={i} style={{ background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '8px', color: '#e2e8f0' }}>
+                      • {ing}
+                    </li>
+                  ))
+                ) : (
+                  <li style={{ color: '#94a3b8' }}>No se especificaron ingredientes detallados.</li>
+                )}
+              </ul>
+            </div>
+
+            {/* Instrucciones */}
+            <div>
+              <h4 style={{ color: '#fff', borderBottom: '2px solid #f97316', paddingBottom: '0.5rem', marginBottom: '1rem', display: 'inline-block' }}>
+                📝 Instrucciones Paso a Paso
+              </h4>
+              <div style={{ 
+                color: '#e2e8f0', 
+                whiteSpace: 'pre-line', 
+                lineHeight: '1.8', 
+                background: 'rgba(30, 41, 59, 0.5)', 
+                padding: '1.5rem', 
+                borderRadius: '12px',
+                border: '1px solid rgba(255,255,255,0.1)'
+              }}>
+                {selectedRecipe.instructions || "No hay instrucciones detalladas para esta receta."}
+              </div>
+            </div>
+
+            {/* Footer del Modal */}
+            <div style={{ marginTop: '2rem', textAlign: 'right', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem' }}>
+              <button onClick={() => setSelectedRecipe(null)} className="btn-create" style={{ padding: '10px 30px' }}>
+                Cerrar Receta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
