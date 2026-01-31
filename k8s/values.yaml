@@ -14,7 +14,7 @@ services:
     targetPort: 3002
     env:  # database connection settings
       - name: MONGO_URI
-        value: "mongodb://mongo-service:27017/chefmatch"
+        value: "mongodb://mongo-service.todo-app.svc.cluster.local:27017/chefmatch"
   recommendation:
     name: recommendation-service
     image: aym3/chef-recommendation-service:latest
