@@ -20,6 +20,17 @@ function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
+  const [activeCategory, setActiveCategory] = useState(null); // Nuevo estado para efecto visual
+
+  // CONFIGURACIÓN DE ESTILO PARA LAS CATEGORÍAS (NUEVO DISEÑO)
+  const cuisineStyles = [
+    { name: 'Italiana', icon: '🍝', color: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)' },
+    { name: 'Mexicana', icon: '🌮', color: 'linear-gradient(135deg, #f09819 0%, #edde5d 100%)' },
+    { name: 'Vegana',   icon: '🥗', color: 'linear-gradient(135deg, #a8ff78 0%, #78ffd6 100%)' },
+    { name: 'Japonesa', icon: '🍣', color: 'linear-gradient(135deg, #ff9966 0%, #ff5e62 100%)' },
+    { name: 'Americana',icon: '🍔', color: 'linear-gradient(135deg, #3a7bd5 0%, #3a6073 100%)' },
+    { name: 'Postres',  icon: '🧁', color: 'linear-gradient(135deg, #fc466b 0%, #3f5efb 100%)' },
+  ];
 
   const categoryImages = {
     italiana: "https://images.unsplash.com/photo-1498579150354-977475b7ea0b?auto=format&fit=crop&w=800&q=80",
@@ -70,10 +81,8 @@ function App() {
     });
   }, []);
 
-  // Función auxiliar para pedir recomendación (con opción de forzar categoría)
   const fetchRecommendations = async (userId, categoryOverride = null) => {
     try {
-      // Si tenemos una categoría forzada (recién clicada), la pasamos en la URL
       const url = `/recommendations/${userId}` + (categoryOverride ? `?category=${categoryOverride}` : '');
       const resRecs = await axios.get(url, {
         headers: { Authorization: `Bearer ${keycloak.token}` }
@@ -90,8 +99,17 @@ function App() {
       setRecipes(resRecipes.data);
       setFilteredRecipes(resRecipes.data);
       
-      // Carga inicial: No pasamos categoría, para que el backend decida 
-      // (si no hay guardada, devolverá "Selecciona categoría")
+      // Intentamos recuperar la preferencia actual para marcarla visualmente
+      try {
+        const userRes = await axios.get(`/users/${userId}`, {
+            headers: { Authorization: `Bearer ${keycloak.token}` }
+        });
+        const savedPref = userRes.data.preference || userRes.data.category;
+        if (savedPref) setActiveCategory(savedPref);
+      } catch (e) {
+        // Silent error
+      }
+
       await fetchRecommendations(userId);
       
     } catch (err) {
@@ -114,22 +132,18 @@ function App() {
   };
 
   const updatePreferences = async (newPref) => { 
-    const loadId = toast.loading(`Actualizando a ${newPref}...`);
+    setActiveCategory(newPref); // Marcamos inmediatamente como activo
+    const loadId = toast.loading(`Cambiando a modo ${newPref}...`);
     try {
-      // 1. Guardar en Base de Datos (Lento / Asíncrono)
       await axios.post('/users/preferences', 
         { userId: keycloak.tokenParsed.sub, category: newPref },
         { headers: { Authorization: `Bearer ${keycloak.token}`, 'Content-Type': 'application/json' } }
       );
       
-      // 2. Pedir recomendación INMEDIATA para esa categoría (Rápido / Feedback instantáneo)
-      // Pasamos 'newPref' explícitamente para no depender de la BD
       await fetchRecommendations(keycloak.tokenParsed.sub, newPref);
 
-      toast.success(`¡Oído cocina! Buscando ${newPref}...`, { id: loadId });
-      
-      // Refrescamos la lista general por si acaso, pero la recomendación ya estará lista
-      setTimeout(() => fetchData(keycloak.tokenParsed.sub), 2000);
+      toast.success(`¡Gustos actualizados!`, { id: loadId });
+      setTimeout(() => fetchData(keycloak.tokenParsed.sub), 1000);
     } catch (err) {
       toast.error("Error al actualizar perfil", { id: loadId });
     }
@@ -185,30 +199,94 @@ function App() {
       </header>
 
       <main style={{ padding: '2rem 3rem', maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '2rem', marginBottom: '3rem' }}>
-          <section className="glass-panel">
-            <h3>Gestión de Perfil</h3>
-            <div className="category-grid" style={{marginTop:'1rem'}}>
-              {['Italiana', 'Mexicana', 'Vegana', 'Japonesa', 'Americana', 'Postres'].map(cat => (
-                <button key={cat} onClick={() => updatePreferences(cat)} className="btn-modern">{cat}</button>
-              ))}
+        
+        {/* NUEVA SECCIÓN DE GESTIÓN DE PERFIL (DISEÑO DINÁMICO) */}
+        <div style={{ marginBottom: '3rem' }}>
+            <h3 style={{ color: '#fff', fontSize: '1.5rem', marginBottom: '1.5rem', display:'flex', alignItems:'center', gap:'10px' }}>
+                🎭 ¿Qué te apetece hoy? <span style={{fontSize:'0.8rem', opacity:0.6, fontWeight:'normal'}}>(Selecciona tu mood)</span>
+            </h3>
+            
+            <div style={{ 
+                display: 'flex', 
+                gap: '20px', 
+                overflowX: 'auto', 
+                paddingBottom: '20px', 
+                justifyContent: 'flex-start' 
+            }}>
+                {cuisineStyles.map((cuisine) => {
+                    const isActive = activeCategory === cuisine.name;
+                    return (
+                        <div 
+                            key={cuisine.name} 
+                            onClick={() => updatePreferences(cuisine.name)}
+                            style={{
+                                cursor: 'pointer',
+                                minWidth: '100px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: '10px',
+                                transition: 'all 0.3s ease',
+                                transform: isActive ? 'translateY(-5px) scale(1.05)' : 'none',
+                                opacity: activeCategory && !isActive ? 0.6 : 1
+                            }}
+                            className="cuisine-card"
+                        >
+                            {/* Círculo del icono */}
+                            <div style={{
+                                width: '70px',
+                                height: '70px',
+                                borderRadius: '50%',
+                                background: cuisine.color,
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                fontSize: '2rem',
+                                boxShadow: isActive ? `0 0 20px ${cuisine.color}` : '0 5px 15px rgba(0,0,0,0.3)',
+                                border: isActive ? '3px solid #fff' : 'none',
+                                transition: 'all 0.3s ease'
+                            }}>
+                                {cuisine.icon}
+                            </div>
+                            
+                            {/* Texto */}
+                            <span style={{ 
+                                color: isActive ? '#f97316' : '#94a3b8', 
+                                fontWeight: isActive ? 'bold' : 'normal',
+                                fontSize: '0.9rem'
+                            }}>
+                                {cuisine.name}
+                            </span>
+                        </div>
+                    );
+                })}
             </div>
-          </section>
-
-          <section className="glass-panel" style={{ borderTop: '4px solid #f97316' }}>
-            <h3 style={{ color: '#f97316' }}>✨ Recomendación</h3>
-            <div style={{ marginTop: '1rem' }}>
-              {recommendations.length > 0 ? (
-                recommendations.map((rec, i) => <div key={i} className="recommendation-chip">{rec}</div>)
-              ) : (
-                <p style={{ opacity: 0.5 }}>Actualiza tu perfil para recibir sugerencias.</p>
-              )}
-            </div>
-          </section>
         </div>
 
+        {/* SECCIÓN DE RECOMENDACIÓN (VISUALMENTE INTEGRADA) */}
+        {recommendations.length > 0 && recommendations[0] !== "Selecciona una categoría para ver tu recomendación." && (
+            <div className="glass-panel" style={{ 
+                borderLeft: '5px solid #f97316', 
+                marginBottom: '3rem',
+                background: 'linear-gradient(90deg, rgba(249,115,22,0.1) 0%, rgba(30,41,59,0.5) 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+            }}>
+                <div>
+                    <h4 style={{ color: '#f97316', margin: 0, fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                        ChefMatch Recomienda
+                    </h4>
+                    <h2 style={{ color: '#fff', margin: '5px 0 0 0', fontSize: '1.8rem' }}>
+                        {recommendations[0]}
+                    </h2>
+                </div>
+                <div style={{ fontSize: '3rem', opacity: 0.2 }}>✨</div>
+            </div>
+        )}
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <h2 style={{ fontSize: '2rem' }}>Explorar Recetas</h2>
+          <h2 style={{ fontSize: '2rem' }}>Explorar Menú</h2>
           <button onClick={() => setShowModal(true)} className="btn-create">+ Añadir Receta</button>
         </div>
 
