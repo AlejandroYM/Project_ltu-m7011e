@@ -187,7 +187,7 @@ function App() {
           </section>
 
           <section className="glass-panel" style={{ borderTop: '4px solid #f97316' }}>
-            <h3 style={{ color: '#f97316' }}>✨ Recomendaciones IA</h3>
+            <h3 style={{ color: '#f97316' }}>✨ Recomendación de la IA</h3>
             <div style={{ marginTop: '1rem' }}>
               {recommendations.length > 0 ? (
                 recommendations.map((rec, i) => <div key={i} className="recommendation-chip">{rec}</div>)
