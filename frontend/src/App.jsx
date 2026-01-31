@@ -28,7 +28,8 @@ function App() {
     vegana:   "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&q=80",
     japonesa: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?auto=format&fit=crop&w=800&q=80",
     americana:"https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=800&q=80",
-    postres:  "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?auto=format&fit=crop&w=800&q=80",
+    // CAMBIO: Imagen horizontal (landscape) para que no salga cortada en el botón
+    postres:  "https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=800&q=80",
     default:  "https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=800&q=80"
   };
 
@@ -39,19 +40,23 @@ function App() {
     "pizza margarita": "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=800&q=80",
     // Mexicana
     "tacos al pastor": "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?auto=format&fit=crop&w=800&q=80",
-    "guacamole tradicional": "https://images.unsplash.com/photo-1615485925694-a03913062777?auto=format&fit=crop&w=800&q=80", // <-- FOTO ARREGLADA (Ahora es aguacate real)
+    // CAMBIO: Enlace de Wikimedia Commons (súper estable) para Guacamole
+    "guacamole tradicional": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Guacomole.jpg/800px-Guacomole.jpg", 
     // Vegana
     "curry de garbanzos": "https://images.unsplash.com/photo-1565557623262-b51c2513a641?auto=format&fit=crop&w=800&q=80",
     "buddha bowl": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80",
     // Japonesa
     "sushi maki roll": "https://images.unsplash.com/photo-1553621042-f6e147245754?auto=format&fit=crop&w=800&q=80",
     "ramen de pollo": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=800&q=80",
-    // Americana (NUEVAS)
+    // Americana 
     "hamburguesa clásica": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=80",
-    "costillas bbq": "https://images.unsplash.com/photo-1544025162-d76690b67f14?auto=format&fit=crop&w=800&q=80",
-    // Postres (NUEVAS)
+    // CAMBIO: Enlace directo de descarga Unsplash para Costillas (Roasted Ribs)
+    "costillas bbq": "https://unsplash.com/photos/UeYkqQh4PoI/download?force=true&w=800",
+    // Postres
+    // CAMBIO: Imagen clásica de Tiramisú
     "tiramisú": "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?auto=format&fit=crop&w=800&q=80",
-    "cheesecake de fresa": "https://images.unsplash.com/photo-1508737804141-4c3b688e2546?auto=format&fit=crop&w=800&q=80"
+    // CAMBIO: Enlace directo para Cheesecake con fresas
+    "cheesecake de fresa": "https://unsplash.com/photos/EvP5OAts3bQ/download?force=true&w=800"
   };
 
   const getRecipeImage = (recipe) => {
@@ -175,7 +180,6 @@ function App() {
           <section className="glass-panel">
             <h3>Gestión de Perfil</h3>
             <div className="category-grid" style={{marginTop:'1rem'}}>
-              {/* Actualizada la lista de categorías */}
               {['Italiana', 'Mexicana', 'Vegana', 'Japonesa', 'Americana', 'Postres'].map(cat => (
                 <button key={cat} onClick={() => updatePreferences(cat)} className="btn-modern">{cat}</button>
               ))}
