@@ -21,41 +21,28 @@ function App() {
   const [showModal, setShowModal] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
 
-  // 1. IMÁGENES GENÉRICAS POR CATEGORÍA
   const categoryImages = {
     italiana: "https://images.unsplash.com/photo-1498579150354-977475b7ea0b?auto=format&fit=crop&w=800&q=80",
     mexicana: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=800&q=80",
     vegana:   "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&q=80",
     japonesa: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?auto=format&fit=crop&w=800&q=80",
     americana:"https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=800&q=80",
-    // CAMBIO: Imagen horizontal (landscape) para que no salga cortada en el botón
     postres:  "https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=800&q=80",
     default:  "https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=800&q=80"
   };
 
-  // 2. IMÁGENES ESPECÍFICAS POR RECETA
   const specificImages = {
-    // Italiana
     "pasta carbonara": "https://images.unsplash.com/photo-1612874742237-6526221588e3?auto=format&fit=crop&w=800&q=80",
     "pizza margarita": "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=800&q=80",
-    // Mexicana
     "tacos al pastor": "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?auto=format&fit=crop&w=800&q=80",
-    // CAMBIO: Enlace de Wikimedia Commons (súper estable) para Guacamole
     "guacamole tradicional": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Guacomole.jpg/800px-Guacomole.jpg", 
-    // Vegana
     "curry de garbanzos": "https://images.unsplash.com/photo-1565557623262-b51c2513a641?auto=format&fit=crop&w=800&q=80",
     "buddha bowl": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80",
-    // Japonesa
     "sushi maki roll": "https://images.unsplash.com/photo-1553621042-f6e147245754?auto=format&fit=crop&w=800&q=80",
     "ramen de pollo": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=800&q=80",
-    // Americana 
     "hamburguesa clásica": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=80",
-    // CAMBIO: Enlace directo de descarga Unsplash para Costillas (Roasted Ribs)
     "costillas bbq": "https://unsplash.com/photos/UeYkqQh4PoI/download?force=true&w=800",
-    // Postres
-    // CAMBIO: Imagen clásica de Tiramisú
     "tiramisú": "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?auto=format&fit=crop&w=800&q=80",
-    // CAMBIO: Enlace directo para Cheesecake con fresas
     "cheesecake de fresa": "https://unsplash.com/photos/EvP5OAts3bQ/download?force=true&w=800"
   };
 
@@ -83,16 +70,30 @@ function App() {
     });
   }, []);
 
+  // Función auxiliar para pedir recomendación (con opción de forzar categoría)
+  const fetchRecommendations = async (userId, categoryOverride = null) => {
+    try {
+      // Si tenemos una categoría forzada (recién clicada), la pasamos en la URL
+      const url = `/recommendations/${userId}` + (categoryOverride ? `?category=${categoryOverride}` : '');
+      const resRecs = await axios.get(url, {
+        headers: { Authorization: `Bearer ${keycloak.token}` }
+      });
+      setRecommendations(resRecs.data);
+    } catch (err) {
+      console.error("Error cargando recomendaciones", err);
+    }
+  };
+
   const fetchData = async (userId) => {
     try {
       const resRecipes = await axios.get('https://ltu-m7011e-5.se/recipes');
       setRecipes(resRecipes.data);
       setFilteredRecipes(resRecipes.data);
-
-      const resRecs = await axios.get(`/recommendations/${userId}`, {
-        headers: { Authorization: `Bearer ${keycloak.token}` }
-      });
-      setRecommendations(resRecs.data);
+      
+      // Carga inicial: No pasamos categoría, para que el backend decida 
+      // (si no hay guardada, devolverá "Selecciona categoría")
+      await fetchRecommendations(userId);
+      
     } catch (err) {
       console.error("Error al cargar datos:", err);
     }
@@ -113,13 +114,21 @@ function App() {
   };
 
   const updatePreferences = async (newPref) => { 
-    const loadId = toast.loading(`Guardando preferencia...`);
+    const loadId = toast.loading(`Actualizando a ${newPref}...`);
     try {
+      // 1. Guardar en Base de Datos (Lento / Asíncrono)
       await axios.post('/users/preferences', 
         { userId: keycloak.tokenParsed.sub, category: newPref },
         { headers: { Authorization: `Bearer ${keycloak.token}`, 'Content-Type': 'application/json' } }
       );
-      toast.success(`Preferencias actualizadas`, { id: loadId });
+      
+      // 2. Pedir recomendación INMEDIATA para esa categoría (Rápido / Feedback instantáneo)
+      // Pasamos 'newPref' explícitamente para no depender de la BD
+      await fetchRecommendations(keycloak.tokenParsed.sub, newPref);
+
+      toast.success(`¡Oído cocina! Buscando ${newPref}...`, { id: loadId });
+      
+      // Refrescamos la lista general por si acaso, pero la recomendación ya estará lista
       setTimeout(() => fetchData(keycloak.tokenParsed.sub), 2000);
     } catch (err) {
       toast.error("Error al actualizar perfil", { id: loadId });
@@ -187,7 +196,7 @@ function App() {
           </section>
 
           <section className="glass-panel" style={{ borderTop: '4px solid #f97316' }}>
-            <h3 style={{ color: '#f97316' }}>✨ Recomendación de la IA</h3>
+            <h3 style={{ color: '#f97316' }}>✨ Recomendación</h3>
             <div style={{ marginTop: '1rem' }}>
               {recommendations.length > 0 ? (
                 recommendations.map((rec, i) => <div key={i} className="recommendation-chip">{rec}</div>)

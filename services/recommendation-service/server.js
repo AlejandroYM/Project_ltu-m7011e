@@ -12,7 +12,6 @@ app.use(express.json());
 const USER_SERVICE_URL = 'http://user-service:8000';
 const RECIPE_SERVICE_URL = 'http://recipe-service.todo-app.svc.cluster.local:3002';
 
-// Almacenamiento volátil (Legacy RabbitMQ)
 let userRecommendations = {}; 
 
 // --- CONSUMER RABBITMQ (REQ15) ---
@@ -28,7 +27,7 @@ async function startConsuming() {
       if (msg !== null) {
         const event = JSON.parse(msg.content.toString());
         if (event.action === 'PREFERENCES_UPDATED') {
-             console.log(`✅ RabbitMQ: Usuario ${event.userId} prefiere ahora ${event.newPreferences}`);
+             console.log(`✅ RabbitMQ: Usuario ${event.userId} actualizó preferencias.`);
         }
         channel.ack(msg);
       }
@@ -44,68 +43,57 @@ startConsuming();
 
 app.get('/recommendations/:userId', async (req, res) => {
   const { userId } = req.params;
+  const queryCategory = req.query.category; // NUEVO: Leemos parámetro de URL
 
   try {
-    // 1. Obtener datos del usuario
     let categoryPref = null;
-    try {
-        const userRes = await axios.get(`${USER_SERVICE_URL}/users/${userId}`);
-        const userData = userRes.data;
-        
-        console.log(`👤 Datos recibidos del usuario ${userId}:`, JSON.stringify(userData));
 
-        // LÓGICA ROBUSTA: Buscamos la categoría en todos los sitios posibles
-        if (userData.category) {
-            categoryPref = userData.category;
-        } else if (userData.preferences && userData.preferences.category) {
-            categoryPref = userData.preferences.category;
-        } else if (userData.preference) {
-            categoryPref = userData.preference;
+    // 1. PRIORIDAD MÁXIMA: Si el frontend nos dice la categoría explícitamente, la usamos.
+    if (queryCategory) {
+        categoryPref = queryCategory;
+        console.log(`🎯 Categoría forzada por frontend: "${categoryPref}"`);
+    } else {
+        // 2. Si no, intentamos buscarla en la base de datos (persistencia)
+        try {
+            const userRes = await axios.get(`${USER_SERVICE_URL}/users/${userId}`);
+            const userData = userRes.data;
+            
+            if (userData.category) categoryPref = userData.category;
+            else if (userData.preferences?.category) categoryPref = userData.preferences.category;
+            else if (userData.preference) categoryPref = userData.preference;
+
+            if (categoryPref) console.log(`💾 Preferencia recuperada de BD: "${categoryPref}"`);
+        } catch (e) {
+            console.log("⚠️ No se pudo recuperar preferencia del User Service.");
         }
-
-        if (categoryPref) console.log(`🎯 Preferencia detectada: "${categoryPref}"`);
-        else console.log("⚠️ No se encontró preferencia en el objeto de usuario.");
-
-    } catch (e) {
-        console.log("⚠️ Error al consultar User Service:", e.message);
     }
 
-    // 2. Obtener todas las recetas
+    // 3. Si DESPUÉS de todo esto no tenemos categoría, devolvemos mensaje de espera (NO receta random)
+    if (!categoryPref) {
+        return res.json(["Selecciona una categoría para ver tu recomendación."]);
+    }
+
+    // 4. Obtener recetas y filtrar
     const recipesRes = await axios.get(`${RECIPE_SERVICE_URL}/recipes`);
     const allRecipes = recipesRes.data;
 
-    // 3. Filtrar
-    let filteredRecipes = allRecipes;
-    
-    if (categoryPref) {
-      // Normalizamos a minúsculas para evitar errores de "Italiana" vs "italiana"
-      const safePref = categoryPref.toLowerCase().trim();
-      
-      const match = allRecipes.filter(r => 
-        r.category && r.category.toLowerCase().trim() === safePref
-      );
+    const safePref = categoryPref.toLowerCase().trim();
+    const match = allRecipes.filter(r => 
+      r.category && r.category.toLowerCase().trim() === safePref
+    );
 
-      if (match.length > 0) {
-        console.log(`✅ Se encontraron ${match.length} recetas de categoría ${safePref}`);
-        filteredRecipes = match;
-      } else {
-        console.log(`⚠️ El usuario quiere ${safePref} pero no hay recetas de ese tipo. Usando todas.`);
-      }
+    if (match.length > 0) {
+      // Devolver una receta aleatoria DE ESA CATEGORÍA
+      const randomRecipe = match[Math.floor(Math.random() * match.length)];
+      res.json([randomRecipe.name]);
+    } else {
+      // Si pidió "Americana" pero no hay recetas de eso, avisamos
+      res.json([`No tenemos recetas de ${categoryPref} todavía.`]);
     }
-
-    // 4. Elegir una receta
-    if (filteredRecipes.length === 0) {
-      return res.json(["No hay recetas disponibles."]);
-    }
-
-    const randomRecipe = filteredRecipes[Math.floor(Math.random() * filteredRecipes.length)];
-    
-    // Retornamos array con 1 elemento
-    res.json([randomRecipe.name]);
 
   } catch (error) {
-    console.error("❌ Error CRÍTICO en recomendador:", error.message);
-    res.json(["Sugerencia del Chef"]);
+    console.error("❌ Error:", error.message);
+    res.json(["Error al obtener recomendación"]);
   }
 });
 
