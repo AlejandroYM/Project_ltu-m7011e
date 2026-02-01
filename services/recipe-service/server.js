@@ -189,3 +189,24 @@ app.post('/recipes', async (req, res) => {
 
 const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => console.log(`Server on port ${PORT}`));
+
+// 5. Delete endpoint for recipes
+app.delete('/recipes/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verify if id is a valid MongoDB ObjectId
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      const deleted = await Recipe.findByIdAndDelete(id);
+      if (deleted) {
+        return res.status(200).json({ message: "Recipe deleted successfully" });
+      }
+    }
+
+    // If not found in DB, we assume it's static or it doesn't exist
+    res.status(403).json({ error: "Cannot delete static or non-existent recipes" });
+
+  } catch (err) {
+    res.status(500).json({ error: "Error deleting recipe" });
+  }
+});

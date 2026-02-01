@@ -271,6 +271,24 @@ function App() {
     }
   };
 
+  const handleDeleteRecipe = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this recipe?")) return;
+
+    try {
+      await axios.delete(`https://ltu-m7011e-5.se/recipes/${id}`, {
+        headers: { Authorization: `Bearer ${keycloak.token}` }
+      });
+
+      toast.success("Recipe deleted!");
+      setSelectedRecipe(null);
+      fetchData(keycloak.tokenParsed.sub);
+    } catch (err) {
+      console.error(err);
+      toast.error("Can't delete the recipe, it might be a static one." );
+    }
+  };
+
+
   if (loading) return <div className="loader-container"><div className="spinner"></div></div>;
 
   return (
@@ -465,8 +483,19 @@ function App() {
                 {selectedRecipe.instructions || "No detailed instructions for this recipe."}
               </div>
             </div>
-            <div style={{ marginTop: '2rem', textAlign: 'right', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem' }}>
-              <button onClick={() => setSelectedRecipe(null)} className="btn-create" style={{ padding: '10px 30px' }}>Close Recipe</button>
+
+
+            <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem' }}>              
+              {/* Botón de Borrar (Nuevo) */}
+              {/* Solo mostramos el botón si la receta tiene un ID largo de Mongo (no es 1, 2, 3...) */}
+              {selectedRecipe._id && typeof selectedRecipe._id === 'string' && selectedRecipe._id.length > 5 ? (
+                <button onClick={() => handleDeleteRecipe(selectedRecipe._id)} className="btn-modern" style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5', border: '1px solid #ef4444' }}>
+                  Delete Recipe
+                </button>
+              ) : <div></div>}
+                <button onClick={() => setSelectedRecipe(null)} className="btn-create" style={{ padding: '10px 30px' }}>
+                  Close Recipe
+                </button>
             </div>
           </div>
         </div>
