@@ -1,11 +1,42 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+// NEW: Metrics library
+const client = require('prom-client'); 
+
 const app = express();
 app.use(cors());
 app.use(express.json());
 const Recipe = require('./models/Recipe');
 require('dotenv').config();
+
+// --- MONITORING CONFIGURATION (REQ13) ---
+const collectDefaultMetrics = client.collectDefaultMetrics;
+collectDefaultMetrics(); // Collect CPU, Memory, etc.
+
+// Custom metric: Counter for recipe views/requests
+const httpRequestDurationMicroseconds = new client.Histogram({
+  name: 'http_request_duration_ms',
+  help: 'Duration of HTTP requests in ms',
+  labelNames: ['method', 'route', 'code'],
+  buckets: [50, 100, 200, 300, 400, 500, 1000]
+});
+
+// Middleware to measure duration
+app.use((req, res, next) => {
+  const end = httpRequestDurationMicroseconds.startTimer();
+  res.on('finish', () => {
+    end({ method: req.method, route: req.route ? req.route.path : req.path, code: res.statusCode });
+  });
+  next();
+});
+
+// Endpoint for Prometheus to scrape
+app.get('/metrics', async (req, res) => {
+  res.setHeader('Content-Type', client.register.contentType);
+  res.send(await client.register.metrics());
+});
+// ----------------------------------------
 
 // 1. Static recipes (Updated with COOKING TIME)
 const staticRecipes = [
