@@ -243,10 +243,17 @@ function App() {
   const handleCreateRecipe = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
+
+    // Change the text in ingredients to an array 
+    const ingredientsText = formData.get('ingredients') || "";
+    const ingredientsArray = ingredientsText.split(',').map(item => item.trim());
+
     const payload = {
       name: formData.get('name'),
       category: formData.get('category'),
       description: formData.get('description'),
+      ingredients: ingredientsArray,                // Array of ingredients
+      instructions: formData.get('instructions'),   // Detailed instructions
       cookingTime: formData.get('cookingTime')
     };
     try {
@@ -420,6 +427,8 @@ function App() {
                   <input name="cookingTime" type="number" placeholder="Minutes (e.g. 30)" required className="form-input" />
               </div>
               <textarea name="description" placeholder="Short description..." required className="form-input" rows="2" />
+              <textarea name="ingredients" placeholder="Ingredients (comma separated)..." required className="form-input" rows="3" />
+              <textarea name="instructions" placeholder="Step-by-step instructions..." required className="form-input" rows="5" />
               <div style={{display: 'flex', gap: '10px'}}>
                 <button type="submit" className="btn-create">Publish</button>
                 <button type="button" onClick={() => setShowModal(false)} className="btn-modern">Cancel</button>
