@@ -8,7 +8,8 @@ const recipeSchema = new mongoose.Schema({
   // para que no falle al crear una receta rápida desde el formulario actual.
   ingredients: { type: [String], default: [] },
   instructions: { type: String, default: "" },
-  imageUrl: { type: String } 
+  imageUrl: { type: String },
+  cookingTime: { type: Number, default: 30 }
 });
 
 module.exports = mongoose.model('Recipe', recipeSchema);
