@@ -7,135 +7,135 @@ app.use(express.json());
 const Recipe = require('./models/Recipe');
 require('dotenv').config();
 
-// 1. Recetas estáticas con TIEMPO DE COCINADO (cookingTime) añadido
+// 1. Static recipes (Updated with COOKING TIME)
 const staticRecipes = [
-  // ITALIANA
+  // ITALIAN
   { 
     id: 1, 
-    name: 'Pasta Carbonara', 
-    category: 'Italiana', 
-    description: 'La auténtica receta romana sin nata.',
-    ingredients: ['400g Espaguetis', '150g Guanciale o Panceta', '4 Yemas de huevo', '100g Queso Pecorino', 'Pimienta negra'],
-    instructions: '1. Hervir la pasta. \n2. Sofreír el guanciale hasta que esté crujiente. \n3. Batir las yemas con el queso y mucha pimienta. \n4. Mezclar la pasta caliente con el huevo fuera del fuego para crear la crema.',
-    cookingTime: 20 // min
+    name: 'Carbonara Pasta', 
+    category: 'Italian', 
+    description: 'The authentic Roman recipe without cream.',
+    ingredients: ['400g Spaghetti', '150g Guanciale or Pancetta', '4 Egg yolks', '100g Pecorino Cheese', 'Black pepper'],
+    instructions: '1. Boil the pasta. \n2. Sauté the guanciale until crispy. \n3. Beat the yolks with the cheese and lots of pepper. \n4. Mix the hot pasta with the egg mixture off the heat to create the cream.',
+    cookingTime: 20
   },
   { 
     id: 2, 
-    name: 'Pizza Margarita', 
-    category: 'Italiana', 
-    description: 'La pizza napolitana clásica.',
-    ingredients: ['Masa de pizza', 'Salsa de tomate San Marzano', 'Mozzarella fresca', 'Albahaca fresca', 'Aceite de oliva'],
-    instructions: '1. Extender la masa. \n2. Añadir el tomate y la mozzarella. \n3. Hornear a máxima temperatura (250°C) durante 10-15 min. \n4. Añadir albahaca fresca al salir.',
+    name: 'Margherita Pizza', 
+    category: 'Italian', 
+    description: 'The classic Neapolitan pizza.',
+    ingredients: ['Pizza dough', 'San Marzano tomato sauce', 'Fresh Mozzarella', 'Fresh Basil', 'Olive oil'],
+    instructions: '1. Stretch the dough. \n2. Add tomato and mozzarella. \n3. Bake at maximum temperature (250°C) for 10-15 min. \n4. Add fresh basil upon serving.',
     cookingTime: 45
   },
   
-  // MEXICANA
+  // MEXICAN
   { 
     id: 3, 
     name: 'Tacos al Pastor', 
-    category: 'Mexicana', 
-    description: 'Tacos de cerdo marinado con piña.',
-    ingredients: ['Tortillas de maíz', '500g Lomo de cerdo', 'Piña', 'Cilantro y Cebolla', 'Pasta de Achiote'],
-    instructions: '1. Marinar la carne con achiote y especias. \n2. Asar la carne con la piña. \n3. Calentar tortillas. \n4. Servir con cilantro, cebolla y salsa.',
+    category: 'Mexican', 
+    description: 'Marinated pork tacos with pineapple.',
+    ingredients: ['Corn tortillas', '500g Pork loin', 'Pineapple', 'Cilantro and Onion', 'Achiote paste'],
+    instructions: '1. Marinate the meat with achiote and spices. \n2. Grill the meat with the pineapple. \n3. Heat the tortillas. \n4. Serve with cilantro, onion, and salsa.',
     cookingTime: 60
   },
   { 
     id: 4, 
-    name: 'Guacamole Tradicional', 
-    category: 'Mexicana', 
-    description: 'El acompañamiento perfecto.',
-    ingredients: ['3 Aguacates maduros', '1 Tomate', '1/2 Cebolla', 'Cilantro', 'Jugo de lima', 'Sal'],
-    instructions: '1. Machacar los aguacates. \n2. Picar finamente cebolla, tomate y cilantro. \n3. Mezclar todo con jugo de lima y sal al gusto.',
+    name: 'Traditional Guacamole', 
+    category: 'Mexican', 
+    description: 'The perfect side dish.',
+    ingredients: ['3 Ripe avocados', '1 Tomato', '1/2 Onion', 'Cilantro', 'Lime juice', 'Salt'],
+    instructions: '1. Mash the avocados. \n2. Finely chop onion, tomato, and cilantro. \n3. Mix everything with lime juice and salt to taste.',
     cookingTime: 10
   },
 
-  // VEGANA
+  // VEGAN
   { 
     id: 5, 
-    name: 'Curry de Garbanzos', 
-    category: 'Vegana', 
-    description: 'Plato rico en proteínas y especias.',
-    ingredients: ['400g Garbanzos cocidos', 'Leche de coco', 'Espinacas', 'Curry en polvo', 'Ajo y Jengibre'],
-    instructions: '1. Sofreír ajo y jengibre. \n2. Añadir especias y garbanzos. \n3. Verter leche de coco y cocinar 10 min. \n4. Añadir espinacas al final.',
+    name: 'Chickpea Curry', 
+    category: 'Vegan', 
+    description: 'Dish rich in protein and spices.',
+    ingredients: ['400g Cooked chickpeas', 'Coconut milk', 'Spinach', 'Curry powder', 'Garlic and Ginger'],
+    instructions: '1. Sauté garlic and ginger. \n2. Add spices and chickpeas. \n3. Pour coconut milk and cook for 10 min. \n4. Add spinach at the end.',
     cookingTime: 25
   },
   { 
     id: 6, 
     name: 'Buddha Bowl', 
-    category: 'Vegana', 
-    description: 'Bol nutritivo y colorido.',
-    ingredients: ['Quinoa', 'Tofu marinado', 'Aguacate', 'Zanahoria rallada', 'Salsa de Tahini'],
-    instructions: '1. Cocinar la quinoa. \n2. Saltear el tofu. \n3. Cortar los vegetales. \n4. Montar el bol y aderezar con tahini.',
+    category: 'Vegan', 
+    description: 'Nutritious and colorful bowl.',
+    ingredients: ['Quinoa', 'Marinated Tofu', 'Avocado', 'Grated Carrot', 'Tahini Sauce'],
+    instructions: '1. Cook the quinoa. \n2. Sauté the tofu. \n3. Chop the vegetables. \n4. Assemble the bowl and dress with tahini.',
     cookingTime: 30
   },
 
-  // JAPONESA
+  // JAPANESE
   { 
     id: 7, 
     name: 'Sushi Maki Roll', 
-    category: 'Japonesa', 
-    description: 'Rollos de sushi caseros.',
-    ingredients: ['Arroz para sushi', 'Algas Nori', 'Salmón o Pepino', 'Vinagre de arroz', 'Salsa de soja'],
-    instructions: '1. Cocinar y aderezar el arroz. \n2. Colocar arroz sobre el alga. \n3. Poner el relleno y enrollar con esterilla. \n4. Cortar en 6-8 piezas.',
+    category: 'Japanese', 
+    description: 'Homemade sushi rolls.',
+    ingredients: ['Sushi rice', 'Nori sheets', 'Salmon or Cucumber', 'Rice vinegar', 'Soy sauce'],
+    instructions: '1. Cook and season the rice. \n2. Spread rice on the seaweed. \n3. Add filling and roll with a mat. \n4. Cut into 6-8 pieces.',
     cookingTime: 50
   },
   { 
     id: 8, 
-    name: 'Ramen de Pollo', 
-    category: 'Japonesa', 
-    description: 'Sopa reconfortante con fideos.',
-    ingredients: ['Caldo de pollo', 'Fideos Ramen', 'Pechuga de pollo', 'Huevo cocido', 'Cebollino'],
-    instructions: '1. Calentar el caldo con soja y miso. \n2. Cocer los fideos aparte. \n3. Montar el bol con caldo, fideos y toppings (pollo, huevo, cebollino.',
+    name: 'Chicken Ramen', 
+    category: 'Japanese', 
+    description: 'Comforting soup with noodles.',
+    ingredients: ['Chicken broth', 'Ramen noodles', 'Chicken breast', 'Boiled egg', 'Chives'],
+    instructions: '1. Heat the broth with soy and miso. \n2. Cook noodles separately. \n3. Assemble the bowl with broth, noodles, and toppings (chicken, egg, chives).',
     cookingTime: 60
   },
 
-  // AMERICANA
+  // AMERICAN
   { 
     id: 9, 
-    name: 'Hamburguesa Clásica', 
-    category: 'Americana', 
-    description: 'Jugosa hamburguesa con queso cheddar.',
-    ingredients: ['Carne de res molida', 'Pan de brioche', 'Queso Cheddar', 'Lechuga y Tomate', 'Pepinillos'],
-    instructions: '1. Formar las carnes sin apretar mucho. \n2. Cocinar a la plancha 3 min por lado. \n3. Derretir el queso encima. \n4. Tostar el pan y montar con las verduras.',
+    name: 'Classic Burger', 
+    category: 'American', 
+    description: 'Juicy burger with cheddar cheese.',
+    ingredients: ['Ground beef', 'Brioche bun', 'Cheddar Cheese', 'Lettuce and Tomato', 'Pickles'],
+    instructions: '1. Form patties loosely. \n2. Grill 3 min per side. \n3. Melt cheese on top. \n4. Toast the bun and assemble with veggies.',
     cookingTime: 20
   },
   { 
     id: 10, 
-    name: 'Costillas BBQ', 
-    category: 'Americana', 
-    description: 'Costillas de cerdo en salsa barbacoa.',
-    ingredients: ['Costillar de cerdo', 'Salsa BBQ casera', 'Pimentón ahumado', 'Miel', 'Ajo en polvo'],
-    instructions: '1. Adobar las costillas con especias en seco. \n2. Hornear a baja temperatura (150°C) por 2 horas envueltas en aluminio. \n3. Destapar, pincelar con salsa BBQ y gratinar 15 min.',
-    cookingTime: 140 // Larga
+    name: 'BBQ Ribs', 
+    category: 'American', 
+    description: 'Pork ribs in barbecue sauce.',
+    ingredients: ['Pork ribs', 'Homemade BBQ sauce', 'Smoked paprika', 'Honey', 'Garlic powder'],
+    instructions: '1. Rub ribs with dry spices. \n2. Bake at low temp (150°C) for 2 hours wrapped in foil. \n3. Uncover, brush with BBQ sauce and broil for 15 min.',
+    cookingTime: 140
   },
 
-  // POSTRES
+  // DESSERTS
   { 
     id: 11, 
-    name: 'Tiramisú', 
-    category: 'Postres', 
-    description: 'Postre italiano de café y mascarpone.',
-    ingredients: ['Bizcochos de soletilla', 'Queso Mascarpone', 'Café espresso fuerte', 'Cacao en polvo', 'Azúcar'],
-    instructions: '1. Batir mascarpone con azúcar. \n2. Mojar bizcochos en café. \n3. Montar capas alternas de bizcocho y crema. \n4. Espolvorear cacao al final.',
+    name: 'Tiramisu', 
+    category: 'Desserts', 
+    description: 'Italian coffee and mascarpone dessert.',
+    ingredients: ['Ladyfingers', 'Mascarpone Cheese', 'Strong espresso coffee', 'Cocoa powder', 'Sugar'],
+    instructions: '1. Beat mascarpone with sugar. \n2. Dip ladyfingers in coffee. \n3. Layer ladyfingers and cream alternately. \n4. Dust with cocoa at the end.',
     cookingTime: 30
   },
   { 
     id: 12, 
-    name: 'Cheesecake de Fresa', 
-    category: 'Postres', 
-    description: 'Tarta de queso suave con frutas.',
-    ingredients: ['Galletas maría', 'Mantequilla', 'Queso crema', 'Nata para montar', 'Mermelada de fresa'],
-    instructions: '1. Triturar galletas con mantequilla para la base. \n2. Batir queso y nata y verter sobre la base. \n3. Refrigerar 4 horas mínimo. \n4. Cubrir con mermelada antes de servir.',
-    cookingTime: 240 // Muy larga (refrigeración)
+    name: 'Strawberry Cheesecake', 
+    category: 'Desserts', 
+    description: 'Smooth cheese cake with fruit.',
+    ingredients: ['Digestive biscuits', 'Butter', 'Cream cheese', 'Whipping cream', 'Strawberry jam'],
+    instructions: '1. Crush biscuits with butter for the base. \n2. Beat cheese and cream and pour over the base. \n3. Refrigerate for at least 4 hours. \n4. Top with jam before serving.',
+    cookingTime: 240
   }
 ];
 
-// 2. Conexión a MongoDB
+// 2. Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/chefmatch')
-  .then(() => console.log('Conectado a MongoDB'))
-  .catch(err => console.error('Error DB:', err));
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('DB Error:', err));
 
-// 3. GET combinado (Estático + Base de Datos)
+// 3. Combined GET (Static + Database)
 app.get('/recipes', async (req, res) => {
   try {
     const dynamicRecipes = await Recipe.find();
@@ -145,16 +145,16 @@ app.get('/recipes', async (req, res) => {
   }
 });
 
-// 4. POST para nuevas recetas
+// 4. POST for new recipes
 app.post('/recipes', async (req, res) => {
   try {
     const newRecipe = new Recipe(req.body);
     await newRecipe.save();
     res.status(201).json(newRecipe);
   } catch (err) {
-    res.status(400).json({ error: "Error al guardar la receta" });
+    res.status(400).json({ error: "Error saving the recipe" });
   }
 });
 
 const PORT = process.env.PORT || 3002;
-app.listen(PORT, () => console.log(`Servidor en puerto ${PORT}`));
+app.listen(PORT, () => console.log(`Server on port ${PORT}`));

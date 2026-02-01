@@ -14,46 +14,46 @@ const RECIPE_SERVICE_URL = 'http://recipe-service.todo-app.svc.cluster.local:300
 
 let userRecommendations = {}; 
 
-// --- CONSUMER RABBITMQ (REQ15) ---
+// --- RABBITMQ CONSUMER (REQ15) ---
 async function startConsuming() {
   try {
     const conn = await amqplib.connect(process.env.RABBITMQ_URL || 'amqp://guest:guest@rabbitmq-service:5672');
     const channel = await conn.createChannel();
     await channel.assertQueue('user_updates');
 
-    console.log('📥 Recommendation Service esperando mensajes...');
+    console.log('📥 Recommendation Service waiting for messages...');
 
     channel.consume('user_updates', (msg) => {
       if (msg !== null) {
         const event = JSON.parse(msg.content.toString());
         if (event.action === 'PREFERENCES_UPDATED') {
-             console.log(`✅ RabbitMQ: Usuario ${event.userId} actualizó preferencias.`);
+             console.log(`✅ RabbitMQ: User ${event.userId} updated preferences.`);
         }
         channel.ack(msg);
       }
     });
   } catch (err) {
-    console.error('❌ Error RabbitMQ:', err.message);
+    console.error('❌ RabbitMQ Error:', err.message);
   }
 }
 
 startConsuming();
 
-// --- API REST (REQ14) ---
+// --- REST API (REQ14) ---
 
 app.get('/recommendations/:userId', async (req, res) => {
   const { userId } = req.params;
-  const queryCategory = req.query.category; // NUEVO: Leemos parámetro de URL
+  const queryCategory = req.query.category; // NEW: Read URL parameter
 
   try {
     let categoryPref = null;
 
-    // 1. PRIORIDAD MÁXIMA: Si el frontend nos dice la categoría explícitamente, la usamos.
+    // 1. TOP PRIORITY: If frontend explicitly gives category, use it.
     if (queryCategory) {
         categoryPref = queryCategory;
-        console.log(`🎯 Categoría forzada por frontend: "${categoryPref}"`);
+        console.log(`🎯 Category forced by frontend: "${categoryPref}"`);
     } else {
-        // 2. Si no, intentamos buscarla en la base de datos (persistencia)
+        // 2. If not, try to fetch it from database (persistence)
         try {
             const userRes = await axios.get(`${USER_SERVICE_URL}/users/${userId}`);
             const userData = userRes.data;
@@ -62,18 +62,18 @@ app.get('/recommendations/:userId', async (req, res) => {
             else if (userData.preferences?.category) categoryPref = userData.preferences.category;
             else if (userData.preference) categoryPref = userData.preference;
 
-            if (categoryPref) console.log(`💾 Preferencia recuperada de BD: "${categoryPref}"`);
+            if (categoryPref) console.log(`💾 Preference retrieved from DB: "${categoryPref}"`);
         } catch (e) {
-            console.log("⚠️ No se pudo recuperar preferencia del User Service.");
+            console.log("⚠️ Could not retrieve preference from User Service.");
         }
     }
 
-    // 3. Si DESPUÉS de todo esto no tenemos categoría, devolvemos mensaje de espera (NO receta random)
+    // 3. If AFTER all this we don't have a category, return waiting message (NOT random recipe)
     if (!categoryPref) {
-        return res.json(["Selecciona una categoría para ver tu recomendación."]);
+        return res.json(["Select a category to see your recommendation."]);
     }
 
-    // 4. Obtener recetas y filtrar
+    // 4. Get recipes and filter
     const recipesRes = await axios.get(`${RECIPE_SERVICE_URL}/recipes`);
     const allRecipes = recipesRes.data;
 
@@ -83,17 +83,17 @@ app.get('/recommendations/:userId', async (req, res) => {
     );
 
     if (match.length > 0) {
-      // Devolver una receta aleatoria DE ESA CATEGORÍA
+      // Return a random recipe FROM THAT CATEGORY
       const randomRecipe = match[Math.floor(Math.random() * match.length)];
       res.json([randomRecipe.name]);
     } else {
-      // Si pidió "Americana" pero no hay recetas de eso, avisamos
-      res.json([`No tenemos recetas de ${categoryPref} todavía.`]);
+      // If user asked for "American" but no recipes exist, warn
+      res.json([`We don't have recipes for ${categoryPref} yet.`]);
     }
 
   } catch (error) {
     console.error("❌ Error:", error.message);
-    res.json(["Error al obtener recomendación"]);
+    res.json(["Error fetching recommendation"]);
   }
 });
 
@@ -103,7 +103,7 @@ app.get('/health', (req, res) => {
 
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
-  console.log(`🚀 Recommendation Service escuchando en puerto ${PORT}`);
+  console.log(`🚀 Recommendation Service listening on port ${PORT}`);
 });
 
 module.exports = app;
