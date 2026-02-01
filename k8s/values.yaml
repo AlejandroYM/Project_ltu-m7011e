@@ -1,4 +1,4 @@
-# values.yaml definitivo
+# values.yaml definitivo (Limpio de secretos)
 services:
   user:
     name: user-service
@@ -12,9 +12,7 @@ services:
     replicas: 1
     port: 3002
     targetPort: 3002
-    env:  # database connection settings
-      - name: MONGO_URI
-        value: "mongodb://mongo-service.todo-app.svc.cluster.local:27017/chefmatch"
+    # He borrado la sección 'env' con la MONGO_URI porque ya se inyecta por secreto
   recommendation:
     name: recommendation-service
     image: aym3/chef-recommendation-service:latest
