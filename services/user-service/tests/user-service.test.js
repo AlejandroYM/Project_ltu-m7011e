@@ -1,4 +1,4 @@
-// services/user-service/user-service.test.js
+// services/user-service/tests/user-service.test.js
 const request = require('supertest');
 const express = require('express');
 const mongoose = require('mongoose');
@@ -63,8 +63,18 @@ jest.mock('mongoose', () => {
   };
 });
 
+// Mock de RabbitMQ
+jest.mock('amqplib', () => ({
+  connect: jest.fn().mockResolvedValue({
+    createChannel: jest.fn().mockResolvedValue({
+      assertQueue: jest.fn().mockResolvedValue(true),
+      sendToQueue: jest.fn().mockResolvedValue(true)
+    })
+  })
+}));
+
 // Mock del middleware de autenticación
-jest.mock('./middleware/auth', () => ({
+jest.mock('../middleware/auth', () => ({
   authenticateJWT: (req, res, next) => {
     if (req.headers.authorization === 'Bearer valid-token') {
       req.user = { sub: 'existing-user', email: 'test@test.com' };
@@ -77,11 +87,17 @@ jest.mock('./middleware/auth', () => ({
   }
 }));
 
-// Crear app de prueba
+// Silenciar console logs durante testing
+beforeAll(() => {
+  jest.spyOn(console, 'log').mockImplementation(() => {});
+  jest.spyOn(console, 'error').mockImplementation(() => {});
+});
+
+// Crear app de prueba (SIN app.listen para evitar open handles)
 const app = express();
 app.use(express.json());
 
-const { authenticateJWT } = require('./middleware/auth');
+const { authenticateJWT } = require('../middleware/auth');
 const User = mongoose.model('User');
 
 // Endpoints de prueba
@@ -203,7 +219,7 @@ describe('User Service API Tests', () => {
   });
 
   // Tests de fallo (REQUERIDOS POR EL PROFESOR)
-  describe('GET /users/profile - Failure Cases', () => {
+  describe('GET /users/profile - Failure Cases (REQ5)', () => {
     it('should return 401 when no token is provided', async () => {
       const response = await request(app).get('/users/profile');
 
@@ -221,7 +237,7 @@ describe('User Service API Tests', () => {
     });
   });
 
-  describe('POST /users/profile - Failure Cases', () => {
+  describe('POST /users/profile - Failure Cases (REQ5)', () => {
     it('should return 400 for missing email field', async () => {
       const invalidData = {
         preferences: { diet: 'vegan' }
@@ -252,7 +268,7 @@ describe('User Service API Tests', () => {
     });
   });
 
-  describe('PUT /users/profile - Failure Cases', () => {
+  describe('PUT /users/profile - Failure Cases (REQ5)', () => {
     it('should return 400 for missing preferences', async () => {
       const invalidData = {
         // Falta preferences
@@ -280,4 +296,18 @@ describe('User Service API Tests', () => {
       expect(response.body).toHaveProperty('error', 'No token provided');
     });
   });
+
+  describe('404 Error Tests', () => {
+    it('GET /unknown-route must return 404', async () => {
+      const response = await request(app).get('/api/v1/fantasy-route');
+      expect(response.status).toBe(404);
+    });
+  });
+});
+
+// ✅ IMPORTANTE: Cleanup para cerrar conexiones y evitar "open handle"
+afterAll(async () => {
+  // Esperar a que todas las operaciones asíncronas terminen
+  await new Promise(resolve => setTimeout(() => resolve(), 500));
+  
 });
