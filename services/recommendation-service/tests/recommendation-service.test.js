@@ -57,7 +57,7 @@ jest.mock('mongoose', () => {
 });
 
 // Mock del middleware de autenticación
-jest.mock('./middleware/auth', () => ({
+jest.mock('../middleware/auth', () => ({
   authenticateJWT: (req, res, next) => {
     if (req.headers.authorization === 'Bearer valid-token') {
       req.user = { sub: 'user-123', email: 'test@test.com' };
