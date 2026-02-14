@@ -1,0 +1,328 @@
+# ============================================
+# ARCHIVO 1: k8s/mongodb-service.yaml
+# ============================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb
+  namespace: todo-app
+  labels:
+    app: mongodb
+spec:
+  type: ClusterIP
+  ports:
+  - port: 27017
+    targetPort: 27017
+    protocol: TCP
+    name: mongodb
+  selector:
+    app: mongodb
+
+---
+# ============================================
+# ARCHIVO 2: k8s/mongodb-pvc.yaml
+# ============================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongodb-pvc
+  namespace: todo-app
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  # Si tu cluster tiene StorageClass específico, descoméntalas:
+  # storageClassName: local-path  # Para Rancher local-path provisioner
+  # storageClassName: longhorn    # Para Longhorn storage
+
+---
+# ============================================
+# ARCHIVO 3: k8s/mongodb-deployment.yaml
+# ============================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb
+  namespace: todo-app
+  labels:
+    app: mongodb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      containers:
+      - name: mongodb
+        image: mongo:7.0
+        ports:
+        - containerPort: 27017
+          name: mongodb
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME
+          value: "admin"
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          value: "password123"  # CAMBIAR en producción con Secret
+        - name: MONGO_INITDB_DATABASE
+          value: "chefmatch"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - name: mongodb-data
+          mountPath: /data/db
+        livenessProbe:
+          exec:
+            command:
+            - mongosh
+            - --eval
+            - "db.adminCommand('ping')"
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - mongosh
+            - --eval
+            - "db.adminCommand('ping')"
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: mongodb-data
+        persistentVolumeClaim:
+          claimName: mongodb-pvc
+
+---
+# ============================================
+# ARCHIVO 4: k8s/mongodb-secret.yaml
+# ============================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mongodb-secret
+  namespace: todo-app
+type: Opaque
+stringData:
+  mongodb-root-username: admin
+  mongodb-root-password: password123
+  # La URI completa para los servicios
+  mongodb-uri: "mongodb://admin:password123@mongodb:27017/chefmatch?authSource=admin"
+
+---
+# ============================================
+# ARCHIVO 5: k8s/recipe-service-deployment.yaml (ACTUALIZADO)
+# ============================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recipe-service
+  namespace: todo-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: recipe-service
+  template:
+    metadata:
+      labels:
+        app: recipe-service
+    spec:
+      containers:
+      - name: recipe-service
+        image: aym3/chef-recipe-service:latest  # CAMBIAR con tu imagen
+        ports:
+        - containerPort: 3002
+        env:
+        # ✅ MONGODB - CRÍTICO
+        - name: MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: mongodb-uri
+        
+        # KEYCLOAK
+        - name: KEYCLOAK_URL
+          value: "https://keycloak.ltu-m7011e-5.se"
+        - name: KEYCLOAK_REALM
+          value: "chefmatch"
+        - name: KEYCLOAK_CLIENT_ID
+          value: "recipe-service"
+        
+        # SERVER
+        - name: PORT
+          value: "3002"
+        - name: NODE_ENV
+          value: "production"
+        
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+
+---
+# ============================================
+# ARCHIVO 6: k8s/user-service-deployment.yaml (ACTUALIZADO)
+# ============================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: todo-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+      - name: user-service
+        image: aym3/chef-user-service:latest  # CAMBIAR con tu imagen
+        ports:
+        - containerPort: 3001
+        env:
+        # ✅ MONGODB - CRÍTICO
+        - name: MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: mongodb-uri
+        
+        # KEYCLOAK
+        - name: KEYCLOAK_URL
+          value: "https://keycloak.ltu-m7011e-5.se"
+        - name: KEYCLOAK_REALM
+          value: "chefmatch"
+        - name: KEYCLOAK_CLIENT_ID
+          value: "user-service"
+        
+        # RABBITMQ
+        - name: RABBITMQ_URL
+          value: "amqp://rabbitmq:5672"
+        
+        # SERVER
+        - name: PORT
+          value: "3001"
+        - name: NODE_ENV
+          value: "production"
+        
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+
+---
+# ============================================
+# ARCHIVO 7: k8s/recommendation-service-deployment.yaml (ACTUALIZADO)
+# ============================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recommendation-service
+  namespace: todo-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: recommendation-service
+  template:
+    metadata:
+      labels:
+        app: recommendation-service
+    spec:
+      containers:
+      - name: recommendation-service
+        image: aym3/chef-recommendation-service:latest  # CAMBIAR con tu imagen
+        ports:
+        - containerPort: 3003
+        env:
+        # ✅ MONGODB - CRÍTICO (REQUERIMIENTO DEL PROFESOR)
+        - name: MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: mongodb-uri
+        
+        # KEYCLOAK
+        - name: KEYCLOAK_URL
+          value: "https://keycloak.ltu-m7011e-5.se"
+        - name: KEYCLOAK_REALM
+          value: "chefmatch"
+        - name: KEYCLOAK_CLIENT_ID
+          value: "recommendation-service"
+        
+        # RABBITMQ
+        - name: RABBITMQ_URL
+          value: "amqp://rabbitmq:5672"
+        - name: RABBITMQ_QUEUE
+          value: "user-preferences-updated"
+        
+        # SERVER
+        - name: PORT
+          value: "3003"
+        - name: NODE_ENV
+          value: "production"
+        
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+
+---
+# ============================================
+# COMANDOS PARA APLICAR TODO
+# ============================================
+
+# 1. Crear el namespace (si no existe)
+# kubectl create namespace todo-app
+
+# 2. Aplicar MongoDB en orden:
+# kubectl apply -f k8s/mongodb-secret.yaml
+# kubectl apply -f k8s/mongodb-pvc.yaml
+# kubectl apply -f k8s/mongodb-deployment.yaml
+# kubectl apply -f k8s/mongodb-service.yaml
+
+# 3. Esperar a que MongoDB esté listo
+# kubectl wait --for=condition=ready pod -l app=mongodb -n todo-app --timeout=120s
+
+# 4. Aplicar los servicios actualizados
+# kubectl apply -f k8s/recipe-service-deployment.yaml
+# kubectl apply -f k8s/user-service-deployment.yaml
+# kubectl apply -f k8s/recommendation-service-deployment.yaml
+
+# 5. Verificar que todo está corriendo
+# kubectl get pods -n todo-app
+
+# 6. Verificar logs (buscar "Connected to MongoDB")
+# kubectl logs -n todo-app -l app=recipe-service --tail=20
+# kubectl logs -n todo-app -l app=user-service --tail=20
+# kubectl logs -n todo-app -l app=recommendation-service --tail=20
+
+# 7. Ejecutar script de verificación
+# bash verify-mongodb-setup.sh

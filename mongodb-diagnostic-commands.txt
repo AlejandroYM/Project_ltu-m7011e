@@ -1,0 +1,103 @@
+# COMANDOS PARA DIAGNOSTICAR MONGODB EN TU CLUSTER
+
+## 1. VERIFICAR POD DE MONGODB
+
+# Ver estado del pod de MongoDB
+kubectl get pods -n todo-app | grep mongo
+
+# Ver logs de MongoDB
+kubectl logs -n todo-app mongo-service-85658f75fb-nzdt6 --tail=50
+
+## 2. VERIFICAR SERVICE DE MONGODB
+
+# Listar servicios
+kubectl get svc -n todo-app | grep mongo
+
+# Describir el servicio (para ver endpoints)
+kubectl describe svc -n todo-app mongodb  # O como se llame tu servicio
+
+## 3. CONECTARSE A MONGODB Y VERIFICAR
+
+# Entrar al pod de MongoDB
+kubectl exec -it -n todo-app mongo-service-85658f75fb-nzdt6 -- bash
+
+# Dentro del pod, ejecutar:
+mongosh
+# O si es versión antigua:
+mongo
+
+# Una vez en MongoDB shell:
+show dbs
+use chefmatch
+show collections
+db.recipes.count()
+db.users.count()
+db.recommendations.count()
+exit
+
+## 4. VERIFICAR VARIABLES DE ENTORNO EN LOS SERVICIOS
+
+# Recipe Service
+kubectl exec -n todo-app recipe-service-5c96bc798d-vs5qn -- env | grep MONGO
+
+# User Service  
+kubectl exec -n todo-app user-service-5d5f495bf8-tbrx5 -- env | grep MONGO
+
+# Recommendation Service
+kubectl exec -n todo-app recommendation-service-5b8bb5fb8b-kvlbz -- env | grep MONGO
+
+## 5. VER LOGS DE LOS SERVICIOS (BUSCAR ERRORES DE CONEXIÓN)
+
+# Recipe Service logs
+kubectl logs -n todo-app recipe-service-5c96bc798d-vs5qn --tail=50
+
+# User Service logs
+kubectl logs -n todo-app user-service-5d5f495bf8-tbrx5 --tail=50
+
+# Recommendation Service logs
+kubectl logs -n todo-app recommendation-service-5b8bb5fb8b-kvlbz --tail=50
+
+## 6. VERIFICAR CONFIGMAPS Y SECRETS
+
+# Listar ConfigMaps
+kubectl get configmap -n todo-app
+
+# Listar Secrets
+kubectl get secret -n todo-app
+
+# Ver contenido de un ConfigMap (reemplaza <nombre>)
+kubectl describe configmap -n todo-app <nombre>
+
+# Ver contenido de un Secret (reemplaza <nombre>)
+kubectl get secret -n todo-app <nombre> -o yaml
+
+## 7. TEST DE CONECTIVIDAD DESDE UN SERVICIO A MONGODB
+
+# Desde recipe-service, hacer ping a MongoDB
+kubectl exec -n todo-app recipe-service-5c96bc798d-vs5qn -- ping mongodb -c 3
+
+# O si tienen curl/wget instalado:
+kubectl exec -n todo-app recipe-service-5c96bc798d-vs5qn -- nc -zv mongodb 27017
+
+## 8. VERIFICAR DEPLOYMENTS Y SUS ENV VARS
+
+# Ver el deployment de recipe-service
+kubectl get deployment -n todo-app recipe-service -o yaml | grep -A 20 "env:"
+
+# Ver el deployment de MongoDB
+kubectl get deployment -n todo-app mongo-service -o yaml | grep -A 20 "env:"
+
+---
+
+## ¿QUÉ BUSCAR?
+
+✅ MongoDB debe estar en estado "Running"
+✅ MongoDB debe tener un Service (ClusterIP) en el namespace todo-app
+✅ Los servicios deben tener MONGODB_URI apuntando a: mongodb://mongodb:27017/chefmatch
+✅ Los logs NO deben mostrar errores como "MongooseServerSelectionError" o "ECONNREFUSED"
+✅ Al ejecutar mongosh dentro del pod, debe funcionar
+
+❌ Si ves errores de conexión en los logs de los servicios
+❌ Si MONGODB_URI no está definido o apunta a localhost
+❌ Si el Service de MongoDB no existe
+❌ Si MongoDB está en namespace diferente al de tus servicios

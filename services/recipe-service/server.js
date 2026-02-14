@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const { authenticateJWT, optionalAuthJWT } = require('./middleware/auth');
 // NEW: Metrics library
 const client = require('prom-client'); 
 
@@ -167,7 +168,7 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/chefmatch')
   .catch(err => console.error('DB Error:', err));
 
 // 3. Combined GET (Static + Database)
-app.get('/recipes', async (req, res) => {
+app.get('/recipes', optionalAuthJWT, async (req, res) => {
   try {
     const dynamicRecipes = await Recipe.find();
     res.json([...staticRecipes, ...dynamicRecipes]);
@@ -177,7 +178,7 @@ app.get('/recipes', async (req, res) => {
 });
 
 // 4. POST for new recipes
-app.post('/recipes', async (req, res) => {
+app.post('/recipes', optionalAuthJWT, async (req, res) => {
   try {
     const newRecipe = new Recipe(req.body);
     await newRecipe.save();
@@ -191,7 +192,7 @@ const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => console.log(`Server on port ${PORT}`));
 
 // 5. Delete endpoint for recipes
-app.delete('/recipes/:id', async (req, res) => {
+app.delete('/recipes/:id', optionalAuthJWT, async (req, res) => {
   try {
     const { id } = req.params;
 

@@ -12,7 +12,7 @@ services:
     replicas: 1
     port: 3002
     targetPort: 3002
-    # He borrado la sección 'env' con la MONGO_URI porque ya se inyecta por secreto
+    
   recommendation:
     name: recommendation-service
     image: aym3/chef-recommendation-service:latest
