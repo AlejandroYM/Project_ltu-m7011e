@@ -210,3 +210,6 @@ app.delete('/recipes/:id', async (req, res) => {
     res.status(500).json({ error: "Error deleting recipe" });
   }
 });
+
+// For testing purposes, we export the app 
+module.exports = app;
