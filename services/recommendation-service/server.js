@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const amqplib = require('amqplib');
 const dotenv = require('dotenv');
 const axios = require('axios');
+const { authenticateJWT } = require('./middleware/auth');
 const cors = require('cors');
 const Recommendation = require('./models/Recommendation');
 
@@ -117,7 +118,7 @@ async function generateRecommendationsForUser(userId) {
 // --- REST API (REQ14) ---
 
 // ✅ OBTENER RECOMENDACIONES DESDE MONGODB
-app.get('/recommendations/:userId', async (req, res) => {
+app.get('/recommendations/:userId', authenticateJWT, async (req, res) => {
   const { userId } = req.params;
   const queryCategory = req.query.category;
 
