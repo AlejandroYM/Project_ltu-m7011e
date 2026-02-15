@@ -5,7 +5,7 @@ const jwksClient = require('jwks-rsa');
 
 // Cliente JWKS para obtener las claves públicas de Keycloak
 const client = jwksClient({
-  jwksUri: 'https://sso.ltu-m7011e-5.se/realms/chefmatch/protocol/openid-connect/certs',
+  jwksUri: 'https://keycloak.ltu-m7011e-5.se/realms/ChefMatchRealm/protocol/openid-connect/certs',
   cache: true,
   cacheMaxAge: 600000, // 10 minutos
   rateLimit: true,
@@ -38,7 +38,7 @@ const authenticateJWT = (req, res, next) => {
 
   jwt.verify(token, getKey, {
     audience: 'account',
-    issuer: 'https://sso.ltu-m7011e-5.se/realms/chefmatch',
+    issuer: 'https://keycloak.ltu-m7011e-5.se/realms/ChefMatchRealm',
     algorithms: ['RS256']
   }, (err, decoded) => {
     if (err) {
@@ -75,7 +75,7 @@ const optionalAuthJWT = (req, res, next) => {
 
   jwt.verify(token, getKey, {
     audience: 'account',
-    issuer: 'https://sso.ltu-m7011e-5.se/realms/chefmatch',
+    issuer: 'https://keycloak.ltu-m7011e-5.se/realms/ChefMatchRealm',
     algorithms: ['RS256']
   }, (err, decoded) => {
     if (err) {

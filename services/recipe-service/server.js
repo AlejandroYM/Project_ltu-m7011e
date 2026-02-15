@@ -184,11 +184,11 @@ app.post('/recipes', optionalAuthJWT, async (req, res) => {
     await newRecipe.save();
     res.status(201).json(newRecipe);
   } catch (err) {
-    console.error('Error saving recipe:', error);
+    console.error('Error saving recipe:', err);
     res.status(400).json({ 
       error: "Error saving the recipe",
-    details: error.message
-   });
+      details: err.message
+    });
   }
 });
 
