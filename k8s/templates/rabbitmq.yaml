@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rabbitmq-service
-  namespace: todo-app  # Aseguramos el namespace
+  namespace: chefmatch
 spec:
   replicas: 1
   selector:
@@ -24,7 +24,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: rabbitmq-service
-  namespace: todo-app # Aseguramos el namespace
+  namespace: chefmatch
 spec:
   ports:
   - name: amqp

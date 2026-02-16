@@ -33,33 +33,38 @@ services:
 
   # --- MICROSERVICIOS ---
 
-  # Servicio de Usuarios (Puerto 3001)
+  # Servicio de Usuarios (Puerto 8000)
   user-service:
     build: ./services/user-service
     container_name: user-service
     ports:
-      - "3001:3001"
+      - "8001:8000"
     environment:
-      - PORT=3001
+      - PORT=8000
       - RABBITMQ_URL=amqp://rabbitmq:5672
       - SESSION_SECRET=secret_paula_123
-      - KEYCLOAK_URL=http://keycloak:8080/
+      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_REALM=ChefMatchRealm
+      - KEYCLOAK_CLIENT_ID=account
     depends_on:
       - rabbitmq
       - keycloak
     networks:
       - chef-network
 
-  # Servicio de Recetas (Puerto 3002) - REQ14
+  # Servicio de Recetas (Puerto 8000) - REQ14
   recipe-service:
     build: ./services/recipe-service
     container_name: recipe-service
     ports:
-      - "3002:3002"
+      - "8000:8000"
     environment:
-      - PORT=3002
+      - PORT=8000
       - MONGO_URI=mongodb://mongo:27017/chefmatch
       - RABBITMQ_URL=amqp://rabbitmq:5672
+      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_REALM=ChefMatchRealm
+      - KEYCLOAK_CLIENT_ID=account
     depends_on:
       - rabbitmq
     networks:
@@ -70,12 +75,17 @@ services:
     build: ./services/recommendation-service
     container_name: recommendation-service
     ports:
-      - "3003:3003"
+      - "8002:8000"
     environment:
-      - PORT=3003
+      - PORT=8000
       - RABBITMQ_URL=amqp://rabbitmq:5672
+      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_REALM=ChefMatchRealm
+      - KEYCLOAK_CLIENT_ID=account
+      - MONGODB_URI=mongodb://mongo:27017/chefmatch
     depends_on:
       - rabbitmq
+      - mongo
     networks:
       - chef-network
 

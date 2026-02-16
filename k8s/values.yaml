@@ -10,8 +10,8 @@ services:
     name: recipe-service
     image: aym3/chef-recipe-service:latest
     replicas: 1
-    port: 3002
-    targetPort: 3002
+    port: 8000
+    targetPort: 8000
     
   recommendation:
     name: recommendation-service

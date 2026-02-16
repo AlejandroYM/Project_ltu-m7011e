@@ -1,3 +1,4 @@
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -192,7 +193,7 @@ app.post('/recipes', optionalAuthJWT, async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => console.log(`Server on port ${PORT}`));
 
 // 5. Delete endpoint for recipes

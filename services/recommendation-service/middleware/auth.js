@@ -1,55 +1,51 @@
-// services/recommendation-service/middleware/auth.js
-// Middleware de autenticación JWT usando JWKS
 const jwt = require('jsonwebtoken');
 const jwksClient = require('jwks-rsa');
 
-// Cliente JWKS para obtener las claves públicas de Keycloak
+// Configuración de Keycloak desde variables de entorno
+const KEYCLOAK_URL = process.env.KEYCLOAK_URL || 'https://keycloak.ltu-m7011e-5.se';
+const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM || 'ChefMatchRealm';
+const KEYCLOAK_CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID || 'account';
+
 const client = jwksClient({
-  jwksUri: 'https://sso.ltu-m7011e-5.se/realms/chefmatch/protocol/openid-connect/certs',
+  jwksUri: `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs`,
   cache: true,
-  cacheMaxAge: 600000, // 10 minutos
   rateLimit: true,
   jwksRequestsPerMinute: 10
 });
 
-// Función para obtener la clave de firma
 function getKey(header, callback) {
-  client.getSigningKey(header.kid, function(err, key) {
+  client.getSigningKey(header.kid, (err, key) => {
     if (err) {
       return callback(err);
     }
-    const signingKey = key.publicKey || key.rsaPublicKey;
+    const signingKey = key.getPublicKey();
     callback(null, signingKey);
   });
 }
 
-// Middleware de autenticación
 const authenticateJWT = (req, res, next) => {
   const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ 
-      error: 'No token provided',
-      message: 'Authorization header with Bearer token is required' 
-    });
+  
+  if (!authHeader) {
+    return res.status(401).json({ error: 'No authorization header' });
   }
 
-  const token = authHeader.substring(7); // Remover 'Bearer '
+  const token = authHeader.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
 
   jwt.verify(token, getKey, {
-    audience: 'account',
-    issuer: 'https://sso.ltu-m7011e-5.se/realms/chefmatch',
+    audience: KEYCLOAK_CLIENT_ID,
+    issuer: `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`,
     algorithms: ['RS256']
   }, (err, decoded) => {
     if (err) {
-      console.error('JWT verification error:', err.message);
-      return res.status(403).json({ 
-        error: 'Invalid token',
-        message: err.message 
-      });
+      console.error('JWT verification failed:', err.message);
+      return res.status(401).json({ error: 'Invalid token' });
     }
 
-    // Agregar información del usuario decodificada a la request
     req.user = {
       sub: decoded.sub,
       email: decoded.email,
@@ -61,36 +57,4 @@ const authenticateJWT = (req, res, next) => {
   });
 };
 
-// Middleware opcional - solo verifica si hay token pero no falla si no hay
-const optionalAuthJWT = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    // No hay token, continuar sin autenticación
-    req.user = null;
-    return next();
-  }
-
-  const token = authHeader.substring(7);
-
-  jwt.verify(token, getKey, {
-    audience: 'account',
-    issuer: 'https://sso.ltu-m7011e-5.se/realms/chefmatch',
-    algorithms: ['RS256']
-  }, (err, decoded) => {
-    if (err) {
-      // Token inválido, continuar sin autenticación
-      req.user = null;
-    } else {
-      req.user = {
-        sub: decoded.sub,
-        email: decoded.email,
-        preferred_username: decoded.preferred_username,
-        realm_access: decoded.realm_access
-      };
-    }
-    next();
-  });
-};
-
-module.exports = { authenticateJWT, optionalAuthJWT };
+module.exports = { authenticateJWT };

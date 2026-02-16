@@ -3,9 +3,14 @@
 const jwt = require('jsonwebtoken');
 const jwksClient = require('jwks-rsa');
 
+// Configuración de Keycloak desde variables de entorno
+const KEYCLOAK_URL = process.env.KEYCLOAK_URL || 'https://keycloak.ltu-m7011e-5.se';
+const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM || 'ChefMatchRealm';
+const KEYCLOAK_CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID || 'account';
+
 // Cliente JWKS para obtener las claves públicas de Keycloak
 const client = jwksClient({
-  jwksUri: 'https://keycloak.ltu-m7011e-5.se/realms/ChefMatchRealm/protocol/openid-connect/certs',
+  jwksUri: `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs`,
   cache: true,
   cacheMaxAge: 600000, // 10 minutos
   rateLimit: true,
@@ -37,8 +42,8 @@ const authenticateJWT = (req, res, next) => {
   const token = authHeader.substring(7); // Remover 'Bearer '
 
   jwt.verify(token, getKey, {
-    audience: 'account',
-    issuer: 'https://keycloak.ltu-m7011e-5.se/realms/ChefMatchRealm',
+    audience: KEYCLOAK_CLIENT_ID,
+    issuer: `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`,
     algorithms: ['RS256']
   }, (err, decoded) => {
     if (err) {
@@ -74,8 +79,8 @@ const optionalAuthJWT = (req, res, next) => {
   const token = authHeader.substring(7);
 
   jwt.verify(token, getKey, {
-    audience: 'account',
-    issuer: 'https://keycloak.ltu-m7011e-5.se/realms/ChefMatchRealm',
+    audience: KEYCLOAK_CLIENT_ID,
+    issuer: `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`,
     algorithms: ['RS256']
   }, (err, decoded) => {
     if (err) {

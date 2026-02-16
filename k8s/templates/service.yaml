@@ -3,7 +3,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ $service.name }}
-  namespace: todo-app
+  namespace: chefmatch
   labels:
     app: {{ $service.name }}
 spec:

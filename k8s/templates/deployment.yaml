@@ -4,7 +4,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ $service.name }}
-  namespace: todo-app
+  namespace: chefmatch
   labels:
     app: {{ $service.name }}
 spec:
@@ -50,9 +50,23 @@ spec:
         {{- end }}
         {{- end }}
         
+        # Keycloak configuration from secrets
         - name: KEYCLOAK_URL
-          value: "https://keycloak.ltu-m7011e-5.se"
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: keycloak-url
+        
         - name: KEYCLOAK_REALM
-          value: "ChefMatchRealm"
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: keycloak-realm
+        
+        - name: KEYCLOAK_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: keycloak-client-id
 ---
 {{- end }}

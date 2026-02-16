@@ -4,5 +4,4 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 EXPOSE 8000
-# Asegúrate de cambiar el puerto a 3003 para el recommendation-service
 CMD ["node", "server.js"]
