@@ -106,9 +106,10 @@ userRouter.post('/preferences', authenticateJWT, async (req, res) => {
     if (!preferences) return res.status(400).json({ error: 'Faltan datos' });
 
     const message = { 
-      userId, 
-      newPreferences: preferences, 
-      action: 'PREFERENCES_UPDATED' 
+      userId,
+      category: preferences.category || preferences,
+      action: 'PREFERENCES_UPDATED',
+      timestamp: new Date().toISOString()
     };
     
     if (channel) {
