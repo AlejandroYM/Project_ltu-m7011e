@@ -11,28 +11,55 @@ app.use(express.json());
 const Recipe = require('./models/Recipe');
 require('dotenv').config();
 
-// --- MONITORING CONFIGURATION (REQ13) ---
+// Enhanced metrics for Four Golden Signals
 const collectDefaultMetrics = client.collectDefaultMetrics;
-collectDefaultMetrics();
+collectDefaultMetrics({ timeout: 5000 });
 
-const httpRequestDurationMicroseconds = new client.Histogram({
-  name: 'http_request_duration_ms',
-  help: 'Duration of HTTP requests in ms',
-  labelNames: ['method', 'route', 'code'],
-  buckets: [50, 100, 200, 300, 400, 500, 1000]
+// LATENCY - Response time histogram
+const httpRequestDuration = new client.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['method', 'route', 'status_code'],
+  buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5]
 });
 
+// TRAFFIC - Request counter
+const httpRequestTotal = new client.Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['method', 'route', 'status_code']
+});
+
+// ERRORS - Error counter
+const httpRequestErrors = new client.Counter({
+  name: 'http_request_errors_total',
+  help: 'Total number of HTTP request errors',
+  labelNames: ['method', 'route', 'status_code', 'error_type']
+});
+// Replace the existing middleware with:
 app.use((req, res, next) => {
-  const end = httpRequestDurationMicroseconds.startTimer();
-  res.on('finish', () => {
-    end({ method: req.method, route: req.route ? req.route.path : req.path, code: res.statusCode });
-  });
+  const start = Date.now();
+  const originalEnd = res.end;
+  
+  res.end = function(...args) {
+    const duration = (Date.now() - start) / 1000;
+    const route = req.route ? req.route.path : req.path;
+    const method = req.method;
+    const statusCode = res.statusCode;
+    
+    // Record metrics
+    httpRequestDuration.labels(method, route, statusCode).observe(duration);
+    httpRequestTotal.labels(method, route, statusCode).inc();
+    
+    if (statusCode >= 400) {
+      const errorType = statusCode >= 500 ? 'server_error' : 'client_error';
+      httpRequestErrors.labels(method, route, statusCode, errorType).inc();
+    }
+    
+    originalEnd.apply(res, args);
+  };
+  
   next();
-});
-
-app.get('/metrics', async (req, res) => {
-  res.setHeader('Content-Type', client.register.contentType);
-  res.send(await client.register.metrics());
 });
 // ----------------------------------------
 
