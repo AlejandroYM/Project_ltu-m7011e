@@ -26,6 +26,13 @@ function App() {
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [activeCategory, setActiveCategory] = useState(null);
 
+  // === NUEVOS ESTADOS PARA IMÁGENES ===
+  const [imageOption, setImageOption] = useState('none'); // 'none', 'unsplash', 'upload'
+  const [unsplashSearch, setUnsplashSearch] = useState('');
+  const [unsplashResults, setUnsplashResults] = useState([]);
+  const [selectedImageUrl, setSelectedImageUrl] = useState('');
+  const [imageFile, setImageFile] = useState(null);
+
   // --- WEEKLY MEAL PLAN DATA (TRANSLATED) ---
   const weeklyMealPlans = {
     Italian: [
@@ -105,11 +112,15 @@ function App() {
 
   const getRecipeImage = (recipe) => {
     if (!recipe || !recipe.name) return categoryImages.default;
+    
+    // NUEVO: Si la receta tiene una imagen guardada (de Unsplash o MinIO), úsala directamente
+    if (recipe.imageUrl) return recipe.imageUrl;
+
     // Simple mapping for specific images
     const nameKey = recipe.name.toLowerCase().trim();
     const specificImages = {
         "carbonara pasta": "https://images.unsplash.com/photo-1612874742237-6526221588e3?auto=format&fit=crop&w=800&q=80",
-        "pasta carbonara": "https://images.unsplash.com/photo-1612874742237-6526221588e3?auto=format&fit=crop&w=800&q=80", // Keep spanish just in case
+        "pasta carbonara": "https://images.unsplash.com/photo-1612874742237-6526221588e3?auto=format&fit=crop&w=800&q=80", 
         "margherita pizza": "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=800&q=80",
         "pizza margarita": "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=800&q=80",
         "tacos al pastor": "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?auto=format&fit=crop&w=800&q=80",
@@ -131,6 +142,20 @@ function App() {
         "cheesecake de fresa": "https://unsplash.com/photos/EvP5OAts3bQ/download?force=true&w=800"
     };
     return specificImages[nameKey] || categoryImages[recipe.category?.toLowerCase()] || categoryImages.default;
+  };
+
+  // === NUEVA FUNCIÓN PARA BUSCAR EN UNSPLASH ===
+  const searchUnsplash = async () => {
+    if (!unsplashSearch) return;
+    try {
+      const res = await axios.get(`https://api.unsplash.com/search/photos`, {
+        params: { query: unsplashSearch, per_page: 6, orientation: 'landscape' },
+        headers: { Authorization: `Client-ID ${import.meta.env.VITE_UNSPLASH_ACCESS_KEY}` }
+      });
+      setUnsplashResults(res.data.results);
+    } catch (err) {
+      toast.error("Error buscando imágenes en Unsplash.");
+    }
   };
 
   useEffect(() => {
@@ -157,7 +182,6 @@ function App() {
       const resRecs = await axios.get(url, {
         headers: { Authorization: `Bearer ${keycloak.token}` }
       });
-      // Translate backend response if needed on the fly or ensure backend sends English
       setRecommendations(resRecs.data);
     } catch (err) {
       console.error("Error loading recommendations", err);
@@ -240,34 +264,65 @@ function App() {
     }
   };
 
+  // === NUEVA LÓGICA DE CREACIÓN DE RECETAS (CON IMÁGENES) ===
   const handleCreateRecipe = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
 
-    // Change the text in ingredients to an array 
-    const ingredientsText = formData.get('ingredients') || "";
-    const ingredientsArray = ingredientsText.split(',').map(item => item.trim());
+    let finalImageUrl = "";
+    const loadId = toast.loading("Procesando receta...");
 
-    const payload = {
-      name: formData.get('name'),
-      category: formData.get('category'),
-      description: formData.get('description'),
-      ingredients: ingredientsArray,                // Array of ingredients
-      instructions: formData.get('instructions'),   // Detailed instructions
-      cookingTime: formData.get('cookingTime')
-    };
     try {
+      // PASO 1: Procesar la imagen si el usuario seleccionó alguna opción
+      if (imageOption === 'unsplash' && selectedImageUrl) {
+        finalImageUrl = selectedImageUrl; // Usamos la URL que nos dio Unsplash
+      } else if (imageOption === 'upload' && imageFile) {
+        // Subimos el archivo a nuestro MinIO
+        const imgData = new FormData();
+        imgData.append('image', imageFile);
+        
+        const uploadRes = await axios.post('https://ltu-m7011e-5.se/recipes/upload-image', imgData, {
+          headers: { 
+            Authorization: `Bearer ${keycloak.token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        finalImageUrl = uploadRes.data.imageUrl; // Nos devuelve la URL de MinIO
+      }
+
+      // PASO 2: Guardar la receta con la URL de la imagen
+      const ingredientsText = formData.get('ingredients') || "";
+      const ingredientsArray = ingredientsText.split(',').map(item => item.trim());
+
+      const payload = {
+        name: formData.get('name'),
+        category: formData.get('category'),
+        description: formData.get('description'),
+        ingredients: ingredientsArray,                
+        instructions: formData.get('instructions'),   
+        cookingTime: formData.get('cookingTime'),
+        imageUrl: finalImageUrl // Añadimos la URL al payload
+      };
+      
       await axios.post('https://ltu-m7011e-5.se/recipes', payload, {
         headers: { 
           Authorization: `Bearer ${keycloak.token}`,
           'Content-Type': 'application/json'
         }
       });
-      toast.success("Recipe published!");
+      
+      toast.success("Receta publicada exitosamente!", { id: loadId });
+      
+      // Limpiamos el modal y recargamos
       setShowModal(false);
+      setImageOption('none');
+      setSelectedImageUrl('');
+      setImageFile(null);
       fetchData(keycloak.tokenParsed.sub);
+      
     } catch (err) {
-      toast.error("Error publishing. Check your connection.");
+      console.error(err);
+      toast.error("Error publicando. Revisa tu conexión.", { id: loadId });
     }
   };
 
@@ -447,6 +502,43 @@ function App() {
               <textarea name="description" placeholder="Short description..." required className="form-input" rows="2" />
               <textarea name="ingredients" placeholder="Ingredients (comma separated)..." required className="form-input" rows="3" />
               <textarea name="instructions" placeholder="Step-by-step instructions..." required className="form-input" rows="5" />
+              
+              {/* === NUEVA SECCIÓN DE IMAGEN === */}
+              <div style={{ margin: '15px 0', border: '1px solid rgba(255,255,255,0.1)', padding: '15px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)' }}>
+                <p style={{ margin: '0 0 10px 0', color: '#cbd5e1', fontWeight: 'bold' }}>Añadir Imagen a la Receta (Opcional)</p>
+                <div style={{ display: 'flex', gap: '20px', marginBottom: '15px' }}>
+                  <label style={{cursor: 'pointer'}}><input type="radio" name="imgOpt" checked={imageOption === 'none'} onChange={() => setImageOption('none')} /> Ninguna</label>
+                  <label style={{cursor: 'pointer'}}><input type="radio" name="imgOpt" checked={imageOption === 'unsplash'} onChange={() => setImageOption('unsplash')} /> Buscar en Internet</label>
+                  <label style={{cursor: 'pointer'}}><input type="radio" name="imgOpt" checked={imageOption === 'upload'} onChange={() => setImageOption('upload')} /> Subir Foto Local</label>
+                </div>
+                
+                {/* Opciones de Unsplash */}
+                {imageOption === 'unsplash' && (
+                  <div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <input type="text" value={unsplashSearch} onChange={(e) => setUnsplashSearch(e.target.value)} placeholder="Ej. Burrito, Tacos, Pasta..." className="form-input" style={{ margin: 0 }}/>
+                      <button type="button" onClick={searchUnsplash} className="btn-modern" style={{padding: '0 15px'}}>Buscar</button>
+                    </div>
+                    {unsplashResults.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '15px' }}>
+                        {unsplashResults.map(img => (
+                          <img key={img.id} src={img.urls.small} alt="Result" 
+                            onClick={() => setSelectedImageUrl(img.urls.regular)}
+                            style={{ width: '100%', height: '80px', objectFit: 'cover', cursor: 'pointer', border: selectedImageUrl === img.urls.regular ? '3px solid #f97316' : '2px solid transparent', borderRadius: '6px', transition: 'all 0.2s' }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Opción de Subida MinIO */}
+                {imageOption === 'upload' && (
+                  <input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files[0])} className="form-input" style={{ padding: '10px' }}/>
+                )}
+              </div>
+              {/* === FIN SECCIÓN DE IMAGEN === */}
+
               <div style={{display: 'flex', gap: '10px'}}>
                 <button type="submit" className="btn-create">Publish</button>
                 <button type="button" onClick={() => setShowModal(false)} className="btn-modern">Cancel</button>
@@ -484,10 +576,7 @@ function App() {
               </div>
             </div>
 
-
             <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem' }}>              
-              {/* Botón de Borrar (Nuevo) */}
-              {/* Solo mostramos el botón si la receta tiene un ID largo de Mongo (no es 1, 2, 3...) */}
               {selectedRecipe._id && typeof selectedRecipe._id === 'string' && selectedRecipe._id.length > 5 ? (
                 <button onClick={() => handleDeleteRecipe(selectedRecipe._id)} className="btn-modern" style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5', border: '1px solid #ef4444' }}>
                   Delete Recipe

@@ -5,13 +5,47 @@ const cors = require('cors');
 const { authenticateJWT, optionalAuthJWT } = require('./middleware/auth');
 const client = require('prom-client'); 
 
+// --- NUEVO: Librerías para subida de imágenes ---
+const multer = require('multer');
+const Minio = require('minio');
+
 const app = express();
 app.use(cors());
 app.use(express.json());
 const Recipe = require('./models/Recipe');
+const MealPlan = require('./models/MealPlan');
 require('dotenv').config();
 
+// ============================================
+// CONFIGURACIÓN DE MINIO (IMÁGENES)
+// ============================================
+const minioClient = new Minio.Client({
+  endPoint: 'minio', // Este es el nombre del contenedor en docker-compose
+  port: 9000,
+  useSSL: false,
+  accessKey: 'admin',
+  secretKey: 'admin1234'
+});
+
+// Crear el "bucket" para guardar las fotos si no existe
+minioClient.bucketExists('recipes', function(err, exists) {
+  if (err) {
+    console.log('Esperando a MinIO...');
+  } else if (!exists) {
+    minioClient.makeBucket('recipes', 'us-east-1', function(err) {
+      if (err) console.log('Error creando bucket en MinIO', err);
+      else console.log('Bucket "recipes" creado exitosamente en MinIO');
+    });
+  }
+});
+
+// Configurar multer para recibir la imagen
+const upload = multer({ storage: multer.memoryStorage() });
+
+
+// ============================================
 // Enhanced metrics for Four Golden Signals
+// ============================================
 const collectDefaultMetrics = client.collectDefaultMetrics;
 collectDefaultMetrics({ timeout: 5000 });
 
@@ -36,7 +70,8 @@ const httpRequestErrors = new client.Counter({
   help: 'Total number of HTTP request errors',
   labelNames: ['method', 'route', 'status_code', 'error_type']
 });
-// Replace the existing middleware with:
+
+// Middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const originalEnd = res.end;
@@ -84,6 +119,11 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/chefmatch')
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('DB Error:', err));
 
+
+// ============================================
+// RECIPE ENDPOINTS
+// ============================================
+
 // GET /recipes - public (optionalAuth)
 app.get('/recipes', optionalAuthJWT, async (req, res) => {
   try {
@@ -92,6 +132,26 @@ app.get('/recipes', optionalAuthJWT, async (req, res) => {
   } catch (err) {
     res.json(staticRecipes);
   }
+});
+
+// --- NUEVO ENDPOINT: SUBIR IMAGEN ---
+app.post('/recipes/upload-image', authenticateJWT, upload.single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No se subió ninguna imagen' });
+
+  // Nombre único para la foto
+  const fileName = Date.now() + '-' + req.file.originalname.replace(/\s+/g, '-');
+
+  // Subir a MinIO
+  minioClient.putObject('recipes', fileName, req.file.buffer, function(err, etag) {
+    if (err) {
+      console.error('Error MinIO:', err);
+      return res.status(500).json({ error: 'Error subiendo imagen al servidor' });
+    }
+    
+    // Generar URL pública
+    const imageUrl = `http://localhost:9000/recipes/${fileName}`;
+    res.json({ imageUrl: imageUrl });
+  });
 });
 
 // POST /recipes - ✅ REQUIRES AUTHENTICATION (REQ5)
@@ -130,6 +190,211 @@ app.delete('/recipes/:id', authenticateJWT, async (req, res) => {
 
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'UP', service: 'recipe-service' });
+});
+
+// ============================================
+// MEAL PLAN ENDPOINTS
+// ============================================
+
+// GET /meal-plans/:userId/:month/:year - Get or create meal plan for a month
+app.get('/meal-plans/:userId/:month/:year', authenticateJWT, async (req, res) => {
+  try {
+    const { userId, month, year } = req.params;
+    const { category } = req.query;
+    
+    // Verify user is requesting their own meal plan
+    if (req.user.sub !== userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Validate month and year
+    const monthNum = parseInt(month);
+    const yearNum = parseInt(year);
+    
+    if (monthNum < 1 || monthNum > 12 || yearNum < 2024 || yearNum > 2030) {
+      return res.status(400).json({ error: 'Invalid month or year' });
+    }
+    
+    // Try to find existing meal plan
+    let mealPlan = await MealPlan.findOne({ userId, month: monthNum, year: yearNum });
+    
+    // If doesn't exist, create default one
+    if (!mealPlan) {
+      const planCategory = category || 'Mixed';
+      mealPlan = MealPlan.generateDefaultPlan(userId, monthNum, yearNum, planCategory);
+      await mealPlan.save();
+      console.log(`📅 Created new meal plan for ${userId}: ${monthNum}/${yearNum}`);
+    }
+    
+    res.json(mealPlan);
+  } catch (error) {
+    console.error('Error fetching meal plan:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// POST /meal-plans - Create or update meal plan
+app.post('/meal-plans', authenticateJWT, async (req, res) => {
+  try {
+    const { userId, month, year, category, days } = req.body;
+    
+    // Verify user is creating their own meal plan
+    if (req.user.sub !== userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Validate required fields
+    if (!userId || !month || !year) {
+      return res.status(400).json({ error: 'Missing required fields: userId, month, year' });
+    }
+    
+    // Find and update or create new
+    let mealPlan = await MealPlan.findOne({ userId, month, year });
+    
+    if (mealPlan) {
+      // Update existing
+      if (category) mealPlan.category = category;
+      if (days) mealPlan.days = days;
+      mealPlan.updatedAt = new Date();
+      await mealPlan.save();
+      console.log(`📝 Updated meal plan for ${userId}: ${month}/${year}`);
+    } else {
+      // Create new
+      if (days) {
+        mealPlan = new MealPlan({ userId, month, year, category: category || 'Mixed', days });
+      } else {
+        mealPlan = MealPlan.generateDefaultPlan(userId, month, year, category || 'Mixed');
+      }
+      await mealPlan.save();
+      console.log(`📅 Created meal plan for ${userId}: ${month}/${year}`);
+    }
+    
+    res.status(201).json(mealPlan);
+  } catch (error) {
+    console.error('Error creating meal plan:', error);
+    if (error.code === 11000) {
+      return res.status(409).json({ error: 'Meal plan already exists for this month' });
+    }
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// PUT /meal-plans/:id/day/:dayNumber - Update specific day in meal plan
+app.put('/meal-plans/:id/day/:dayNumber', authenticateJWT, async (req, res) => {
+  try {
+    const { id, dayNumber } = req.params;
+    const { lunch, dinner, notes } = req.body;
+    
+    const mealPlan = await MealPlan.findById(id);
+    
+    if (!mealPlan) {
+      return res.status(404).json({ error: 'Meal plan not found' });
+    }
+    
+    // Verify user owns this meal plan
+    if (mealPlan.userId !== req.user.sub) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Find the day to update
+    const dayIndex = mealPlan.days.findIndex(d => d.dayNumber === parseInt(dayNumber));
+    
+    if (dayIndex === -1) {
+      // Day doesn't exist, create it
+      mealPlan.days.push({
+        dayNumber: parseInt(dayNumber),
+        lunch,
+        dinner,
+        notes
+      });
+    } else {
+      // Update existing day
+      if (lunch) mealPlan.days[dayIndex].lunch = lunch;
+      if (dinner) mealPlan.days[dayIndex].dinner = dinner;
+      if (notes !== undefined) mealPlan.days[dayIndex].notes = notes;
+    }
+    
+    mealPlan.updatedAt = new Date();
+    await mealPlan.save();
+    
+    console.log(`📝 Updated day ${dayNumber} in meal plan ${id}`);
+    res.json(mealPlan);
+  } catch (error) {
+    console.error('Error updating day:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// DELETE /meal-plans/:id - Delete entire meal plan
+app.delete('/meal-plans/:id', authenticateJWT, async (req, res) => {
+  try {
+    const mealPlan = await MealPlan.findById(req.params.id);
+    
+    if (!mealPlan) {
+      return res.status(404).json({ error: 'Meal plan not found' });
+    }
+    
+    // Verify user owns this meal plan
+    if (mealPlan.userId !== req.user.sub) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    await MealPlan.findByIdAndDelete(req.params.id);
+    console.log(`🗑️ Deleted meal plan ${req.params.id}`);
+    
+    res.json({ message: 'Meal plan deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting meal plan:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /meal-plans/:id/day/:dayNumber - Clear specific day
+app.delete('/meal-plans/:id/day/:dayNumber', authenticateJWT, async (req, res) => {
+  try {
+    const { id, dayNumber } = req.params;
+    
+    const mealPlan = await MealPlan.findById(id);
+    
+    if (!mealPlan) {
+      return res.status(404).json({ error: 'Meal plan not found' });
+    }
+    
+    // Verify user owns this meal plan
+    if (mealPlan.userId !== req.user.sub) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Remove the day
+    mealPlan.days = mealPlan.days.filter(d => d.dayNumber !== parseInt(dayNumber));
+    mealPlan.updatedAt = new Date();
+    await mealPlan.save();
+    
+    console.log(`🗑️ Cleared day ${dayNumber} from meal plan ${id}`);
+    res.json(mealPlan);
+  } catch (error) {
+    console.error('Error deleting day:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /meal-plans/user/:userId - Get all meal plans for a user
+app.get('/meal-plans/user/:userId', authenticateJWT, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Verify user is requesting their own meal plans
+    if (req.user.sub !== userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const mealPlans = await MealPlan.find({ userId }).sort({ year: -1, month: -1 });
+    
+    res.json(mealPlans);
+  } catch (error) {
+    console.error('Error fetching meal plans:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 const PORT = process.env.PORT || 8000;

@@ -1,0 +1,270 @@
+# k8s/templates/grafana-dashboard-configmap.yaml
+# ConfigMap for Four Golden Signals dashboard + Complete Grafana Deployment
+
+---
+# ConfigMap 1: Dashboard JSON
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: default
+  labels:
+    grafana_dashboard: "1"
+data:
+  four-golden-signals.json: |
+    {
+      "dashboard": {
+        "title": "ChefMatch - Four Golden Signals",
+        "tags": ["chefmatch", "microservices", "sre"],
+        "timezone": "browser",
+        "refresh": "30s",
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "panels": [
+          {
+            "id": 1,
+            "title": "🚦 GOLDEN SIGNAL 1: LATENCY (Response Time)",
+            "type": "graph",
+            "gridPos": { "x": 0, "y": 0, "w": 24, "h": 8 },
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route))",
+                "legendFormat": "P50 - {{ route }}"
+              },
+              {
+                "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route))",
+                "legendFormat": "P95 - {{ route }}"
+              },
+              {
+                "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route))",
+                "legendFormat": "P99 - {{ route }}"
+              }
+            ],
+            "yaxes": [{ "format": "s", "label": "Latency" }]
+          },
+          {
+            "id": 2,
+            "title": "📈 GOLDEN SIGNAL 2: TRAFFIC (Request Rate)",
+            "type": "graph",
+            "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+            "targets": [
+              {
+                "expr": "sum(rate(http_requests_total[5m])) by (route)",
+                "legendFormat": "{{ route }}"
+              }
+            ],
+            "yaxes": [{ "format": "reqps", "label": "Requests per second" }]
+          },
+          {
+            "id": 3,
+            "title": "❌ GOLDEN SIGNAL 3: ERRORS (Error Rate)",
+            "type": "graph",
+            "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+            "targets": [
+              {
+                "expr": "sum(rate(http_request_errors_total{error_type=\"server_error\"}[5m])) by (route)",
+                "legendFormat": "5xx - {{ route }}"
+              },
+              {
+                "expr": "sum(rate(http_request_errors_total{error_type=\"client_error\"}[5m])) by (route)",
+                "legendFormat": "4xx - {{ route }}"
+              },
+              {
+                "expr": "(sum(rate(http_request_errors_total[5m])) / sum(rate(http_requests_total[5m]))) * 100",
+                "legendFormat": "Error Rate %"
+              }
+            ],
+            "yaxes": [{ "format": "percent", "label": "Error Rate" }]
+          },
+          {
+            "id": 4,
+            "title": "💾 GOLDEN SIGNAL 4: SATURATION (CPU)",
+            "type": "graph",
+            "gridPos": { "x": 0, "y": 16, "w": 8, "h": 6 },
+            "targets": [
+              {
+                "expr": "rate(process_cpu_user_seconds_total[5m]) * 100",
+                "legendFormat": "CPU User %"
+              }
+            ],
+            "yaxes": [{ "format": "percent", "label": "CPU %" }]
+          },
+          {
+            "id": 5,
+            "title": "💾 SATURATION: Memory Usage",
+            "type": "graph",
+            "gridPos": { "x": 8, "y": 16, "w": 8, "h": 6 },
+            "targets": [
+              {
+                "expr": "nodejs_heap_size_used_bytes / 1024 / 1024",
+                "legendFormat": "Heap Used (MB)"
+              }
+            ],
+            "yaxes": [{ "format": "decmbytes", "label": "Memory" }]
+          },
+          {
+            "id": 6,
+            "title": "💾 SATURATION: Event Loop Lag",
+            "type": "graph",
+            "gridPos": { "x": 16, "y": 16, "w": 8, "h": 6 },
+            "targets": [
+              {
+                "expr": "nodejs_eventloop_lag_seconds * 1000",
+                "legendFormat": "Event Loop Lag (ms)"
+              }
+            ],
+            "yaxes": [{ "format": "ms", "label": "Lag" }]
+          },
+          {
+            "id": 7,
+            "title": "🗄️ Database Operations (P95)",
+            "type": "graph",
+            "gridPos": { "x": 0, "y": 22, "w": 12, "h": 6 },
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, sum(rate(db_operation_duration_seconds_bucket[5m])) by (le, operation))",
+                "legendFormat": "P95 - {{ operation }}"
+              }
+            ],
+            "yaxes": [{ "format": "s", "label": "Duration" }]
+          },
+          {
+            "id": 8,
+            "title": "📊 Service Health",
+            "type": "stat",
+            "gridPos": { "x": 12, "y": 22, "w": 12, "h": 6 },
+            "targets": [
+              { "expr": "up{job=\"recipe-service\"}", "legendFormat": "Recipe Service" },
+              { "expr": "up{job=\"recommendation-service\"}", "legendFormat": "Recommendation Service" },
+              { "expr": "up{job=\"user-service\"}", "legendFormat": "User Service" }
+            ],
+            "options": {
+              "graphMode": "none",
+              "colorMode": "background"
+            },
+            "fieldConfig": {
+              "defaults": {
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "value": 0, "color": "red" },
+                    { "value": 1, "color": "green" }
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+
+---
+# ConfigMap 2: Dashboard Provisioning Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provisioning
+  namespace: default
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: 'Default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 10
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards
+
+---
+# ✅ DEPLOYMENT COMPLETO Y CORREGIDO
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: default
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana  # ✅ Debe coincidir con template.metadata.labels
+  template:
+    metadata:
+      labels:
+        app: grafana  # ✅ Debe coincidir con spec.selector.matchLabels
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:latest
+        ports:
+        - containerPort: 3000
+          name: http
+          protocol: TCP
+        env:
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: "admin"  # Cambiar en producción
+        - name: GF_USERS_ALLOW_SIGN_UP
+          value: "false"
+        - name: GF_AUTH_ANONYMOUS_ENABLED
+          value: "false"
+        volumeMounts:
+        - name: grafana-storage
+          mountPath: /var/lib/grafana
+        - name: dashboards
+          mountPath: /etc/grafana/provisioning/dashboards
+        - name: dashboard-config
+          mountPath: /var/lib/grafana/dashboards
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: grafana-storage
+        emptyDir: {}
+      - name: dashboards
+        configMap:
+          name: grafana-dashboard-provisioning
+      - name: dashboard-config
+        configMap:
+          name: grafana-dashboards
+
+---
+# Service para acceder a Grafana
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: default
+  labels:
+    app: grafana
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3000
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: grafana  # ✅ Debe coincidir con los labels del pod

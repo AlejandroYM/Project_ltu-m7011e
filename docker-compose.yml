@@ -8,7 +8,18 @@ services:
     networks:
       - chef-network
   
-  # RabbitMQ: Necesario para el REQ15 (comunicación asíncrona)
+  minio:
+    image: minio/minio:latest
+    container_name: chef-minio
+    ports:
+      - "9000:9000" # Puerto para la API (el que usará tu código)
+      - "9001:9001" # Panel de control visual en el navegador
+    environment:
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=admin1234
+    command: server /data --console-address ":9001"
+    networks:
+      - chef-network
   rabbitmq:
     image: rabbitmq:3-management
     container_name: chef-rabbitmq

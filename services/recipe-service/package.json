@@ -17,6 +17,7 @@
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.2",
     "keycloak-connect": "^22.0.0",
+    "minio": "^8.0.6",
     "mongoose": "^9.1.4",
     "multer": "^2.0.2",
     "prom-client": "^15.0.0"

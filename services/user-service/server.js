@@ -89,6 +89,41 @@ async function connectRabbit() {
 connectRabbit();
 
 const userRouter = express.Router();
+const collectDefaultMetrics = client.collectDefaultMetrics;
+collectDefaultMetrics({ timeout: 5000 });
+
+// LATENCY - Response time histogram
+const httpRequestDuration = new client.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['method', 'route', 'status_code'],
+  buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5]
+});
+
+// TRAFFIC - Request counter
+const httpRequestTotal = new client.Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['method', 'route', 'status_code']
+});
+
+// ERRORS - Error counter
+const httpRequestErrors = new client.Counter({
+  name: 'http_request_errors_total',
+  help: 'Total number of HTTP request errors',
+  labelNames: ['method', 'route', 'status_code', 'error_type']
+});
+
+
+const client = require('prom-client');
+
+// [Copy the same metrics code from Step 1]
+
+// Add metrics endpoint
+app.get('/users/metrics', async (req, res) => {
+  res.setHeader('Content-Type', client.register.contentType);
+  res.send(await client.register.metrics());
+});
 
 // --- 4. RUTAS ---
 
