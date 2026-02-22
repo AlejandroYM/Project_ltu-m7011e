@@ -15,10 +15,10 @@ app.use(cors());
 app.use(express.json());
 
 const USER_SERVICE_URL = 'http://user-service:8000';
-const RECIPE_SERVICE_URL = 'http://recipe-service.todo-app.svc.cluster.local:3002';
+const RECIPE_SERVICE_URL = 'http://recipe-service.todo-app.svc.cluster.local:8000';
 
 // ✅ CONECTAR A MONGODB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://mongodb:27017/chefmatch', {
+mongoose.connect(process.env.MONGO_URI || 'mongodb://mongo-service:27017/chefmatch', {
   useNewUrlParser: true,
   useUnifiedTopology: true
 }).then(() => {

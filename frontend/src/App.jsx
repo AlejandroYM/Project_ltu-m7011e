@@ -191,6 +191,9 @@ function App() {
   const fetchData = async (userId) => {
     try {
       const resRecipes = await axios.get('https://ltu-m7011e-5.se/recipes');
+      const recipesData = Array.isArray(resRecipes.data)
+        ? resRecipes.data 
+        : resRecipes.data.recipes || [];
       setRecipes(resRecipes.data);
       applyFilters(resRecipes.data, searchTerm, filterCategory, filterTime);
       

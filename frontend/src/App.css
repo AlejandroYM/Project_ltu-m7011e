@@ -291,6 +291,8 @@ html, body, #root {
   width: 100%;
   max-width: 500px;
   animation: slideUp 0.3s ease-out;
+  max-height: 88vh;
+  overflow-y: auto;
 }
 
 .form-input {
@@ -307,4 +309,27 @@ html, body, #root {
 .form-input:focus {
   border-color: #f97316;
   outline: none;
+}
+html {
+  zoom: 0.85;
+}
+
+/* ── MODAL CON SCROLL ── */
+.modal-box {
+  max-height: 88vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #f97316 rgba(255,255,255,0.05);
+}
+
+.modal-box::-webkit-scrollbar {
+  width: 6px;
+}
+.modal-box::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.05);
+  border-radius: 10px;
+}
+.modal-box::-webkit-scrollbar-thumb {
+  background: #f97316;
+  border-radius: 10px;
 }
