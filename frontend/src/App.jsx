@@ -117,16 +117,22 @@ function App() {
   }, []);
 
   const fetchRecommendations = async (userId, categoryOverride = null) => {
-    try {
-      const url = `/recommendations/${userId}` + (categoryOverride ? `?category=${categoryOverride}` : '');
-      const resRecs = await axios.get(url, {
-        headers: { Authorization: `Bearer ${keycloak.token}` }
-      });
+  if (!categoryOverride && !activeCategory) return;
+  try {
+    const url = `https://ltu-m7011e-5.se/recommendations/${userId}` + 
+      (categoryOverride ? `?category=${categoryOverride}` : 
+       activeCategory ? `?category=${activeCategory}` : '');
+    const resRecs = await axios.get(url, {
+      headers: { Authorization: `Bearer ${keycloak.token}` }
+    });
+    if (resRecs.data && resRecs.data.length > 0 && 
+        resRecs.data[0] !== "Select a category to see your recommendation.") {
       setRecommendations(resRecs.data);
-    } catch (err) {
-      console.error("Error loading recommendations", err);
     }
-  };
+  } catch (err) {
+    console.error("Error loading recommendations", err);
+  }
+};
 
   const fetchData = async (userId) => {
     try {
