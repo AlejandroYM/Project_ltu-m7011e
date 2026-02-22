@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const MonthlyMealPlan = ({ keycloak, activeCategory, recipes }) => {
+const MonthlyMealPlan = ({ keycloak, activeCategory, recipes, onRecipeClick }) => {
   const [mealPlan, setMealPlan] = useState(null);
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
@@ -43,6 +43,26 @@ const MonthlyMealPlan = ({ keycloak, activeCategory, recipes }) => {
     }
   };
 
+  // ✅ Busca la receta completa por nombre y abre el modal de detalle
+  const handleRecipeClick = (recipeName) => {
+    if (!onRecipeClick || !recipeName) return;
+    const fullRecipe = recipes.find(
+      r => r.name?.toLowerCase().trim() === recipeName.toLowerCase().trim()
+    );
+    if (fullRecipe) {
+      onRecipeClick(fullRecipe);
+    } else {
+      // Receta del plan sin datos completos — muestra lo que tenemos
+      onRecipeClick({
+        name: recipeName,
+        category: activeCategory || 'Unknown',
+        description: 'This recipe is part of your meal plan. Add it to your recipe collection for full details.',
+        ingredients: [],
+        instructions: 'No detailed instructions available. Search for this recipe in the Explore Menu section.'
+      });
+    }
+  };
+
   const updateDay = async (dayNumber, mealType, recipe) => {
     try {
       const updateData = {
@@ -59,16 +79,15 @@ const MonthlyMealPlan = ({ keycloak, activeCategory, recipes }) => {
         { headers: { Authorization: `Bearer ${keycloak.token}` } }
       );
 
-      // Update local state
       const updatedDays = [...mealPlan.days];
       const dayIndex = updatedDays.findIndex(d => d.dayNumber === dayNumber);
-      
+
       if (dayIndex === -1) {
         updatedDays.push({ dayNumber, ...updateData });
       } else {
         updatedDays[dayIndex] = { ...updatedDays[dayIndex], ...updateData };
       }
-      
+
       setMealPlan({ ...mealPlan, days: updatedDays });
       toast.success(`${recipe.name} added to ${mealType}!`);
     } catch (error) {
@@ -79,13 +98,13 @@ const MonthlyMealPlan = ({ keycloak, activeCategory, recipes }) => {
 
   const clearDay = async (dayNumber) => {
     if (!window.confirm('Clear all meals for this day?')) return;
-    
+
     try {
       await axios.delete(
         `https://ltu-m7011e-5.se/meal-plans/${mealPlan._id}/day/${dayNumber}`,
         { headers: { Authorization: `Bearer ${keycloak.token}` } }
       );
-      
+
       const updatedDays = mealPlan.days.filter(d => d.dayNumber !== dayNumber);
       setMealPlan({ ...mealPlan, days: updatedDays });
       toast.success('Day cleared!');
@@ -99,13 +118,8 @@ const MonthlyMealPlan = ({ keycloak, activeCategory, recipes }) => {
     return mealPlan?.days?.find(d => d.dayNumber === dayNumber) || { lunch: null, dinner: null };
   };
 
-  const handleDragStart = (recipe) => {
-    setDraggedRecipe(recipe);
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
+  const handleDragStart = (recipe) => setDraggedRecipe(recipe);
+  const handleDragOver = (e) => e.preventDefault();
 
   const handleDrop = (e, dayNumber, mealType) => {
     e.preventDefault();
@@ -118,15 +132,8 @@ const MonthlyMealPlan = ({ keycloak, activeCategory, recipes }) => {
   const changeMonth = (delta) => {
     let newMonth = currentMonth + delta;
     let newYear = currentYear;
-    
-    if (newMonth > 12) {
-      newMonth = 1;
-      newYear++;
-    } else if (newMonth < 1) {
-      newMonth = 12;
-      newYear--;
-    }
-    
+    if (newMonth > 12) { newMonth = 1; newYear++; }
+    else if (newMonth < 1) { newMonth = 12; newYear--; }
     setCurrentMonth(newMonth);
     setCurrentYear(newYear);
   };
@@ -135,72 +142,73 @@ const MonthlyMealPlan = ({ keycloak, activeCategory, recipes }) => {
     return <div style={{ color: '#fff', textAlign: 'center', padding: '2rem' }}>Loading meal plan...</div>;
   }
 
+  // ✅ Estilos reutilizables para nombres de recetas clicables
+  const recipeNameStyle = {
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    color: '#f97316',
+    cursor: 'pointer',
+    textDecoration: 'underline dotted',
+    textDecorationColor: 'rgba(249,115,22,0.5)',
+    transition: 'color 0.2s'
+  };
+
   return (
     <div style={{ marginBottom: '3rem' }}>
-      {/* Header with month navigation */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
+
+      {/* Header con navegación de mes */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: '2rem',
         background: 'rgba(249, 115, 22, 0.1)',
         padding: '1.5rem',
         borderRadius: '12px',
         border: '2px solid rgba(249, 115, 22, 0.3)'
       }}>
-        <button 
-          onClick={() => changeMonth(-1)} 
-          className="btn-modern"
-          style={{ padding: '10px 20px' }}
-        >
+        <button onClick={() => changeMonth(-1)} className="btn-modern" style={{ padding: '10px 20px' }}>
           ← Previous
         </button>
-        
-        <h2 style={{ 
-          color: '#f97316', 
-          fontSize: '2rem', 
-          margin: 0,
-          textAlign: 'center'
-        }}>
+
+        <h2 style={{ color: '#f97316', fontSize: '2rem', margin: 0, textAlign: 'center' }}>
           📅 {monthNames[currentMonth - 1]} {currentYear}
-          {activeCategory && <span style={{ display: 'block', fontSize: '1rem', opacity: 0.8, marginTop: '5px' }}>
-            {activeCategory} Menu
-          </span>}
+          {activeCategory && (
+            <span style={{ display: 'block', fontSize: '1rem', opacity: 0.8, marginTop: '5px' }}>
+              {activeCategory} Menu
+            </span>
+          )}
         </h2>
-        
-        <button 
-          onClick={() => changeMonth(1)} 
-          className="btn-modern"
-          style={{ padding: '10px 20px' }}
-        >
+
+        <button onClick={() => changeMonth(1)} className="btn-modern" style={{ padding: '10px 20px' }}>
           Next →
         </button>
       </div>
 
-      {/* Drag and drop instruction */}
-      <div className="glass-panel" style={{ 
-        padding: '1rem', 
+      {/* Instrucción drag & drop */}
+      <div className="glass-panel" style={{
+        padding: '1rem',
         marginBottom: '1.5rem',
         background: 'rgba(56, 239, 125, 0.1)',
         borderLeft: '4px solid #38ef7d'
       }}>
         <p style={{ margin: 0, color: '#cbd5e1', fontSize: '0.9rem' }}>
-          💡 <strong>Tip:</strong> Drag recipes from the "Explore Menu" section below and drop them into lunch or dinner slots!
+          💡 <strong>Tip:</strong> Drag recipes from the "Explore Menu" section and drop them into lunch or dinner slots. Click a recipe name to see its details!
         </p>
       </div>
 
-      {/* Calendar grid */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(7, 1fr)', 
+      {/* Grid del calendario */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(7, 1fr)',
         gap: '10px',
         marginBottom: '2rem'
       }}>
-        {/* Day headers */}
+        {/* Cabeceras de días */}
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-          <div key={day} style={{ 
-            textAlign: 'center', 
-            color: '#f97316', 
+          <div key={day} style={{
+            textAlign: 'center',
+            color: '#f97316',
             fontWeight: 'bold',
             padding: '10px',
             background: 'rgba(249, 115, 22, 0.1)',
@@ -210,18 +218,18 @@ const MonthlyMealPlan = ({ keycloak, activeCategory, recipes }) => {
           </div>
         ))}
 
-        {/* Empty cells for days before month starts */}
+        {/* Celdas vacías antes del primer día */}
         {Array.from({ length: firstDayOfMonth }, (_, i) => (
           <div key={`empty-${i}`} style={{ minHeight: '120px' }} />
         ))}
 
-        {/* Calendar days */}
+        {/* Días del mes */}
         {Array.from({ length: daysInMonth }, (_, i) => {
           const dayNumber = i + 1;
           const meals = getDayMeals(dayNumber);
-          const isToday = dayNumber === new Date().getDate() && 
-                         currentMonth === new Date().getMonth() + 1 && 
-                         currentYear === new Date().getFullYear();
+          const isToday = dayNumber === new Date().getDate() &&
+            currentMonth === new Date().getMonth() + 1 &&
+            currentYear === new Date().getFullYear();
 
           return (
             <div
@@ -237,14 +245,14 @@ const MonthlyMealPlan = ({ keycloak, activeCategory, recipes }) => {
               }}
               onClick={() => setSelectedDay(selectedDay === dayNumber ? null : dayNumber)}
             >
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
                 alignItems: 'center',
                 marginBottom: '8px'
               }}>
-                <span style={{ 
-                  fontWeight: 'bold', 
+                <span style={{
+                  fontWeight: 'bold',
                   color: isToday ? '#f97316' : '#fff',
                   fontSize: '1.1rem'
                 }}>
@@ -268,7 +276,7 @@ const MonthlyMealPlan = ({ keycloak, activeCategory, recipes }) => {
                 )}
               </div>
 
-              {/* Lunch slot */}
+              {/* Slot LUNCH */}
               <div
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, dayNumber, 'lunch')}
@@ -283,17 +291,21 @@ const MonthlyMealPlan = ({ keycloak, activeCategory, recipes }) => {
               >
                 <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginBottom: '2px' }}>☀️ LUNCH</div>
                 {meals.lunch ? (
-                  <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#e2e8f0' }}>
+                  // ✅ Clicable para abrir detalle
+                  <div
+                    onClick={(e) => { e.stopPropagation(); handleRecipeClick(meals.lunch.recipeName); }}
+                    style={recipeNameStyle}
+                    onMouseEnter={(e) => e.currentTarget.style.color = '#fb923c'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = '#f97316'}
+                  >
                     {meals.lunch.recipeName}
                   </div>
                 ) : (
-                  <div style={{ fontSize: '0.7rem', color: '#64748b', fontStyle: 'italic' }}>
-                    Drop here
-                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#64748b', fontStyle: 'italic' }}>Drop here</div>
                 )}
               </div>
 
-              {/* Dinner slot */}
+              {/* Slot DINNER */}
               <div
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, dayNumber, 'dinner')}
@@ -307,13 +319,17 @@ const MonthlyMealPlan = ({ keycloak, activeCategory, recipes }) => {
               >
                 <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginBottom: '2px' }}>🌙 DINNER</div>
                 {meals.dinner ? (
-                  <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#e2e8f0' }}>
+                  // ✅ Clicable para abrir detalle
+                  <div
+                    onClick={(e) => { e.stopPropagation(); handleRecipeClick(meals.dinner.recipeName); }}
+                    style={recipeNameStyle}
+                    onMouseEnter={(e) => e.currentTarget.style.color = '#fb923c'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = '#f97316'}
+                  >
                     {meals.dinner.recipeName}
                   </div>
                 ) : (
-                  <div style={{ fontSize: '0.7rem', color: '#64748b', fontStyle: 'italic' }}>
-                    Drop here
-                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#64748b', fontStyle: 'italic' }}>Drop here</div>
                 )}
               </div>
             </div>
@@ -321,9 +337,9 @@ const MonthlyMealPlan = ({ keycloak, activeCategory, recipes }) => {
         })}
       </div>
 
-      {/* Recipe selector (if a day is selected) */}
+      {/* Selector rápido de recetas al hacer clic en un día */}
       {selectedDay && (
-        <div className="glass-panel" style={{ 
+        <div className="glass-panel" style={{
           padding: '1.5rem',
           background: 'rgba(30, 41, 59, 0.8)',
           border: '2px solid rgba(249, 115, 22, 0.5)'
@@ -331,10 +347,10 @@ const MonthlyMealPlan = ({ keycloak, activeCategory, recipes }) => {
           <h3 style={{ color: '#f97316', marginBottom: '1rem' }}>
             Quick Add for Day {selectedDay}
           </h3>
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
-            gap: '10px' 
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+            gap: '10px'
           }}>
             {recipes
               .filter(r => !activeCategory || r.category === activeCategory)

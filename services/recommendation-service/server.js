@@ -14,10 +14,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ✅ URLs corregidas — mismo namespace chefmatch, puerto correcto
 const USER_SERVICE_URL = 'http://user-service:8000';
-const RECIPE_SERVICE_URL = 'http://recipe-service.todo-app.svc.cluster.local:8000';
+const RECIPE_SERVICE_URL = 'http://recipe-service:8000';
 
-// ✅ CONECTAR A MONGODB
+// ✅ Usar MONGO_URI (nombre correcto del secret)
 mongoose.connect(process.env.MONGO_URI || 'mongodb://mongo-service:27017/chefmatch', {
   useNewUrlParser: true,
   useUnifiedTopology: true
@@ -27,7 +28,7 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://mongo-service:27017/chefmat
   console.error('❌ MongoDB connection error:', error);
 });
 
-// --- RABBITMQ CONSUMER (REQ15) ---
+// --- RABBITMQ CONSUMER ---
 async function startConsuming() {
   try {
     const conn = await amqplib.connect(process.env.RABBITMQ_URL || 'amqp://guest:guest@rabbitmq-service:5672');
@@ -41,8 +42,6 @@ async function startConsuming() {
         const event = JSON.parse(msg.content.toString());
         if (event.action === 'PREFERENCES_UPDATED') {
           console.log(`✅ RabbitMQ: User ${event.userId} updated preferences.`);
-          
-          // ✅ Regenerar recomendaciones cuando cambian preferencias
           await generateRecommendationsForUser(event.userId);
         }
         channel.ack(msg);
@@ -55,17 +54,15 @@ async function startConsuming() {
 
 startConsuming();
 
-// ✅ FUNCIÓN PARA GENERAR Y GUARDAR RECOMENDACIONES
+// ✅ GENERAR Y GUARDAR RECOMENDACIONES
 async function generateRecommendationsForUser(userId) {
   try {
     console.log(`🔄 Generating recommendations for user ${userId}`);
-    
-    // Obtener preferencias del usuario
+
     let categoryPref = null;
     try {
       const userRes = await axios.get(`${USER_SERVICE_URL}/users/${userId}`);
       const userData = userRes.data;
-      
       if (userData.category) categoryPref = userData.category;
       else if (userData.preferences?.category) categoryPref = userData.preferences.category;
       else if (userData.preference) categoryPref = userData.preference;
@@ -79,12 +76,13 @@ async function generateRecommendationsForUser(userId) {
       return;
     }
 
-    // Obtener recetas de esa categoría
     const recipesRes = await axios.get(`${RECIPE_SERVICE_URL}/recipes`);
-    const allRecipes = recipesRes.data;
-    
+    const allRecipes = Array.isArray(recipesRes.data)
+      ? recipesRes.data
+      : recipesRes.data.recipes || [];
+
     const safePref = categoryPref.toLowerCase().trim();
-    const matchingRecipes = allRecipes.filter(r => 
+    const matchingRecipes = allRecipes.filter(r =>
       r.category && r.category.toLowerCase().trim() === safePref
     );
 
@@ -93,10 +91,8 @@ async function generateRecommendationsForUser(userId) {
       return;
     }
 
-    // Eliminar recomendaciones antiguas del usuario
     await Recommendation.deleteMany({ userId });
 
-    // Guardar nuevas recomendaciones (top 5)
     const recommendations = matchingRecipes.slice(0, 5).map((recipe, index) => ({
       userId,
       recipeName: recipe.name,
@@ -107,9 +103,7 @@ async function generateRecommendationsForUser(userId) {
     }));
 
     await Recommendation.insertMany(recommendations, { ordered: false })
-      .catch(err => {
-        if (err.code !== 11000) throw err; // Ignorar duplicados
-      });
+      .catch(err => { if (err.code !== 11000) throw err; });
 
     console.log(`✅ Generated ${recommendations.length} recommendations for user ${userId}`);
   } catch (error) {
@@ -117,25 +111,24 @@ async function generateRecommendationsForUser(userId) {
   }
 }
 
-// --- REST API (REQ14) ---
+// --- REST API ---
 
-// ✅ OBTENER RECOMENDACIONES DESDE MONGODB
+// ✅ OBTENER RECOMENDACIONES
 app.get('/recommendations/:userId', authenticateJWT, async (req, res) => {
   const { userId } = req.params;
   const queryCategory = req.query.category;
 
   try {
-    // Si el frontend fuerza una categoría, regenerar recomendaciones
     if (queryCategory) {
       console.log(`🎯 Category forced by frontend: "${queryCategory}"`);
-      
-      // Actualizar preferencia del usuario (opcional)
-      // Luego generar recomendaciones para esa categoría
+
       const recipesRes = await axios.get(`${RECIPE_SERVICE_URL}/recipes`);
-      const allRecipes = recipesRes.data;
-      
+      const allRecipes = Array.isArray(recipesRes.data)
+        ? recipesRes.data
+        : recipesRes.data.recipes || [];
+
       const safePref = queryCategory.toLowerCase().trim();
-      const match = allRecipes.filter(r => 
+      const match = allRecipes.filter(r =>
         r.category && r.category.toLowerCase().trim() === safePref
       );
 
@@ -147,24 +140,20 @@ app.get('/recommendations/:userId', authenticateJWT, async (req, res) => {
       }
     }
 
-    // ✅ Obtener recomendaciones desde MongoDB
     const recommendations = await Recommendation.find({ userId })
       .sort({ score: -1 })
       .limit(5)
       .lean();
 
     if (recommendations.length > 0) {
-      // Retornar nombres de recetas recomendadas
       const recipeNames = recommendations.map(r => r.recipeName);
       console.log(`💾 Returning ${recipeNames.length} recommendations from MongoDB`);
       return res.json(recipeNames);
     }
 
-    // Si no hay recomendaciones guardadas, generarlas
     console.log(`🔄 No recommendations found, generating for user ${userId}`);
     await generateRecommendationsForUser(userId);
-    
-    // Intentar obtenerlas de nuevo
+
     const newRecommendations = await Recommendation.find({ userId })
       .sort({ score: -1 })
       .limit(5)
@@ -174,7 +163,6 @@ app.get('/recommendations/:userId', authenticateJWT, async (req, res) => {
       return res.json(newRecommendations.map(r => r.recipeName));
     }
 
-    // Si aún no hay, pedir que seleccione categoría
     return res.json(["Select a category to see your recommendation."]);
 
   } catch (error) {
@@ -183,10 +171,10 @@ app.get('/recommendations/:userId', authenticateJWT, async (req, res) => {
   }
 });
 
+// --- MÉTRICAS PROMETHEUS ---
 const collectDefaultMetrics = client.collectDefaultMetrics;
 collectDefaultMetrics({ timeout: 5000 });
 
-// LATENCY - Response time histogram
 const httpRequestDuration = new client.Histogram({
   name: 'http_request_duration_seconds',
   help: 'Duration of HTTP requests in seconds',
@@ -194,19 +182,18 @@ const httpRequestDuration = new client.Histogram({
   buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5]
 });
 
-// TRAFFIC - Request counter
 const httpRequestTotal = new client.Counter({
   name: 'http_requests_total',
   help: 'Total number of HTTP requests',
   labelNames: ['method', 'route', 'status_code']
 });
 
-// ERRORS - Error counter
 const httpRequestErrors = new client.Counter({
   name: 'http_request_errors_total',
   help: 'Total number of HTTP request errors',
   labelNames: ['method', 'route', 'status_code', 'error_type']
 });
+
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'UP', service: 'recommendation-service' });
 });
