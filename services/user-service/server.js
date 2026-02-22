@@ -5,6 +5,7 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const { authenticateJWT } = require('./middleware/auth');
+const client = require('prom-client'); // ✅ Movido aquí arriba para que no dé error al inicializar las métricas
 
 dotenv.config();
 const app = express();
@@ -89,6 +90,8 @@ async function connectRabbit() {
 connectRabbit();
 
 const userRouter = express.Router();
+
+// --- MÉTRICAS DE PROMETHEUS ---
 const collectDefaultMetrics = client.collectDefaultMetrics;
 collectDefaultMetrics({ timeout: 5000 });
 
@@ -113,11 +116,6 @@ const httpRequestErrors = new client.Counter({
   help: 'Total number of HTTP request errors',
   labelNames: ['method', 'route', 'status_code', 'error_type']
 });
-
-
-const client = require('prom-client');
-
-// [Copy the same metrics code from Step 1]
 
 // Add metrics endpoint
 app.get('/users/metrics', async (req, res) => {
@@ -156,6 +154,32 @@ userRouter.post('/preferences', authenticateJWT, async (req, res) => {
   } catch (err) {
     console.error('❌ Error en /preferences:', err.message);
     res.status(500).json({ error: 'Error al procesar la solicitud' });
+  }
+});
+
+// --- NUEVO ENDPOINT: BORRAR CUENTA ---
+userRouter.delete('/account', authenticateJWT, async (req, res) => {
+  try {
+    const userId = req.user.sub; // Obtenemos el ID del usuario del JWT
+
+    const message = { 
+        userId: userId, 
+        action: 'USER_DELETED', 
+        date: new Date().toISOString() 
+    };
+
+    if (channel) {
+      // Nos aseguramos de que la cola de eventos exista antes de enviar
+      await channel.assertQueue('user_events');
+      // Enviamos el mensaje de borrado
+      channel.sendToQueue('user_events', Buffer.from(JSON.stringify(message)));
+      console.log(`📢 Aviso de borrado enviado a RabbitMQ para el usuario ${userId}`);
+    }
+    
+    res.json({ message: 'Petición de baja procesada. Las recetas y datos asociados se están borrando en segundo plano.' });
+  } catch (err) { 
+    console.error('❌ Error al procesar baja del usuario:', err.message);
+    res.status(500).json({ error: 'Error interno procesando la baja del usuario' }); 
   }
 });
 

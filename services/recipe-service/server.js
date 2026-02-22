@@ -5,9 +5,10 @@ const cors = require('cors');
 const { authenticateJWT, optionalAuthJWT } = require('./middleware/auth');
 const client = require('prom-client'); 
 
-// --- NUEVO: Librerías para subida de imágenes ---
+// --- NUEVO: Librerías para subida de imágenes y RabbitMQ ---
 const multer = require('multer');
 const Minio = require('minio');
+const amqplib = require('amqplib'); // <-- Añadido para escuchar la baja de usuarios
 
 const app = express();
 app.use(cors());
@@ -121,6 +122,41 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/chefmatch')
 
 
 // ============================================
+// ESCUCHADOR DE EVENTOS DE USUARIO (RABBITMQ)
+// ============================================
+async function listenForUserEvents() {
+  try {
+    const rabbitUrl = process.env.RABBITMQ_URL || 'amqp://rabbitmq:5672';
+    const conn = await amqplib.connect(rabbitUrl);
+    const channel = await conn.createChannel();
+    
+    // Cola dedicada a eventos importantes del usuario
+    await channel.assertQueue('user_events');
+    console.log('🎧 Recipe Service escuchando eventos de usuarios en RabbitMQ...');
+    
+    channel.consume('user_events', async (msg) => {
+      if (msg !== null) {
+        const event = JSON.parse(msg.content.toString());
+        
+        // Si el evento es que se borró un usuario, borramos sus recetas y planes de comida
+        if (event.action === 'USER_DELETED') {
+          console.log(`🗑️ Eliminando en cascada las recetas del usuario: ${event.userId}`);
+          await Recipe.deleteMany({ userId: event.userId });
+          await MealPlan.deleteMany({ userId: event.userId }); // También borramos sus planes de comida
+        }
+        
+        channel.ack(msg); // Confirmar que procesamos el mensaje
+      }
+    });
+  } catch (err) {
+    console.error('Error conectando RabbitMQ en recipe-service:', err.message);
+    setTimeout(listenForUserEvents, 5000); // Reintentar si falla
+  }
+}
+listenForUserEvents();
+
+
+// ============================================
 // RECIPE ENDPOINTS
 // ============================================
 
@@ -157,7 +193,12 @@ app.post('/recipes/upload-image', authenticateJWT, upload.single('image'), (req,
 // POST /recipes - ✅ REQUIRES AUTHENTICATION (REQ5)
 app.post('/recipes', authenticateJWT, async (req, res) => {
   try {
-    const newRecipe = new Recipe(req.body);
+    // NUEVO: Añadimos el ID del usuario sacado del JWT al crear la receta
+    const recipeData = {
+      ...req.body,
+      userId: req.user.sub 
+    };
+    const newRecipe = new Recipe(recipeData);
     await newRecipe.save();
     res.status(201).json(newRecipe);
   } catch (err) {

@@ -10,6 +10,7 @@ const recipeSchema = new mongoose.Schema({
   instructions: { type: String, default: "" },
   imageUrl: { type: String },
   cookingTime: { type: Number, default: 30 },
+  userId: { type: String, required: true },
   servings: { type: Number, default: 4}
 });
 
