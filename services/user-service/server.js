@@ -5,7 +5,7 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const { authenticateJWT } = require('./middleware/auth');
-const client = require('prom-client'); // ✅ Movido aquí arriba para que no dé error al inicializar las métricas
+const client = require('prom-client'); 
 
 dotenv.config();
 const app = express();
@@ -92,7 +92,6 @@ connectRabbit();
 const userRouter = express.Router();
 
 // --- MÉTRICAS DE PROMETHEUS ---
-const client = require('prom-client');
 const collectDefaultMetrics = client.collectDefaultMetrics;
 collectDefaultMetrics({ timeout: 5000 });
 
