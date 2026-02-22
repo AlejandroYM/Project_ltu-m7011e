@@ -1,3 +1,4 @@
+# Ingress 1: API routes (prioridad alta)
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -5,7 +6,7 @@ metadata:
   namespace: chefmatch
   annotations:
     kubernetes.io/ingress.class: traefik
-    traefik.ingress.kubernetes.io/router.priority: "1000"
+    traefik.ingress.kubernetes.io/router.priority: "100"
 spec:
   ingressClassName: traefik
   rules:
@@ -33,6 +34,30 @@ spec:
             name: recommendation-service
             port:
               number: 8000
+      - path: /meal-plans
+        pathType: Prefix
+        backend:
+          service:
+            name: recipe-service
+            port:
+              number: 8000
+
+---
+# Ingress 2: Frontend catch-all (prioridad baja)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chef-frontend-ingress
+  namespace: chefmatch
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.priority: "1"
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: ltu-m7011e-5.se
+    http:
+      paths:
       - path: /
         pathType: Prefix
         backend:
