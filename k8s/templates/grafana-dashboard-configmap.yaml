@@ -31,15 +31,15 @@ data:
             "targets": [
               {
                 "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route))",
-                "legendFormat": "P50 - {{ \"{{ route }}\" }}"
+                "legendFormat": "P50 - {{ \"{{\" }} route {{ \"}}\" }}"
               },
               {
                 "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route))",
-                "legendFormat": "P95 - {{ \"{{ route }}\" }}"
+                "legendFormat": "P95 - {{ \"{{\" }} route {{ \"}}\" }}"
               },
               {
                 "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route))",
-                "legendFormat": "P99 - {{ \"{{ route }}\" }}"
+                "legendFormat": "P99 - {{ \"{{\" }} route {{ \"}}\" }}"
               }
             ],
             "yaxes": [{ "format": "s", "label": "Latency" }]
@@ -52,7 +52,7 @@ data:
             "targets": [
               {
                 "expr": "sum(rate(http_requests_total[5m])) by (route)",
-                "legendFormat": "{{ \"{{ route }}\" }}"
+                "legendFormat": "{{ \"{{\" }} route {{ \"}}\" }}"
               }
             ],
             "yaxes": [{ "format": "reqps", "label": "Requests per second" }]
@@ -65,11 +65,11 @@ data:
             "targets": [
               {
                 "expr": "sum(rate(http_request_errors_total{error_type=\"server_error\"}[5m])) by (route)",
-                "legendFormat": "5xx - {{ \"{{ route }}\" }}"
+                "legendFormat": "5xx - {{ \"{{\" }} route {{ \"}}\" }}"
               },
               {
                 "expr": "sum(rate(http_request_errors_total{error_type=\"client_error\"}[5m])) by (route)",
-                "legendFormat": "4xx - {{ \"{{ route }}\" }}"
+                "legendFormat": "4xx - {{ \"{{\" }} route {{ \"}}\" }}"
               },
               {
                 "expr": "(sum(rate(http_request_errors_total[5m])) / sum(rate(http_requests_total[5m]))) * 100",
@@ -125,7 +125,7 @@ data:
             "targets": [
               {
                 "expr": "histogram_quantile(0.95, sum(rate(db_operation_duration_seconds_bucket[5m])) by (le, operation))",
-                "legendFormat": "P95 - {{ \"{{ operation }}\" }}"
+                "legendFormat": "P95 - {{ \"{{\" }} operation {{ \"}}\" }}"
               }
             ],
             "yaxes": [{ "format": "s", "label": "Duration" }]
@@ -194,11 +194,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: grafana  # ✅ Debe coincidir con template.metadata.labels
+      app: grafana
   template:
     metadata:
       labels:
-        app: grafana  # ✅ Debe coincidir con spec.selector.matchLabels
+        app: grafana
     spec:
       containers:
       - name: grafana
@@ -209,7 +209,7 @@ spec:
           protocol: TCP
         env:
         - name: GF_SECURITY_ADMIN_PASSWORD
-          value: "admin"  # Cambiar en producción
+          value: "admin"
         - name: GF_USERS_ALLOW_SIGN_UP
           value: "false"
         - name: GF_AUTH_ANONYMOUS_ENABLED
@@ -267,4 +267,4 @@ spec:
     protocol: TCP
     name: http
   selector:
-    app: grafana  # ✅ Debe coincidir con los labels del pod
+    app: grafana
