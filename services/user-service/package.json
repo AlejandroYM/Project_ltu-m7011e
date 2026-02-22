@@ -19,6 +19,7 @@
     "keycloak-connect": "^21.0.0",
     "mongoose": "^7.0.0",
     "swagger-jsdoc": "^6.2.8",
+    "prom-client": "^15.1.0",
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {

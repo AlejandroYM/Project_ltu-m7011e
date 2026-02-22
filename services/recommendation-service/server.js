@@ -6,6 +6,7 @@ const dotenv = require('dotenv');
 const axios = require('axios');
 const { authenticateJWT } = require('./middleware/auth');
 const cors = require('cors');
+const client = require('prom-client');
 const Recommendation = require('./models/Recommendation');
 
 dotenv.config();
@@ -182,6 +183,7 @@ app.get('/recommendations/:userId', authenticateJWT, async (req, res) => {
   }
 });
 
+const client = require('prom-client');
 const collectDefaultMetrics = client.collectDefaultMetrics;
 collectDefaultMetrics({ timeout: 5000 });
 
