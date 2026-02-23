@@ -84,24 +84,6 @@ app.use((req, res, next) => {
 });
 
 // ============================================
-// RECETAS ESTÁTICAS (fallback si MongoDB vacío)
-// ============================================
-const staticRecipes = [
-  { id: 1, name: 'Carbonara Pasta', category: 'Italian', description: 'The authentic Roman recipe without cream.', ingredients: ['400g Spaghetti', '150g Guanciale or Pancetta', '4 Egg yolks', '100g Pecorino Cheese', 'Black pepper'], instructions: '1. Boil the pasta. \n2. Sauté the guanciale until crispy. \n3. Beat the yolks with the cheese and lots of pepper. \n4. Mix the hot pasta with the egg mixture off the heat to create the cream.', cookingTime: 20 },
-  { id: 2, name: 'Margherita Pizza', category: 'Italian', description: 'The classic Neapolitan pizza.', ingredients: ['Pizza dough', 'San Marzano tomato sauce', 'Fresh Mozzarella', 'Fresh Basil', 'Olive oil'], instructions: '1. Stretch the dough. \n2. Add tomato and mozzarella. \n3. Bake at maximum temperature (250°C) for 10-15 min. \n4. Add fresh basil upon serving.', cookingTime: 45 },
-  { id: 3, name: 'Tacos al Pastor', category: 'Mexican', description: 'Marinated pork tacos with pineapple.', ingredients: ['Corn tortillas', '500g Pork loin', 'Pineapple', 'Cilantro and Onion', 'Achiote paste'], instructions: '1. Marinate the meat with achiote and spices. \n2. Grill the meat with the pineapple. \n3. Heat the tortillas. \n4. Serve with cilantro, onion, and salsa.', cookingTime: 60 },
-  { id: 4, name: 'Traditional Guacamole', category: 'Mexican', description: 'The perfect side dish.', ingredients: ['3 Ripe avocados', '1 Tomato', '1/2 Onion', 'Cilantro', 'Lime juice', 'Salt'], instructions: '1. Mash the avocados. \n2. Finely chop onion, tomato, and cilantro. \n3. Mix everything with lime juice and salt to taste.', cookingTime: 10 },
-  { id: 5, name: 'Chickpea Curry', category: 'Vegan', description: 'Dish rich in protein and spices.', ingredients: ['400g Cooked chickpeas', 'Coconut milk', 'Spinach', 'Curry powder', 'Garlic and Ginger'], instructions: '1. Sauté garlic and ginger. \n2. Add spices and chickpeas. \n3. Pour coconut milk and cook for 10 min. \n4. Add spinach at the end.', cookingTime: 25 },
-  { id: 6, name: 'Buddha Bowl', category: 'Vegan', description: 'Nutritious and colorful bowl.', ingredients: ['Quinoa', 'Marinated Tofu', 'Avocado', 'Grated Carrot', 'Tahini Sauce'], instructions: '1. Cook the quinoa. \n2. Sauté the tofu. \n3. Chop the vegetables. \n4. Assemble the bowl and dress with tahini.', cookingTime: 30 },
-  { id: 7, name: 'Sushi Maki Roll', category: 'Japanese', description: 'Homemade sushi rolls.', ingredients: ['Sushi rice', 'Nori sheets', 'Salmon or Cucumber', 'Rice vinegar', 'Soy sauce'], instructions: '1. Cook and season the rice. \n2. Spread rice on the seaweed. \n3. Add filling and roll with a mat. \n4. Cut into 6-8 pieces.', cookingTime: 50 },
-  { id: 8, name: 'Chicken Ramen', category: 'Japanese', description: 'Comforting soup with noodles.', ingredients: ['Chicken broth', 'Ramen noodles', 'Chicken breast', 'Boiled egg', 'Chives'], instructions: '1. Heat the broth with soy and miso. \n2. Cook noodles separately. \n3. Assemble the bowl with broth, noodles, and toppings (chicken, egg, chives).', cookingTime: 60 },
-  { id: 9, name: 'Classic Burger', category: 'American', description: 'Juicy burger with cheddar cheese.', ingredients: ['Ground beef', 'Brioche bun', 'Cheddar Cheese', 'Lettuce and Tomato', 'Pickles'], instructions: '1. Form patties loosely. \n2. Grill 3 min per side. \n3. Melt cheese on top. \n4. Toast the bun and assemble with veggies.', cookingTime: 20 },
-  { id: 10, name: 'BBQ Ribs', category: 'American', description: 'Pork ribs in barbecue sauce.', ingredients: ['Pork ribs', 'Homemade BBQ sauce', 'Smoked paprika', 'Honey', 'Garlic powder'], instructions: '1. Rub ribs with dry spices. \n2. Bake at low temp (150°C) for 2 hours wrapped in foil. \n3. Uncover, brush with BBQ sauce and broil for 15 min.', cookingTime: 140 },
-  { id: 11, name: 'Tiramisu', category: 'Desserts', description: 'Italian coffee and mascarpone dessert.', ingredients: ['Ladyfingers', 'Mascarpone Cheese', 'Strong espresso coffee', 'Cocoa powder', 'Sugar'], instructions: '1. Beat mascarpone with sugar. \n2. Dip ladyfingers in coffee. \n3. Layer ladyfingers and cream alternately. \n4. Dust with cocoa at the end.', cookingTime: 30 },
-  { id: 12, name: 'Strawberry Cheesecake', category: 'Desserts', description: 'Smooth cheese cake with fruit.', ingredients: ['Digestive biscuits', 'Butter', 'Cream cheese', 'Whipping cream', 'Strawberry jam'], instructions: '1. Crush biscuits with butter for the base. \n2. Beat cheese and cream and pour over the base. \n3. Refrigerate for at least 4 hours. \n4. Top with jam before serving.', cookingTime: 240 }
-];
-
-// ============================================
 // MONGODB
 // ============================================
 mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/chefmatch')
@@ -140,26 +122,18 @@ listenForUserEvents();
 // ✅ FUNCIÓN: GENERAR PLAN MENSUAL DESDE DB
 // ============================================
 async function generateMealPlanFromDB(userId, monthNum, yearNum, category) {
-  // 1. Obtener recetas reales de MongoDB filtradas por categoría
-  let dbRecipes = [];
+  // 1. Obtener recetas de MongoDB filtradas por categoría
+  let allRecipes = [];
   if (category && category !== 'Mixed') {
-    dbRecipes = await Recipe.find({ category }).lean();
+    allRecipes = await Recipe.find({ category }).lean();
   } else {
-    dbRecipes = await Recipe.find().lean();
+    allRecipes = await Recipe.find().lean();
   }
 
-  // 2. Combinar con estáticas de la misma categoría como fallback
-  const allStaticFiltered = category && category !== 'Mixed'
-    ? staticRecipes.filter(r => r.category === category)
-    : staticRecipes;
-
-  // Unir DB + estáticas, priorizando las de DB
-  const allRecipes = [...dbRecipes, ...allStaticFiltered];
-
-  // 3. Calcular días del mes
+  // 2. Calcular días del mes
   const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
 
-  // 4. Función para mezclar array aleatoriamente (Fisher-Yates)
+  // 3. Función para mezclar array aleatoriamente (Fisher-Yates)
   const shuffle = (arr) => {
     const a = [...arr];
     for (let i = a.length - 1; i > 0; i--) {
@@ -169,7 +143,7 @@ async function generateMealPlanFromDB(userId, monthNum, yearNum, category) {
     return a;
   };
 
-  // 5. Si hay pocas recetas, repetir pero en orden aleatorio diferente cada vez
+  // 4. Si hay pocas recetas, repetir en orden aleatorio distinto cada vez
   const getRecipePool = (count) => {
     if (allRecipes.length === 0) return Array(count).fill({ name: 'No recipes available', category });
     let pool = [];
@@ -179,17 +153,15 @@ async function generateMealPlanFromDB(userId, monthNum, yearNum, category) {
     return pool.slice(0, count);
   };
 
-  // Necesitamos daysInMonth recetas para lunch y daysInMonth para dinner (distintas)
   const lunchPool = getRecipePool(daysInMonth);
   const dinnerPool = getRecipePool(daysInMonth);
 
-  // 6. Construir los días asegurando que lunch ≠ dinner cada día
+  // 5. Construir los días asegurando que lunch ≠ dinner cada día
   const days = [];
   for (let day = 1; day <= daysInMonth; day++) {
     let lunchRecipe = lunchPool[day - 1];
     let dinnerRecipe = dinnerPool[day - 1];
 
-    // Si lunch y dinner son la misma receta, buscar alternativa para dinner
     if (lunchRecipe.name === dinnerRecipe.name && allRecipes.length > 1) {
       const alternative = allRecipes.find(r => r.name !== lunchRecipe.name);
       if (alternative) dinnerRecipe = alternative;
@@ -198,12 +170,12 @@ async function generateMealPlanFromDB(userId, monthNum, yearNum, category) {
     days.push({
       dayNumber: day,
       lunch: {
-        recipeId: lunchRecipe._id || String(lunchRecipe.id || day),
+        recipeId: lunchRecipe._id || String(day),
         recipeName: lunchRecipe.name,
         category: lunchRecipe.category || category
       },
       dinner: {
-        recipeId: dinnerRecipe._id || String(dinnerRecipe.id || day + 100),
+        recipeId: dinnerRecipe._id || String(day + 100),
         recipeName: dinnerRecipe.name,
         category: dinnerRecipe.category || category
       }
@@ -225,10 +197,10 @@ async function generateMealPlanFromDB(userId, monthNum, yearNum, category) {
 
 app.get('/recipes', optionalAuthJWT, async (req, res) => {
   try {
-    const dynamicRecipes = await Recipe.find();
-    res.json([...staticRecipes, ...dynamicRecipes]);
+    const recipes = await Recipe.find();
+    res.json(recipes);
   } catch (err) {
-    res.json(staticRecipes);
+    res.status(500).json({ error: 'Error fetching recipes' });
   }
 });
 
@@ -278,7 +250,6 @@ app.get('/health', (req, res) => {
 // MEAL PLAN ENDPOINTS
 // ============================================
 
-// ✅ GET — obtener o crear plan mensual desde recetas reales
 app.get('/meal-plans/:userId/:month/:year', authenticateJWT, async (req, res) => {
   try {
     const { userId, month, year } = req.params;
@@ -297,7 +268,6 @@ app.get('/meal-plans/:userId/:month/:year', authenticateJWT, async (req, res) =>
 
     let mealPlan = await MealPlan.findOne({ userId, month: monthNum, year: yearNum });
 
-    // ✅ Si cambia la categoría, regenerar el plan con recetas de esa categoría
     if (mealPlan && category && mealPlan.category !== category) {
       console.log(`🔄 Category changed to ${category}, regenerating meal plan...`);
       await MealPlan.deleteOne({ _id: mealPlan._id });
@@ -318,7 +288,6 @@ app.get('/meal-plans/:userId/:month/:year', authenticateJWT, async (req, res) =>
   }
 });
 
-// POST — crear o actualizar plan mensual
 app.post('/meal-plans', authenticateJWT, async (req, res) => {
   try {
     const { userId, month, year, category, days } = req.body;
@@ -357,7 +326,6 @@ app.post('/meal-plans', authenticateJWT, async (req, res) => {
   }
 });
 
-// PUT — actualizar día específico
 app.put('/meal-plans/:id/day/:dayNumber', authenticateJWT, async (req, res) => {
   try {
     const { id, dayNumber } = req.params;
@@ -381,11 +349,10 @@ app.put('/meal-plans/:id/day/:dayNumber', authenticateJWT, async (req, res) => {
     res.json(mealPlan);
   } catch (error) {
     console.error('Error updating day:', error);
-    res.status(500).json({ error: 'Internal server error', details: error.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// DELETE — borrar plan entero
 app.delete('/meal-plans/:id', authenticateJWT, async (req, res) => {
   try {
     const mealPlan = await MealPlan.findById(req.params.id);
@@ -399,7 +366,6 @@ app.delete('/meal-plans/:id', authenticateJWT, async (req, res) => {
   }
 });
 
-// DELETE — borrar día específico
 app.delete('/meal-plans/:id/day/:dayNumber', authenticateJWT, async (req, res) => {
   try {
     const { id, dayNumber } = req.params;
@@ -416,7 +382,6 @@ app.delete('/meal-plans/:id/day/:dayNumber', authenticateJWT, async (req, res) =
   }
 });
 
-// GET — todos los planes de un usuario
 app.get('/meal-plans/user/:userId', authenticateJWT, async (req, res) => {
   try {
     const { userId } = req.params;
@@ -427,6 +392,14 @@ app.get('/meal-plans/user/:userId', authenticateJWT, async (req, res) => {
     console.error('Error fetching meal plans:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// ============================================
+// PROMETHEUS METRICS
+// ============================================
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', client.register.contentType);
+  res.end(await client.register.metrics());
 });
 
 const PORT = process.env.PORT || 8000;
