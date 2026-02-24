@@ -22,8 +22,8 @@ const recipeSchema = new mongoose.Schema({
   ratingCount:   { type: Number, default: 0 }             // número total de votos
 });
 
-// Recalcula la media antes de guardar
-recipeSchema.pre('save', function(next) {
+// Recalcula la media antes de guardar (Mongoose 6+ — sin next en hooks síncronos)
+recipeSchema.pre('save', function() {
   if (this.ratings && this.ratings.length > 0) {
     const total = this.ratings.reduce((sum, r) => sum + r.score, 0);
     this.ratingCount   = this.ratings.length;
@@ -32,7 +32,6 @@ recipeSchema.pre('save', function(next) {
     this.ratingCount   = 0;
     this.averageRating = 0;
   }
-  next();
 });
 
 module.exports = mongoose.model('Recipe', recipeSchema);
