@@ -122,7 +122,6 @@ listenForUserEvents();
 // ✅ FUNCIÓN: GENERAR PLAN MENSUAL DESDE DB
 // ============================================
 async function generateMealPlanFromDB(userId, monthNum, yearNum, category) {
-  // 1. Obtener recetas de MongoDB filtradas por categoría
   let allRecipes = [];
   if (category && category !== 'Mixed') {
     allRecipes = await Recipe.find({ category }).lean();
@@ -130,10 +129,8 @@ async function generateMealPlanFromDB(userId, monthNum, yearNum, category) {
     allRecipes = await Recipe.find().lean();
   }
 
-  // 2. Calcular días del mes
   const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
 
-  // 3. Función para mezclar array aleatoriamente (Fisher-Yates)
   const shuffle = (arr) => {
     const a = [...arr];
     for (let i = a.length - 1; i > 0; i--) {
@@ -143,7 +140,6 @@ async function generateMealPlanFromDB(userId, monthNum, yearNum, category) {
     return a;
   };
 
-  // 4. Si hay pocas recetas, repetir en orden aleatorio distinto cada vez
   const getRecipePool = (count) => {
     if (allRecipes.length === 0) return Array(count).fill({ name: 'No recipes available', category });
     let pool = [];
@@ -153,13 +149,12 @@ async function generateMealPlanFromDB(userId, monthNum, yearNum, category) {
     return pool.slice(0, count);
   };
 
-  const lunchPool = getRecipePool(daysInMonth);
+  const lunchPool  = getRecipePool(daysInMonth);
   const dinnerPool = getRecipePool(daysInMonth);
 
-  // 5. Construir los días asegurando que lunch ≠ dinner cada día
   const days = [];
   for (let day = 1; day <= daysInMonth; day++) {
-    let lunchRecipe = lunchPool[day - 1];
+    let lunchRecipe  = lunchPool[day - 1];
     let dinnerRecipe = dinnerPool[day - 1];
 
     if (lunchRecipe.name === dinnerRecipe.name && allRecipes.length > 1) {
@@ -170,34 +165,33 @@ async function generateMealPlanFromDB(userId, monthNum, yearNum, category) {
     days.push({
       dayNumber: day,
       lunch: {
-        recipeId: lunchRecipe._id || String(day),
+        recipeId:   lunchRecipe._id || String(day),
         recipeName: lunchRecipe.name,
-        category: lunchRecipe.category || category
+        category:   lunchRecipe.category || category
       },
       dinner: {
-        recipeId: dinnerRecipe._id || String(day + 100),
+        recipeId:   dinnerRecipe._id || String(day + 100),
         recipeName: dinnerRecipe.name,
-        category: dinnerRecipe.category || category
+        category:   dinnerRecipe.category || category
       }
     });
   }
 
-  return new MealPlan({
-    userId,
-    month: monthNum,
-    year: yearNum,
-    category: category || 'Mixed',
-    days
-  });
+  return new MealPlan({ userId, month: monthNum, year: yearNum, category: category || 'Mixed', days });
 }
 
 // ============================================
 // RECIPE ENDPOINTS
 // ============================================
 
+// GET /recipes — soporte para filtro de valoración (?sort=rating_asc|rating_desc)
 app.get('/recipes', optionalAuthJWT, async (req, res) => {
   try {
-    const recipes = await Recipe.find();
+    const { sort } = req.query;
+    let query = Recipe.find();
+    if (sort === 'rating_desc') query = query.sort({ averageRating: -1 });
+    else if (sort === 'rating_asc')  query = query.sort({ averageRating:  1 });
+    const recipes = await query.exec();
     res.json(recipes);
   } catch (err) {
     res.status(500).json({ error: 'Error fetching recipes' });
@@ -229,16 +223,77 @@ app.post('/recipes', authenticateJWT, async (req, res) => {
   }
 });
 
+// ============================================
+// ✅ DELETE — solo el autor puede borrar su receta
+// ============================================
 app.delete('/recipes/:id', authenticateJWT, async (req, res) => {
   try {
     const { id } = req.params;
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      const deleted = await Recipe.findByIdAndDelete(id);
-      if (deleted) return res.status(200).json({ message: "Recipe deleted successfully" });
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(403).json({ error: "Cannot delete static or non-existent recipes" });
     }
-    res.status(403).json({ error: "Cannot delete static or non-existent recipes" });
+
+    const recipe = await Recipe.findById(id);
+
+    if (!recipe) {
+      return res.status(404).json({ error: "Recipe not found" });
+    }
+
+    // Solo el creador puede eliminarla
+    if (recipe.userId !== req.user.sub) {
+      return res.status(403).json({ error: "You can only delete recipes you have created" });
+    }
+
+    await Recipe.findByIdAndDelete(id);
+    res.status(200).json({ message: "Recipe deleted successfully" });
+
   } catch (err) {
     res.status(500).json({ error: "Error deleting recipe" });
+  }
+});
+
+// ============================================
+// ✅ RATING — POST /recipes/:id/rate
+//    body: { score: 0–10 }
+//    Cada usuario solo puede valorar una vez
+// ============================================
+app.post('/recipes/:id/rate', authenticateJWT, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { score } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "Invalid recipe id" });
+    }
+
+    const parsedScore = Number(score);
+    if (isNaN(parsedScore) || parsedScore < 0 || parsedScore > 10) {
+      return res.status(400).json({ error: "Score must be a number between 0 and 10" });
+    }
+
+    const recipe = await Recipe.findById(id);
+    if (!recipe) return res.status(404).json({ error: "Recipe not found" });
+
+    const userId = req.user.sub;
+    const existingIndex = recipe.ratings.findIndex(r => r.userId === userId);
+
+    if (existingIndex !== -1) {
+      return res.status(409).json({ error: "You have already rated this recipe" });
+    }
+
+    recipe.ratings.push({ userId, score: parsedScore });
+    await recipe.save(); // el pre-save hook recalcula averageRating y ratingCount
+
+    res.json({
+      message: "Rating saved",
+      averageRating: recipe.averageRating,
+      ratingCount:   recipe.ratingCount
+    });
+
+  } catch (err) {
+    console.error('Error rating recipe:', err);
+    res.status(500).json({ error: "Error saving rating" });
   }
 });
 
@@ -260,7 +315,7 @@ app.get('/meal-plans/:userId/:month/:year', authenticateJWT, async (req, res) =>
     }
 
     const monthNum = parseInt(month);
-    const yearNum = parseInt(year);
+    const yearNum  = parseInt(year);
 
     if (monthNum < 1 || monthNum > 12 || yearNum < 2024 || yearNum > 2030) {
       return res.status(400).json({ error: 'Invalid month or year' });
@@ -339,8 +394,8 @@ app.put('/meal-plans/:id/day/:dayNumber', authenticateJWT, async (req, res) => {
     if (dayIndex === -1) {
       mealPlan.days.push({ dayNumber: parseInt(dayNumber), lunch, dinner, notes });
     } else {
-      if (lunch) mealPlan.days[dayIndex].lunch = lunch;
-      if (dinner) mealPlan.days[dayIndex].dinner = dinner;
+      if (lunch)              mealPlan.days[dayIndex].lunch  = lunch;
+      if (dinner)             mealPlan.days[dayIndex].dinner = dinner;
       if (notes !== undefined) mealPlan.days[dayIndex].notes = notes;
     }
 
