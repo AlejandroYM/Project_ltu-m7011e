@@ -1,110 +1,349 @@
-/* 1. Reset total para ocupar toda la pantalla */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+/* ════════════════════════════════════════════
+   App.css — ChefMatch Terracotta Theme
+   Palette: Bone White + Terracotta + Siena
+   Fonts: Bebas Neue (display) + IBM Plex Mono
+════════════════════════════════════════════ */
 
-html, body, #root {
+/* ── LOADER ── */
+.loader-container {
+  height: 100vh;
   width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  background-color: #0f172a;
-  overflow-x: hidden; /* Evita desplazamientos horizontales extraños */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: var(--bg);
 }
 
-/* 2. Contenedor principal con degradado profundo */
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--b);
+  border-top-color: var(--a1);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* ── APP CONTAINER ── */
 .app-container {
   min-height: 100vh;
   width: 100%;
-  background: radial-gradient(circle at top right, #1e293b, #0f172a);
-  color: #f8fafc;
-  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--t);
   display: flex;
   flex-direction: column;
 }
 
-/* 3. Header moderno */
-.main-header {
-  padding: 1rem 3rem;
+/* ── TICKER ── */
+.ticker-wrap {
+  background: var(--a1);
+  padding: 8px 0;
+  overflow: hidden;
+  border-bottom: 2px solid var(--t);
+}
+
+.ticker-inner {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(15, 23, 42, 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  gap: 56px;
+  white-space: nowrap;
+  animation: ticker 28s linear infinite;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.92rem;
+  color: var(--bg);
+  letter-spacing: 0.12em;
+}
+
+/* ── HEADER ── */
+.main-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  border-bottom: 2px solid var(--t);
+  background: var(--bg);
   position: sticky;
   top: 0;
   z-index: 100;
 }
 
-.logo-text {
-  font-size: 1.8rem;
-  font-weight: 800;
-  letter-spacing: -1px;
-  display: inline-block;
-  background: linear-gradient(to right, #f97316, #ef4444);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
-
-/* 4. Glassmorphism Panels */
-.glass-panel {
-  background: rgba(30, 41, 59, 0.5);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 20px;
-  padding: 2rem;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-  transition: all 0.3s ease;
-}
-
-/* 5. Botones y Grid de Categorías */
-.category-grid {
+.logo-wrap {
+  padding: 16px 36px;
+  border-right: 2px solid var(--t);
   display: flex;
-  gap: 12px;
+  align-items: center;
+}
+
+.logo-text {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2rem;
+  letter-spacing: 0.08em;
+  color: var(--t);
+  line-height: 1;
+}
+
+.logo-text span {
+  color: var(--a1);
+}
+
+.header-search-wrap {
+  display: flex;
+  align-items: center;
+  padding: 0 36px;
+  gap: 10px;
+}
+
+.header-search-wrap svg {
+  color: var(--m);
+  flex-shrink: 0;
+}
+
+.modern-search-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.82rem;
+  color: var(--t);
+  letter-spacing: 0.04em;
+  outline: none;
+}
+
+.modern-search-input::placeholder {
+  color: var(--m);
+}
+
+.header-right {
+  border-left: 2px solid var(--t);
+  display: flex;
+  align-items: stretch;
+}
+
+.user-badge {
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-right: 1px solid var(--b);
+  text-align: right;
+}
+
+.user-badge .user-role {
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  color: var(--m);
+  text-transform: uppercase;
+}
+
+.user-badge .user-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.1rem;
+  color: var(--t);
+  letter-spacing: 0.06em;
+}
+
+.logout-btn {
+  padding: 0 28px;
+  background: var(--t);
+  border: none;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--bg);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.logout-btn:hover {
+  background: var(--a1);
+}
+
+/* ── MAIN LAYOUT ── */
+.main-content {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0;
+}
+
+/* ── SECTION LABELS ── */
+.section-bar {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 2px solid var(--t);
+}
+
+.section-title {
+  padding: 16px 36px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.8rem;
+  color: var(--t);
+  letter-spacing: 0.05em;
+  border-right: 2px solid var(--t);
+}
+
+.filter-strip {
+  display: flex;
+  flex: 1;
   flex-wrap: wrap;
 }
 
-.btn-modern {
-  padding: 12px 24px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: white;
-  border-radius: 12px;
+.f-chip {
+  padding: 0 20px;
+  border-right: 1px solid var(--b);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--m);
   cursor: pointer;
-  font-weight: 600;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: all 0.15s;
+  background: transparent;
+  border-top: none;
+  border-bottom: none;
+  border-left: none;
+  min-height: 52px;
 }
 
-.btn-modern:hover {
-  background: #f97316;
-  border-color: #f97316;
-  transform: translateY(-3px);
-  box-shadow: 0 10px 15px -3px rgba(249, 115, 22, 0.4);
+.f-chip:hover,
+.f-chip.active {
+  background: var(--a1);
+  color: var(--bg);
+  font-weight: 700;
+  border-right-color: var(--a1);
 }
 
-/* 6. Recetas: Grid e Imágenes */
+.f-chip-add {
+  margin-left: auto;
+  padding: 0 24px;
+  background: var(--t);
+  color: var(--bg);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: background 0.15s;
+}
+
+.f-chip-add:hover {
+  background: var(--a1);
+}
+
+/* ── CATEGORY ROW ── */
+.cat-row {
+  display: flex;
+  border-bottom: 2px solid var(--t);
+  overflow-x: auto;
+}
+
+.cat-item {
+  flex: 1;
+  min-width: 110px;
+  padding: 18px 10px;
+  border-right: 1px solid var(--b);
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.cat-item:last-child {
+  border-right: none;
+}
+
+.cat-item:hover,
+.cat-item.active {
+  background: var(--a1);
+}
+
+.cat-item:hover .cat-icon-label,
+.cat-item.active .cat-icon-label {
+  color: var(--bg);
+}
+
+.cat-emoji {
+  font-size: 1.5rem;
+  display: block;
+  margin-bottom: 4px;
+  transition: transform 0.2s;
+}
+
+.cat-item.active .cat-emoji {
+  transform: scale(1.15);
+}
+
+.cat-icon-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--m);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: color 0.15s;
+}
+
+/* ── RECOMMENDATION BANNER ── */
+.rec-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 36px;
+  border-bottom: 2px solid var(--t);
+  background: var(--s);
+  border-left: 6px solid var(--a1);
+}
+
+.rec-banner-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--a1);
+  margin-bottom: 4px;
+}
+
+.rec-banner-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2rem;
+  color: var(--t);
+  letter-spacing: 0.03em;
+}
+
+.rec-banner-icon {
+  font-size: 2.5rem;
+  opacity: 0.15;
+}
+
+/* ── RECIPE GRID ── */
 .recipe-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 2rem;
-  padding: 1rem 0 3rem 0;
+  grid-template-columns: repeat(3, 1fr);
 }
 
 .recipe-card {
-  padding: 0 !important; /* Reseteamos padding para que la imagen llegue al borde */
+  border-right: 1px solid var(--b);
+  border-bottom: 1px solid var(--b);
+  cursor: pointer;
   overflow: hidden;
+  background: var(--bg);
+  transition: background 0.2s;
+}
+
+.recipe-card:nth-child(3n) {
+  border-right: none;
+}
+
+.recipe-card:hover {
+  background: var(--s);
 }
 
 .recipe-image-container {
   width: 100%;
-  height: 200px;
+  height: 220px;
   position: relative;
   overflow: hidden;
 }
@@ -113,223 +352,451 @@ html, body, #root {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.6s cubic-bezier(0.33, 1, 0.68, 1);
-  filter: brightness(0.9);
+  display: block;
+  transition: transform 0.45s;
+  filter: saturate(0.88) contrast(1.05);
 }
 
 .recipe-card:hover .recipe-img {
-  transform: scale(1.08);
-  filter: brightness(1.1);
+  transform: scale(1.04);
+  filter: saturate(1) contrast(1);
 }
 
-/* 7. Elementos Flotantes (Badges y Chips) */
 .badge-floating {
   position: absolute;
-  top: 15px;
-  right: 15px;
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(4px);
-  color: #fb923c;
-  padding: 5px 14px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 800;
-  border: 1px solid rgba(251, 146, 60, 0.3);
-}
-
-.recommendation-chip {
-  background: rgba(249, 115, 22, 0.1); 
-  padding: 14px 18px; 
-  border-radius: 12px;
-  border: 1px solid rgba(249, 115, 22, 0.2);
-  color: #f8fafc;
-  font-weight: 500;
-  animation: slideUp 0.4s ease-out;
-}
-
-/* 8. Estados de Carga y Animaciones */
-.loader-container {
-  height: 100vh;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  background-color: #0f172a;
-}
-
-.spinner {
-  width: 45px;
-  height: 45px;
-  border: 4px solid rgba(249, 115, 22, 0.1);
-  border-top-color: #f97316;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin { to { transform: rotate(360deg); } }
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* 9. Header Extras (User Badge y Logout) */
-.user-badge {
-  display: flex;
-  flex-direction: column;
-  text-align: right;
-  padding-right: 1.5rem;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.logout-btn {
-  background: transparent;
-  color: #94a3b8;
-  border: 1px solid #334155;
-  padding: 10px 20px;
-  border-radius: 10px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.logout-btn:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-  border-color: #ef4444;
-}
-
-/* 10. Status y Otros */
-.status-tag {
-  font-size: 0.7rem;
-  font-weight: 800;
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  top: 0;
+  right: 0;
+  background: var(--a1);
+  color: var(--bg);
   padding: 5px 12px;
-  border-radius: 6px;
-  background: rgba(16, 185, 129, 0.05);
-}
-
-.pulse-dot {
-  width: 10px;
-  height: 10px;
-  background: #f97316;
-  border-radius: 50%;
-  box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7);
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7); }
-  70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(249, 115, 22, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
-}
-
-/* =========================================
-   NUEVOS ESTILOS PARA LAS FUNCIONALIDADES 
-   ========================================= */
-
-/* Estilos para el Buscador (REQ 5) */
-.header-search {
-  flex: 0 1 400px;
-  margin: 0 20px;
-}
-
-.modern-search-input {
-  width: 100%;
-  padding: 10px 25px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 50px;
-  color: white;
-  transition: all 0.3s;
-}
-
-.modern-search-input:focus {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: #f97316;
-  outline: none;
-  box-shadow: 0 0 15px rgba(249, 115, 22, 0.3);
-}
-
-/* Estilos para el Botón de Añadir Receta (REQ 2) */
-.btn-create {
-  background: #f97316;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem;
   font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.badge-floating.left {
+  right: auto;
+  left: 0;
+  background: var(--t);
+  color: var(--bg);
+}
+
+.card-body {
+  padding: 18px 22px;
+  border-top: 1px solid var(--b);
+}
+
+.card-num {
+  font-size: 0.58rem;
+  color: var(--m);
+  letter-spacing: 0.15em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.card-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.55rem;
+  color: var(--t);
+  letter-spacing: 0.03em;
+  margin-bottom: 8px;
+  line-height: 1.05;
+}
+
+.card-rating-row {
+  margin-bottom: 10px;
+}
+
+.card-desc {
+  font-size: 0.75rem;
+  color: var(--m);
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.card-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.card-tag {
+  padding: 3px 10px;
+  border: 1px solid var(--b);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.58rem;
+  color: var(--m);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.card-tag.accent {
+  border-color: var(--a1);
+  color: var(--a1);
+}
+
+.card-tag.accent2 {
+  border-color: var(--a2);
+  color: var(--a2);
+}
+
+/* ── BUTTONS ── */
+.btn-modern {
+  padding: 10px 22px;
+  background: transparent;
+  border: 1.5px solid var(--b);
+  color: var(--m);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.15s;
+}
+
+.btn-modern:hover {
+  border-color: var(--t);
+  color: var(--t);
+}
+
+.btn-create {
+  padding: 10px 22px;
+  background: var(--t);
+  border: none;
+  color: var(--bg);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s;
 }
 
 .btn-create:hover {
-  background: #ea580c;
-  transform: scale(1.05);
-  box-shadow: 0 10px 20px rgba(249, 115, 22, 0.3);
+  background: var(--a1);
 }
 
-/* Estilos para el Modal de nueva receta */
+/* ── MODALS ── */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.85);
+  inset: 0;
+  background: rgba(26, 20, 16, 0.75);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  backdrop-filter: blur(5px);
 }
 
 .modal-box {
   width: 100%;
-  max-width: 500px;
-  animation: slideUp 0.3s ease-out;
-  max-height: 88vh;
+  max-width: 540px;
+  max-height: 90vh;
   overflow-y: auto;
+  background: var(--bg);
+  border: 2px solid var(--t);
+  animation: slideUp 0.25s ease-out;
+  scrollbar-width: thin;
+  scrollbar-color: var(--a1) var(--b);
 }
 
+.modal-box::-webkit-scrollbar { width: 5px; }
+.modal-box::-webkit-scrollbar-track { background: var(--b); }
+.modal-box::-webkit-scrollbar-thumb { background: var(--a1); }
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 28px;
+  border-bottom: 2px solid var(--t);
+}
+
+.modal-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.8rem;
+  color: var(--t);
+  letter-spacing: 0.04em;
+}
+
+.modal-close {
+  background: transparent;
+  border: 1.5px solid var(--b);
+  color: var(--m);
+  font-size: 1rem;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-family: 'IBM Plex Mono', monospace;
+  transition: all 0.15s;
+}
+
+.modal-close:hover {
+  border-color: var(--t);
+  color: var(--t);
+}
+
+.modal-body {
+  padding: 24px 28px;
+}
+
+/* ── FORMS ── */
 .form-input {
   width: 100%;
-  margin-bottom: 1.2rem;
-  padding: 12px;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  color: white;
-  font-family: inherit;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  background: var(--s);
+  border: 1.5px solid var(--b);
+  color: var(--t);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8rem;
+  outline: none;
+  transition: border-color 0.15s;
 }
 
 .form-input:focus {
-  border-color: #f97316;
-  outline: none;
-}
-html {
-  zoom: 0.85;
+  border-color: var(--a1);
 }
 
-/* ── MODAL CON SCROLL ── */
-.modal-box {
-  max-height: 88vh;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #f97316 rgba(255,255,255,0.05);
+.form-input::placeholder {
+  color: var(--m);
 }
 
-.modal-box::-webkit-scrollbar {
-  width: 6px;
+.form-label {
+  display: block;
+  font-size: 0.62rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--m);
+  margin-bottom: 5px;
 }
-.modal-box::-webkit-scrollbar-track {
-  background: rgba(255,255,255,0.05);
-  border-radius: 10px;
+
+.form-section {
+  padding: 16px;
+  border: 1.5px solid var(--b);
+  margin-bottom: 14px;
+  background: var(--s);
 }
-.modal-box::-webkit-scrollbar-thumb {
-  background: #f97316;
-  border-radius: 10px;
+
+.form-section-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--m);
+  margin-bottom: 12px;
+}
+
+.radio-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 12px;
+}
+
+.radio-row label {
+  font-size: 0.75rem;
+  color: var(--m);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* ── DETAIL MODAL ── */
+.detail-modal {
+  max-width: 700px;
+}
+
+.detail-img {
+  width: 100%;
+  height: 280px;
+  object-fit: cover;
+  display: block;
+  border-bottom: 2px solid var(--t);
+}
+
+.detail-meta-row {
+  display: flex;
+  border-bottom: 1px solid var(--b);
+}
+
+.detail-meta-item {
+  padding: 12px 20px;
+  border-right: 1px solid var(--b);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--m);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.detail-meta-item span {
+  display: block;
+  font-size: 0.6rem;
+  color: var(--m);
+  opacity: 0.7;
+  margin-bottom: 2px;
+}
+
+.detail-meta-item strong {
+  color: var(--t);
+}
+
+/* Rating section in detail */
+.rating-panel {
+  padding: 20px 28px;
+  border-bottom: 2px solid var(--b);
+  background: var(--s);
+}
+
+.rating-panel-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--a1);
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Ingredients */
+.ingredients-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ingredient-item {
+  padding: 8px 12px;
+  border: 1px solid var(--b);
+  background: var(--bg);
+  font-size: 0.78rem;
+  color: var(--t);
+}
+
+.instructions-block {
+  background: var(--s);
+  padding: 20px;
+  border: 1px solid var(--b);
+  font-size: 0.82rem;
+  color: var(--t);
+  line-height: 1.8;
+  white-space: pre-line;
+}
+
+.section-heading {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.3rem;
+  color: var(--t);
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--a1);
+  display: inline-block;
+}
+
+/* Detail action row */
+.detail-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 28px;
+  border-top: 2px solid var(--b);
+}
+
+/* Delete btn */
+.btn-delete {
+  padding: 10px 22px;
+  background: transparent;
+  border: 1.5px solid #c45c35;
+  color: #c45c35;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-delete:hover {
+  background: #c45c35;
+  color: var(--bg);
+}
+
+/* ── STATUS ── */
+.status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--a1);
+  border: 1px solid var(--a2);
+  padding: 4px 10px;
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--a1);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+/* ── UNSPLASH GRID ── */
+.unsplash-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.unsplash-img {
+  width: 100%;
+  height: 80px;
+  object-fit: cover;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+  display: block;
+}
+
+.unsplash-img:hover {
+  border-color: var(--a1);
+}
+
+.unsplash-img.selected {
+  border-color: var(--a1);
+  border-width: 3px;
+}
+
+/* ── RECOMMENDATION CHIPS ── */
+.recommendation-chip {
+  padding: 12px 18px;
+  border: 1px solid var(--a2);
+  background: var(--s);
+  color: var(--t);
+  font-weight: 500;
+  animation: slideUp 0.4s ease-out;
+}
+
+/* ── CUISINE CARD (hover state) ── */
+.cuisine-card {
+  cursor: pointer;
+  min-width: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.25s ease;
 }
