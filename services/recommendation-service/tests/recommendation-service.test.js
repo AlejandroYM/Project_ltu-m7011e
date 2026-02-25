@@ -1,241 +1,245 @@
 // services/recommendation-service/tests/recommendation-service.test.js
+//
+// Tests del recommendation-service.
+// Cubren el endpoint principal con casos de éxito y de fallo.
+//
 const request = require('supertest');
 const express = require('express');
-const mongoose = require('mongoose');
 
-// 1. MOCK DE RABBITMQ -> Prevenir operaciones RabbitMQ durante testing
+// ── Mocks ─────────────────────────────────────────────────────────────────────
+
 jest.mock('amqplib', () => ({
   connect: jest.fn().mockResolvedValue({
     createChannel: jest.fn().mockResolvedValue({
       assertQueue: jest.fn().mockResolvedValue(true),
-      consume: jest.fn()
+      consume:     jest.fn()
     })
   })
 }));
 
-// 2. MOCK DE AXIOS -> Prevenir llamadas HTTP reales durante testing
 jest.mock('axios', () => ({
   get: jest.fn().mockResolvedValue({
-    data: {
-      category: 'Italian',
-      preferences: { category: 'Italian' }
-    }
+    data: [
+      { _id: 'r1', name: 'Chickpea Curry',  category: 'Vegan', averageRating: 9.1 },
+      { _id: 'r2', name: 'Buddha Bowl',     category: 'Vegan', averageRating: 8.4 },
+      { _id: 'r3', name: 'Lentil Dal',      category: 'Vegan', averageRating: 7.0 }
+    ]
   })
 }));
 
-// 3. MOCK DE MONGOOSE -> Prevenir operaciones de base de datos durante testing
 jest.mock('mongoose', () => {
-  const actualMongoose = jest.requireActual('mongoose');
+  const actual = jest.requireActual('mongoose');
   return {
-    ...actualMongoose,
-    connect: jest.fn().mockResolvedValue({}),
-    connection: {
-      readyState: 1,
-      on: jest.fn(),
-      once: jest.fn()
-    },
-    Schema: actualMongoose.Schema,
-    model: jest.fn((name, schema) => {
-      class MockModel {
-        constructor(data) {
-          Object.assign(this, data);
-          this._id = 'mock-rec-id-' + Date.now();
-        }
-        save() {
-          return Promise.resolve(this);
-        }
-        static find(query) {
-          if (query && query.userId === 'user-123') {
-            return {
-              sort: jest.fn().mockReturnThis(),
-              limit: jest.fn().mockReturnThis(),
-              lean: jest.fn().mockResolvedValue([
-                { 
-                  _id: 'rec-1', 
-                  userId: 'user-123',
-                  recipeId: 'recipe-1',
-                  recipeName: 'Vegan Pasta',
-                  score: 95 
-                }
-              ])
-            };
-          }
-          return {
-            sort: jest.fn().mockReturnThis(),
-            limit: jest.fn().mockReturnThis(),
-            lean: jest.fn().mockResolvedValue([])
-          };
-        }
-        static findById(id) {
-          if (id === 'rec-1') {
-            return Promise.resolve({
-              _id: 'rec-1',
-              userId: 'user-123',
-              recipeId: 'recipe-1',
-              recipeName: 'Vegan Pasta',
-              score: 95
-            });
-          }
-          return Promise.resolve(null);
-        }
-        static deleteMany() {
-          return Promise.resolve({ deletedCount: 1 });
-        }
-        static insertMany() {
-          return Promise.resolve([]);
-        }
-      }
-      return MockModel;
-    })
+    ...actual,
+    connect: jest.fn().mockResolvedValue({})
   };
 });
 
-// 4. MOCK DEL MIDDLEWARE DE AUTENTICACIÓN
+jest.mock('../models/Recommendation', () => {
+  // Los métodos se definen como jest.fn() para poder configurarlos en cada test
+  const findMock        = jest.fn();
+  const deleteManyMock  = jest.fn().mockResolvedValue({});
+  const insertManyMock  = jest.fn().mockResolvedValue([]);
+
+  function buildChain(results) {
+    return {
+      sort:  jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      lean:  jest.fn().mockResolvedValue(results)
+    };
+  }
+
+  findMock.mockImplementation((query) => {
+    // Por defecto devuelve recomendaciones para user-123
+    if (query && query.userId === 'user-123') {
+      return buildChain([
+        { recipeName: 'Chickpea Curry', recipeRating: 9.1 },
+        { recipeName: 'Buddha Bowl',    recipeRating: 8.4 }
+      ]);
+    }
+    return buildChain([]);
+  });
+
+  return { find: findMock, deleteMany: deleteManyMock, insertMany: insertManyMock };
+});
+
+// ⚠️  IMPORTANTE: el auth.js real del recommendation-service devuelve:
+//     sin header  → 401
+//     token malo  → 401   ← también 401 (ver middleware/auth.js línea ~46)
+//     token bueno → next()
 jest.mock('../middleware/auth', () => ({
   authenticateJWT: (req, res, next) => {
-    if (req.headers.authorization === 'Bearer valid-token') {
-      req.user = { sub: 'user-123', email: 'test@test.com' };
-      next();
-    } else if (req.headers.authorization) {
-      res.status(403).json({ error: 'Invalid token' });
-    } else {
-      res.status(401).json({ error: 'No token provided' });
+    const header = req.headers.authorization;
+    if (!header || !header.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No token provided' });
     }
+    if (header !== 'Bearer valid-token') {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    req.user = { sub: 'user-123', email: 'test@test.com' };
+    next();
   }
 }));
 
-// Silenciar console logs durante testing
 beforeAll(() => {
   jest.spyOn(console, 'log').mockImplementation(() => {});
   jest.spyOn(console, 'error').mockImplementation(() => {});
 });
 
-// Crear app de prueba
+// ── Mini-app ──────────────────────────────────────────────────────────────────
+
 const app = express();
 app.use(express.json());
 
 const { authenticateJWT } = require('../middleware/auth');
-const Recommendation = mongoose.model('Recommendation');
+const Recommendation = require('../models/Recommendation');
 
-// Endpoints de prueba simulando el server real
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'UP', service: 'recommendation-service' });
-});
+app.get('/health', (_req, res) =>
+  res.json({ status: 'UP', service: 'recommendation-service' })
+);
 
+// Endpoint principal — refleja la lógica real del server.js
 app.get('/recommendations/:userId', authenticateJWT, async (req, res) => {
   const { userId } = req.params;
-  
+  const queryCategory = req.query.category;
+  const index = Math.max(0, parseInt(req.query.index, 10) || 0);
+
   try {
-    const recommendations = await Recommendation.find({ userId })
-      .sort({ score: -1 })
-      .limit(5)
+    let saved = await Recommendation.find({ userId })
+      .sort({ recipeRating: -1 })
+      .limit(10)
       .lean();
 
-    if (recommendations.length > 0) {
-      const recipeNames = recommendations.map(r => r.recipeName);
-      return res.json(recipeNames);
+    if (saved.length === 0) {
+      return res.json(['Select a category to see your recommendation.']);
     }
 
-    return res.json(["Select a category to see your recommendation."]);
-  } catch (error) {
-    res.json(["Error fetching recommendation"]);
+    const pick = saved[Math.min(index, saved.length - 1)];
+    return res.json([pick.recipeName]);
+  } catch (err) {
+    res.json(['Error fetching recommendation']);
   }
 });
 
-app.get('/recommendations/detail/:id', authenticateJWT, async (req, res) => {
-  try {
-    const recommendation = await Recommendation.findById(req.params.id);
-    
-    if (!recommendation) {
-      return res.status(404).json({ error: 'Recommendation not found' });
-    }
-    
-    res.json(recommendation);
-  } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
-  }
+// Endpoint /all
+app.get('/recommendations/:userId/all', authenticateJWT, async (req, res) => {
+  const saved = await Recommendation.find({ userId: req.params.userId })
+    .sort({ recipeRating: -1 })
+    .lean();
+  res.json(saved.map((r, i) => ({ position: i + 1, name: r.recipeName, rating: r.recipeRating })));
 });
 
-// TESTS
-describe('Recommendation Service API Tests', () => {
-  
-  // ============================================
-  // TESTS BÁSICOS (de tu archivo original)
-  // ============================================
-  
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+describe('Recommendation Service – API Tests (REQ5, REQ7)', () => {
+
+  beforeEach(() => jest.clearAllMocks());
+
+  // ── Health ─────────────────────────────────────────────────────────────────
   describe('GET /health', () => {
-    it('must answer with 200 OK and UP status', async () => {
+    it('returns 200 and UP status', async () => {
       const res = await request(app).get('/health');
-      expect(res.statusCode).toEqual(200);
+      expect(res.status).toBe(200);
       expect(res.body.status).toBe('UP');
+      expect(res.body.service).toBe('recommendation-service');
     });
   });
 
-  describe('404 Error Tests', () => {
-    it('GET /unknown-route must return 404', async () => {
+  // ── GET /recommendations/:userId ───────────────────────────────────────────
+  describe('GET /recommendations/:userId – success cases', () => {
+    it('SUCCESS: returns first recommendation for the user', async () => {
+      Recommendation.find.mockReturnValue({
+        sort:  jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        lean:  jest.fn().mockResolvedValue([
+          { recipeName: 'Chickpea Curry', recipeRating: 9.1 },
+          { recipeName: 'Buddha Bowl',    recipeRating: 8.4 }
+        ])
+      });
+
+      const res = await request(app)
+        .get('/recommendations/user-123')
+        .set('Authorization', 'Bearer valid-token');
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body[0]).toBe('Chickpea Curry'); // la de mayor rating primero
+    });
+
+    it('SUCCESS: ?index=1 returns second recommendation', async () => {
+      Recommendation.find.mockReturnValue({
+        sort:  jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        lean:  jest.fn().mockResolvedValue([
+          { recipeName: 'Chickpea Curry', recipeRating: 9.1 },
+          { recipeName: 'Buddha Bowl',    recipeRating: 8.4 }
+        ])
+      });
+
+      const res = await request(app)
+        .get('/recommendations/user-123?index=1')
+        .set('Authorization', 'Bearer valid-token');
+
+      expect(res.status).toBe(200);
+      expect(res.body[0]).toBe('Buddha Bowl');
+    });
+
+    it('SUCCESS: returns fallback message when no recommendations exist', async () => {
+      Recommendation.find.mockReturnValue({
+        sort:  jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        lean:  jest.fn().mockResolvedValue([])
+      });
+
+      const res = await request(app)
+        .get('/recommendations/user-no-prefs')
+        .set('Authorization', 'Bearer valid-token');
+
+      expect(res.status).toBe(200);
+      expect(res.body[0]).toContain('Select a category');
+    });
+  });
+
+  // ── Failure cases (REQUERIDOS por el profesor) ────────────────────────────
+  describe('GET /recommendations/:userId – REQ failure cases', () => {
+    it('REQ FAIL: returns 401 – no token provided', async () => {
+      const res = await request(app).get('/recommendations/user-123');
+      expect(res.status).toBe(401);
+      expect(res.body).toHaveProperty('error');
+    });
+
+    it('REQ FAIL: returns 401 – invalid/expired token', async () => {
+      const res = await request(app)
+        .get('/recommendations/user-123')
+        .set('Authorization', 'Bearer expired-or-bad-token');
+      expect(res.status).toBe(401);
+      expect(res.body).toHaveProperty('error', 'Invalid token');
+    });
+  });
+
+  describe('GET /recommendations/:userId/all – REQ failure cases', () => {
+    it('REQ FAIL: returns 401 – no token', async () => {
+      const res = await request(app).get('/recommendations/user-123/all');
+      expect(res.status).toBe(401);
+    });
+
+    it('REQ FAIL: returns 401 – bad token', async () => {
+      const res = await request(app)
+        .get('/recommendations/user-123/all')
+        .set('Authorization', 'Bearer wrong-token');
+      expect(res.status).toBe(401);
+    });
+  });
+
+  // ── Ruta desconocida ───────────────────────────────────────────────────────
+  describe('Unknown routes', () => {
+    it('returns 404 for non-existent path', async () => {
       const res = await request(app).get('/api/v1/fantasy-route');
-      expect(res.statusCode).toEqual(404);
-    });
-
-    it('GET / (root without ID) must return 404', async () => {
-      const res = await request(app).get('/');
-      expect(res.statusCode).toEqual(404);
-    });
-  });
-
-  // ============================================
-  // TESTS DE AUTENTICACIÓN (requisito del profesor)
-  // ============================================
-
-  describe('GET /recommendations/:userId - Success Cases', () => {
-    it('should return user recommendations with valid token', async () => {
-      const response = await request(app)
-        .get('/recommendations/user-123')
-        .set('Authorization', 'Bearer valid-token');
-
-      expect(response.status).toBe(200);
-      expect(Array.isArray(response.body)).toBe(true);
-    });
-  });
-
-  describe('GET /recommendations/:userId - Failure Cases (REQ5)', () => {
-    it('should return 401 when no token is provided', async () => {
-      const response = await request(app).get('/recommendations/user-123');
-
-      expect(response.status).toBe(401);
-      expect(response.body).toHaveProperty('error', 'No token provided');
-    });
-
-    it('should return 403 for invalid token', async () => {
-      const response = await request(app)
-        .get('/recommendations/user-123')
-        .set('Authorization', 'Bearer invalid-token');
-
-      expect(response.status).toBe(403);
-      expect(response.body).toHaveProperty('error', 'Invalid token');
-    });
-  });
-
-  describe('GET /recommendations/detail/:id - Failure Cases (REQ5)', () => {
-    it('should return 404 for non-existent recommendation', async () => {
-      const response = await request(app)
-        .get('/recommendations/detail/nonexistent-id')
-        .set('Authorization', 'Bearer valid-token');
-
-      expect(response.status).toBe(404);
-      expect(response.body).toHaveProperty('error', 'Recommendation not found');
-    });
-
-    it('should return 401 when no token is provided', async () => {
-      const response = await request(app).get('/recommendations/detail/rec-1');
-
-      expect(response.status).toBe(401);
-      expect(response.body).toHaveProperty('error', 'No token provided');
+      expect(res.status).toBe(404);
     });
   });
 });
 
-// Cleanup después de los tests
 afterAll(async () => {
-  await new Promise(resolve => setTimeout(() => resolve(), 500));
+  await new Promise(resolve => setTimeout(resolve, 500));
 });

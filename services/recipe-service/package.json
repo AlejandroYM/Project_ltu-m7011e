@@ -4,8 +4,9 @@
   "description": "Microservicio de recetas",
   "main": "server.js",
   "scripts": {
-    "test": "echo 'No tests yet' && exit 0",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "jest --forceExit --testTimeout=10000",
+    "test:coverage": "jest --coverage --forceExit --testTimeout=10000"
   },
   "dependencies": {
     "amqplib": "^0.10.9",
@@ -21,5 +22,14 @@
     "mongoose": "^9.1.4",
     "multer": "^2.0.2",
     "prom-client": "^15.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": ["**/tests/**/*.test.js"],
+    "verbose": true
   }
 }

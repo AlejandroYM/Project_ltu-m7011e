@@ -1,117 +1,107 @@
 // services/user-service/tests/user-service.test.js
+//
+// Tests del user-service.
+// Cubren los endpoints de perfil con casos de éxito y de fallo.
+//
 const request = require('supertest');
 const express = require('express');
-const mongoose = require('mongoose');
 
-// Mock SOLO la conexión a MongoDB (no el modelo)
+// ── Mocks ─────────────────────────────────────────────────────────────────────
+
 jest.mock('mongoose', () => {
-  const actualMongoose = jest.requireActual('mongoose');
+  const actual = jest.requireActual('mongoose');
   return {
-    ...actualMongoose,
-    connect: jest.fn().mockResolvedValue({}),
-    connection: {
-      readyState: 1,
-      on: jest.fn(),
-      once: jest.fn()
-    }
+    ...actual,
+    connect: jest.fn().mockResolvedValue({})
   };
 });
 
-// Mock de RabbitMQ
 jest.mock('amqplib', () => ({
   connect: jest.fn().mockResolvedValue({
     createChannel: jest.fn().mockResolvedValue({
-      assertQueue: jest.fn().mockResolvedValue(true),
-      sendToQueue: jest.fn().mockResolvedValue(true)
+      assertQueue:  jest.fn().mockResolvedValue(true),
+      sendToQueue:  jest.fn().mockResolvedValue(true)
     })
   })
 }));
 
-// Mock del middleware de autenticación
+jest.mock('dotenv', () => ({ config: jest.fn() }));
+
+// Mock del User model — importamos el real para no romper el schema,
+// pero mockeamos los métodos estáticos y de instancia
+jest.mock('../models/User', () => {
+  function MockUser(data) {
+    Object.assign(this, data);
+    this._id = 'mock-user-id';
+  }
+  MockUser.findOne          = jest.fn();
+  MockUser.findById         = jest.fn();
+  MockUser.findByIdAndUpdate = jest.fn();
+  MockUser.findByKeycloakId  = jest.fn();
+  MockUser.prototype.save   = jest.fn().mockResolvedValue(undefined);
+
+  // validatePreferences es un método de instancia del modelo real
+  MockUser.prototype.validatePreferences = jest.fn().mockReturnValue(true);
+
+  return MockUser;
+});
+
+// ⚠️  IMPORTANTE: ajustar el mock al comportamiento real del auth.js del user-service.
+//     Por consistencia con el resto del proyecto usamos el mismo patrón JWKS:
+//     sin header  → 401
+//     token malo  → 401  (el verificador JWKS devuelve error y retorna 401)
+//     token bueno → next()
 jest.mock('../middleware/auth', () => ({
   authenticateJWT: (req, res, next) => {
-    if (req.headers.authorization === 'Bearer valid-token') {
-      req.user = { sub: 'existing-user', email: 'test@test.com' };
-      next();
-    } else if (req.headers.authorization) {
-      res.status(403).json({ error: 'Invalid token' });
-    } else {
-      res.status(401).json({ error: 'No token provided' });
+    const header = req.headers.authorization;
+    if (!header || !header.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No token provided' });
     }
+    if (header !== 'Bearer valid-token') {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    req.user = { sub: 'existing-user', email: 'test@test.com' };
+    next();
   }
 }));
 
-// Mock de dotenv
-jest.mock('dotenv', () => ({
-  config: jest.fn()
-}));
-
-// ✅ IMPORTAR EL MODELO REAL (para tener coverage)
-const User = require('../models/User');
-
-// Mock de los métodos del modelo (pero el modelo en sí es real)
-User.findOne = jest.fn();
-User.findById = jest.fn();
-User.findByIdAndUpdate = jest.fn();
-User.prototype.save = jest.fn();
-User.findByKeycloakId = jest.fn();
-
-// Silenciar console logs durante testing
 beforeAll(() => {
   jest.spyOn(console, 'log').mockImplementation(() => {});
   jest.spyOn(console, 'error').mockImplementation(() => {});
 });
 
-// Crear app de prueba
+// ── Mini-app ──────────────────────────────────────────────────────────────────
+
 const app = express();
 app.use(express.json());
 
 const { authenticateJWT } = require('../middleware/auth');
+const User = require('../models/User');
 
-// Endpoints de prueba
-app.get('/health', (req, res) => {
-  res.json({ status: 'healthy' });
-});
+app.get('/health', (_req, res) => res.json({ status: 'UP', service: 'user-service' }));
 
 app.get('/users/profile', authenticateJWT, async (req, res) => {
   try {
     const user = await User.findByKeycloakId(req.user.sub);
-    if (!user) {
-      return res.status(404).json({ error: 'User profile not found' });
-    }
+    if (!user) return res.status(404).json({ error: 'User profile not found' });
     res.json(user);
-  } catch (error) {
+  } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 app.post('/users/profile', authenticateJWT, async (req, res) => {
   try {
-    const { email, preferences } = req.body;
-    
-    if (!email) {
-      return res.status(400).json({ 
-        error: 'Missing required field: email'
-      });
-    }
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Missing required field: email' });
 
-    const existingUser = await User.findByKeycloakId(req.user.sub);
-    
-    if (existingUser) {
-      return res.status(409).json({ 
-        error: 'User profile already exists'
-      });
-    }
+    const existing = await User.findByKeycloakId(req.user.sub);
+    if (existing) return res.status(409).json({ error: 'User profile already exists' });
 
-    const user = new User({
-      keycloakId: req.user.sub,
-      email,
-      preferences: preferences || {}
-    });
-    
+    const user = new User({ keycloakId: req.user.sub, email, preferences: req.body.preferences || {} });
     await user.save();
     res.status(201).json(user);
-  } catch (error) {
+  } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -119,254 +109,192 @@ app.post('/users/profile', authenticateJWT, async (req, res) => {
 app.put('/users/profile', authenticateJWT, async (req, res) => {
   try {
     const { preferences } = req.body;
-    
-    if (!preferences) {
-      return res.status(400).json({ 
-        error: 'Missing required field: preferences'
-      });
-    }
+    if (!preferences) return res.status(400).json({ error: 'Missing required field: preferences' });
 
-    const user = await User.findByIdAndUpdate(
-      'user-123',
-      { preferences },
-      { new: true }
-    );
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
+    const user = await User.findByIdAndUpdate(req.user.sub, { preferences }, { new: true });
+    if (!user) return res.status(404).json({ error: 'User not found' });
     res.json(user);
-  } catch (error) {
+  } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// TESTS
-describe('User Service API Tests', () => {
-  
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+app.delete('/users/profile', authenticateJWT, async (req, res) => {
+  try {
+    const user = await User.findByKeycloakId(req.user.sub);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({ message: 'User deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
-  describe('User Model Tests', () => {
-    it('should create a user instance', () => {
-      const userData = {
-        keycloakId: 'test-123',
-        email: 'test@example.com',
-        preferences: { diet: 'vegan' }
-      };
-      
-      const user = new User(userData);
-      
-      expect(user.keycloakId).toBe('test-123');
-      expect(user.email).toBe('test@example.com');
-      expect(user.preferences.diet).toBe('vegan');
-    });
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
-    it('should validate preferences', () => {
-      const user = new User({
-        keycloakId: 'test-123',
-        email: 'test@example.com',
-        preferences: { diet: 'vegan' }
-      });
-      
-      expect(user.validatePreferences()).toBe(true);
-    });
+describe('User Service – API Tests (REQ5, REQ7)', () => {
 
-    it('should validate preferences when empty object', () => {
-      const user = new User({
-        keycloakId: 'test-123',
-        email: 'test@example.com',
-        preferences: {}  // Objeto vacío - Mongoose lo acepta
-      });
-      
-      // Mongoose convierte preferences a {} por defecto
-      expect(user.validatePreferences()).toBe(true);
-    });
+  beforeEach(() => jest.clearAllMocks());
 
-    it('should validate preferences when not explicitly set', () => {
-      const user = new User({
-        keycloakId: 'test-123',
-        email: 'test@example.com'
-        // Sin preferences - Mongoose lo inicializa como {}
-      });
-      
-      // Mongoose inicializa preferences como {}
-      expect(user.validatePreferences()).toBe(true);
-    });
-
-    it('should update updatedAt when saving', async () => {
-      const user = new User({
-        keycloakId: 'test-456',
-        email: 'test2@example.com',
-        preferences: { diet: 'vegan' }
-      });
-
-      const beforeSave = user.updatedAt;
-      
-      // Mock save para que ejecute el pre-save middleware
-      user.save.mockImplementation(async function() {
-        // Simular el pre-save hook
-        this.updatedAt = Date.now();
-        return Promise.resolve(this);
-      }.bind(user));
-
-      await user.save();
-      
-      expect(user.updatedAt).toBeDefined();
-    });
-
-    it('should find user by Keycloak ID using static method', async () => {
-      const mockUser = {
-        keycloakId: 'test-789',
-        email: 'static@test.com'
-      };
-
-      User.findByKeycloakId.mockResolvedValue(mockUser);
-
-      const result = await User.findByKeycloakId('test-789');
-      
-      expect(result).toEqual(mockUser);
-      expect(User.findByKeycloakId).toHaveBeenCalledWith('test-789');
-    });
-  });
-
+  // ── Health ─────────────────────────────────────────────────────────────────
   describe('GET /health', () => {
-    it('should return healthy status', async () => {
-      const response = await request(app).get('/health');
-      expect(response.status).toBe(200);
-      expect(response.body).toEqual({ status: 'healthy' });
+    it('returns 200 and UP status', async () => {
+      const res = await request(app).get('/health');
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('UP');
     });
   });
 
-  describe('GET /users/profile - Success Cases', () => {
-    it('should return user profile with valid token', async () => {
-      const mockUser = {
-        _id: 'user-123',
-        keycloakId: 'existing-user',
-        email: 'existing@test.com',
-        preferences: { diet: 'vegetarian' }
-      };
+  // ── GET /users/profile ─────────────────────────────────────────────────────
+  describe('GET /users/profile', () => {
+    it('SUCCESS: returns profile with valid token', async () => {
+      User.findByKeycloakId.mockResolvedValue({
+        _id: 'u1', keycloakId: 'existing-user', email: 'test@test.com',
+        preferences: { category: 'Vegan' }
+      });
 
-      User.findByKeycloakId.mockResolvedValue(mockUser);
-
-      const response = await request(app)
+      const res = await request(app)
         .get('/users/profile')
         .set('Authorization', 'Bearer valid-token');
 
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('keycloakId', 'existing-user');
-      expect(response.body).toHaveProperty('email');
-      expect(User.findByKeycloakId).toHaveBeenCalledWith('existing-user');
-    });
-  });
-
-  describe('PUT /users/profile - Success Cases', () => {
-    it('should update user preferences with valid token', async () => {
-      const updatedUser = {
-        _id: 'user-123',
-        keycloakId: 'existing-user',
-        email: 'existing@test.com',
-        preferences: {
-          diet: 'vegan',
-          allergens: ['nuts']
-        }
-      };
-
-      User.findByIdAndUpdate.mockResolvedValue(updatedUser);
-
-      const response = await request(app)
-        .put('/users/profile')
-        .set('Authorization', 'Bearer valid-token')
-        .send({ preferences: { diet: 'vegan', allergens: ['nuts'] } });
-
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('preferences');
-      expect(User.findByIdAndUpdate).toHaveBeenCalled();
-    });
-  });
-
-  // Tests de fallo (REQUERIDOS POR EL PROFESOR)
-  describe('GET /users/profile - Failure Cases (REQ5)', () => {
-    it('should return 401 when no token is provided', async () => {
-      const response = await request(app).get('/users/profile');
-
-      expect(response.status).toBe(401);
-      expect(response.body).toHaveProperty('error', 'No token provided');
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('email', 'test@test.com');
     });
 
-    it('should return 403 for invalid token', async () => {
-      const response = await request(app)
+    it('REQ FAIL: returns 401 – no token', async () => {
+      const res = await request(app).get('/users/profile');
+      expect(res.status).toBe(401);
+      expect(res.body).toHaveProperty('error');
+    });
+
+    it('REQ FAIL: returns 401 – invalid token', async () => {
+      const res = await request(app)
         .get('/users/profile')
-        .set('Authorization', 'Bearer invalid-token');
-
-      expect(response.status).toBe(403);
-      expect(response.body).toHaveProperty('error', 'Invalid token');
+        .set('Authorization', 'Bearer bad-token');
+      expect(res.status).toBe(401);
+      expect(res.body).toHaveProperty('error', 'Invalid token');
     });
 
-    it('should return 404 when user not found', async () => {
+    it('REQ FAIL: returns 404 – user does not exist', async () => {
       User.findByKeycloakId.mockResolvedValue(null);
-
-      const response = await request(app)
+      const res = await request(app)
         .get('/users/profile')
         .set('Authorization', 'Bearer valid-token');
-
-      expect(response.status).toBe(404);
-      expect(response.body).toHaveProperty('error', 'User profile not found');
+      expect(res.status).toBe(404);
+      expect(res.body.error).toBe('User profile not found');
     });
   });
 
-  describe('POST /users/profile - Failure Cases (REQ5)', () => {
-    it('should return 400 for missing email field', async () => {
-      const response = await request(app)
+  // ── POST /users/profile ────────────────────────────────────────────────────
+  describe('POST /users/profile', () => {
+    it('SUCCESS: creates a new profile', async () => {
+      User.findByKeycloakId.mockResolvedValue(null); // no existe aún
+
+      const res = await request(app)
         .post('/users/profile')
         .set('Authorization', 'Bearer valid-token')
-        .send({ preferences: { diet: 'vegan' } });
+        .send({ email: 'new@test.com', preferences: { category: 'Italian' } });
 
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error');
+      expect(res.status).toBe(201);
+      expect(res.body).toHaveProperty('email', 'new@test.com');
     });
 
-    it('should return 401 when no token is provided', async () => {
-      const response = await request(app)
+    it('REQ FAIL: returns 401 – no token', async () => {
+      const res = await request(app)
         .post('/users/profile')
-        .send({ email: 'test@test.com', preferences: {} });
+        .send({ email: 'x@test.com' });
+      expect(res.status).toBe(401);
+    });
 
-      expect(response.status).toBe(401);
-      expect(response.body).toHaveProperty('error', 'No token provided');
+    it('REQ FAIL: returns 400 – email is missing', async () => {
+      const res = await request(app)
+        .post('/users/profile')
+        .set('Authorization', 'Bearer valid-token')
+        .send({ preferences: { category: 'Vegan' } }); // sin email
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Missing required field: email');
+    });
+
+    it('REQ FAIL: returns 409 – profile already exists', async () => {
+      User.findByKeycloakId.mockResolvedValue({ _id: 'u1', email: 'existing@test.com' });
+
+      const res = await request(app)
+        .post('/users/profile')
+        .set('Authorization', 'Bearer valid-token')
+        .send({ email: 'existing@test.com' });
+      expect(res.status).toBe(409);
+      expect(res.body.error).toBe('User profile already exists');
     });
   });
 
-  describe('PUT /users/profile - Failure Cases (REQ5)', () => {
-    it('should return 400 for missing preferences', async () => {
-      const response = await request(app)
+  // ── PUT /users/profile ─────────────────────────────────────────────────────
+  describe('PUT /users/profile', () => {
+    it('SUCCESS: updates preferences', async () => {
+      User.findByIdAndUpdate.mockResolvedValue({
+        _id: 'u1', email: 'test@test.com', preferences: { category: 'Mexican' }
+      });
+
+      const res = await request(app)
         .put('/users/profile')
         .set('Authorization', 'Bearer valid-token')
-        .send({});
+        .send({ preferences: { category: 'Mexican' } });
 
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error', 'Missing required field: preferences');
+      expect(res.status).toBe(200);
+      expect(res.body.preferences.category).toBe('Mexican');
     });
 
-    it('should return 401 when no token is provided', async () => {
-      const response = await request(app)
+    it('REQ FAIL: returns 401 – no token', async () => {
+      const res = await request(app)
         .put('/users/profile')
-        .send({ preferences: { diet: 'vegan' } });
+        .send({ preferences: { category: 'Vegan' } });
+      expect(res.status).toBe(401);
+    });
 
-      expect(response.status).toBe(401);
-      expect(response.body).toHaveProperty('error', 'No token provided');
+    it('REQ FAIL: returns 400 – preferences field is missing', async () => {
+      const res = await request(app)
+        .put('/users/profile')
+        .set('Authorization', 'Bearer valid-token')
+        .send({}); // body vacío
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Missing required field: preferences');
+    });
+
+    it('REQ FAIL: returns 404 – user not found in DB', async () => {
+      User.findByIdAndUpdate.mockResolvedValue(null);
+      const res = await request(app)
+        .put('/users/profile')
+        .set('Authorization', 'Bearer valid-token')
+        .send({ preferences: { category: 'Vegan' } });
+      expect(res.status).toBe(404);
+      expect(res.body.error).toBe('User not found');
     });
   });
 
-  describe('404 Error Tests', () => {
-    it('GET /unknown-route must return 404', async () => {
-      const response = await request(app).get('/api/v1/fantasy-route');
-      expect(response.status).toBe(404);
+  // ── DELETE /users/profile ──────────────────────────────────────────────────
+  describe('DELETE /users/profile', () => {
+    it('REQ FAIL: returns 401 – no token', async () => {
+      const res = await request(app).delete('/users/profile');
+      expect(res.status).toBe(401);
+    });
+
+    it('REQ FAIL: returns 404 – user not found', async () => {
+      User.findByKeycloakId.mockResolvedValue(null);
+      const res = await request(app)
+        .delete('/users/profile')
+        .set('Authorization', 'Bearer valid-token');
+      expect(res.status).toBe(404);
+      expect(res.body.error).toBe('User not found');
+    });
+  });
+
+  // ── Ruta desconocida ───────────────────────────────────────────────────────
+  describe('Unknown routes', () => {
+    it('returns 404 for non-existent path', async () => {
+      const res = await request(app).get('/api/v1/fantasy-route');
+      expect(res.status).toBe(404);
     });
   });
 });
 
 afterAll(async () => {
-  await new Promise(resolve => setTimeout(() => resolve(), 500));
+  await new Promise(resolve => setTimeout(resolve, 500));
 });

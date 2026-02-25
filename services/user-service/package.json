@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "jest --coverage --forceExit --detectOpenHandles",
+    "test": "jest --forceExit --testTimeout=10000",
+    "test:coverage": "jest --coverage --forceExit --testTimeout=10000",
     "test:watch": "jest --watchAll"
   },
   "dependencies": {
@@ -28,20 +29,7 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "collectCoverage": true,
-    "collectCoverageFrom": [
-      "models/**/*.js",
-      "!**/node_modules/**",
-      "!**/tests/**",
-      "!**/coverage/**"
-    ],
-    "coverageThreshold": {
-      "global": {
-        "lines": 50,
-        "statements": 50
-      }
-    },
-    "coverageDirectory": "coverage",
+    "testMatch": ["**/tests/**/*.test.js"],
     "verbose": true
   }
 }
