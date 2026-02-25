@@ -99,17 +99,39 @@ const seedRecipes = [
   { name:'Banana Foster', category:'Desserts', cookingTime:15, description:'Caramelized bananas with rum and ice cream.', ingredients:['Bananas','Brown sugar','Rum','Butter','Vanilla ice cream'], instructions:'1. Melt butter and sugar.\n2. Add bananas.\n3. Add rum and flambe.\n4. Serve over ice cream.', imageUrl:'https://images.unsplash.com/photo-1587314168485-3236d6710814?auto=format&fit=crop&w=800&q=80', userId:'seed' }
 ];
 
+// Genera un rating base aleatorio entre 4.0 y 10.0
+function randomBaseRating() {
+  return parseFloat((4 + Math.random() * 6).toFixed(1));
+}
+
 async function autoSeed() {
   try {
     const count = await Recipe.countDocuments();
-    if (count > 0) { console.log(`DB already has ${count} recipes — skipping seed`); return; }
+    if (count > 0) {
+      console.log(`DB already has ${count} recipes — skipping seed`);
+      // ── Migración: asignar nota base a recetas que aún tienen averageRating=0 ──
+      const zeroRated = await Recipe.countDocuments({ averageRating: 0 });
+      if (zeroRated > 0) {
+        console.log(`📊 Migrando ${zeroRated} recetas sin nota base...`);
+        const toFix = await Recipe.find({ averageRating: 0 }).lean();
+        for (const r of toFix) {
+          await Recipe.updateOne({ _id: r._id }, { $set: { averageRating: randomBaseRating() } });
+        }
+        console.log(`✅ Migración completada: ${zeroRated} recetas actualizadas con nota base (4–10)`);
+      }
+      return;
+    }
     console.log('Empty DB — running auto-seed...');
     let inserted = 0;
     for (const r of seedRecipes) {
       const exists = await Recipe.findOne({ name: r.name });
-      if (!exists) { await Recipe.create(r); inserted++; }
+      if (!exists) {
+        // Asignar nota base aleatoria entre 4.0 y 10.0 en el momento del seed
+        await Recipe.create({ ...r, averageRating: randomBaseRating() });
+        inserted++;
+      }
     }
-    console.log(`Auto-seed complete: ${inserted} recipes inserted`);
+    console.log(`Auto-seed complete: ${inserted} recipes inserted with base ratings (4–10)`);
   } catch (err) {
     console.error('Auto-seed error:', err.message);
   }

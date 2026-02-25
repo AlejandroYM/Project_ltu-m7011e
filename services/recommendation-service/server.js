@@ -45,47 +45,60 @@ app.use((req, res, next) => {
 
 // ============================================
 // LÓGICA CENTRAL: generar y persistir recomendaciones
-// Acepta una categoría directamente — no necesita llamar al user-service
+//
+// 1. Pide las recetas al recipe-service YA ORDENADAS por averageRating desc
+//    usando el parámetro ?sort=rating_desc que el recipe-service ya soporta.
+// 2. Filtra por categoría (case-insensitive).
+// 3. Guarda hasta 10 recetas en MongoDB con su averageRating para poder paginar.
 // ============================================
 async function generateAndSave(userId, category) {
   try {
-    const recipesRes = await axios.get(`${RECIPE_SERVICE_URL}/recipes`);
+    // Pedir recetas ordenadas por rating descendente directamente al recipe-service
+    const recipesRes = await axios.get(`${RECIPE_SERVICE_URL}/recipes?sort=rating_desc`);
     const allRecipes = Array.isArray(recipesRes.data)
       ? recipesRes.data
       : recipesRes.data.recipes || [];
 
     const safeCat = category.toLowerCase().trim();
+
+    // Filtrar por categoría manteniendo el orden de rating que ya viene del API
     const matching = allRecipes.filter(r =>
       r.category && r.category.toLowerCase().trim() === safeCat
     );
 
     if (matching.length === 0) {
-      console.log(`⚠️ No recipes found for category ${category}`);
+      console.log(`⚠️ No recipes found for category "${category}"`);
       return [];
     }
 
-    // Mezclar para variedad
-    const shuffled = matching.sort(() => Math.random() - 0.5);
-    const top5 = shuffled.slice(0, 5);
+    // Guardar hasta 10 para tener margen de paginación
+    const top10 = matching.slice(0, 10);
 
-    // Borrar recomendaciones anteriores del usuario y reemplazar
+    // Borrar recomendaciones anteriores del usuario para esta categoría y reemplazar
     await Recommendation.deleteMany({ userId });
 
-    const docs = top5.map((recipe, i) => ({
-      userId,
-      recipeName: recipe.name,
-      recipeId:   String(recipe._id || recipe.id || ''),
-      category,
-      score:      100 - (i * 5),
-      reason:     'preference_match'
-    }));
+    const docs = top10.map((recipe, i) => {
+      // averageRating ya viene del recipe-service (4–10 base o calculado por votos)
+      const recipeRating = typeof recipe.averageRating === 'number' && recipe.averageRating > 0
+        ? recipe.averageRating
+        : 5.0; // fallback de seguridad
 
-    // insertMany con ordered:false para ignorar duplicados por índice único
+      return {
+        userId,
+        recipeName:   recipe.name,
+        recipeId:     String(recipe._id || recipe.id || ''),
+        category,
+        recipeRating,
+        score:        parseFloat((recipeRating * 10).toFixed(1)),
+        reason:       'preference_match'
+      };
+    });
+
     await Recommendation.insertMany(docs, { ordered: false })
       .catch(err => { if (err.code !== 11000) throw err; });
 
-    console.log(`✅ ${docs.length} recomendaciones guardadas en MongoDB para ${userId} (${category})`);
-    return docs.map(d => d.recipeName);
+    console.log(`✅ ${docs.length} recomendaciones guardadas para ${userId} (${category}) — top rating: ${docs[0]?.recipeRating}`);
+    return docs;
   } catch (err) {
     console.error('❌ generateAndSave error:', err.message);
     return [];
@@ -94,8 +107,6 @@ async function generateAndSave(userId, category) {
 
 // ============================================
 // RABBITMQ
-// Escucha PREFERENCES_UPDATED → genera recomendaciones
-// Escucha USER_DELETED        → borra recomendaciones en cascada
 // ============================================
 async function startConsuming() {
   try {
@@ -150,39 +161,101 @@ startConsuming();
 
 // ============================================
 // GET /recommendations/:userId
+//
+// Query params:
+//   ?category=Vegan     → filtra/regenera por categoría
+//   ?index=0            → posición deseada (0-based, 0 = la mejor nota)
+//
+// Comportamiento:
+//   - Con ?category: si no hay recomendaciones guardadas para esa categoría,
+//     las genera llamando al recipe-service. Devuelve la receta en la posición
+//     indicada por ?index (por defecto 0 = la de mayor nota).
+//   - Sin ?category: devuelve de las guardadas en MongoDB la del índice solicitado.
+//
+// Ejemplos:
+//   GET /recommendations/123?category=Vegan           → 1ª receta vegana (mayor nota)
+//   GET /recommendations/123?category=Vegan&index=1   → 2ª receta vegana
+//   GET /recommendations/123?category=Vegan&index=2   → 3ª receta vegana
+//   GET /recommendations/123                          → mejor receta guardada
+//   GET /recommendations/123?index=2                  → 3ª mejor receta guardada
 // ============================================
 app.get('/recommendations/:userId', authenticateJWT, async (req, res) => {
   const { userId } = req.params;
   const queryCategory = req.query.category;
+  const index = Math.max(0, parseInt(req.query.index, 10) || 0);
 
   try {
     if (queryCategory) {
-      // ✅ ANTES: devolvía directamente sin guardar nada en MongoDB
-      // ✅ AHORA: genera, guarda en MongoDB Y devuelve
-      console.log(`🎯 Categoría recibida del frontend: "${queryCategory}" para ${userId}`);
-      const names = await generateAndSave(userId, queryCategory);
-      if (names.length > 0) {
-        return res.json([names[Math.floor(Math.random() * names.length)]]);
+      console.log(`🎯 Categoría: "${queryCategory}" | índice: ${index} | usuario: ${userId}`);
+
+      // Buscar recomendaciones ya guardadas para esta categoría
+      let saved = await Recommendation.find({
+        userId,
+        category: { $regex: new RegExp(`^${queryCategory}$`, 'i') }
+      })
+        .sort({ recipeRating: -1 })
+        .lean();
+
+      // Si no hay nada guardado, generarlo ahora
+      if (saved.length === 0) {
+        const generated = await generateAndSave(userId, queryCategory);
+        // generateAndSave ya devuelve los docs ordenados por recipeRating desc
+        saved = generated.sort((a, b) => b.recipeRating - a.recipeRating);
       }
-      return res.json([`We don't have recipes for ${queryCategory} yet.`]);
+
+      if (saved.length === 0) {
+        return res.json([`We don't have recipes for "${queryCategory}" yet.`]);
+      }
+
+      const clampedIndex = Math.min(index, saved.length - 1);
+      const pick = saved[clampedIndex];
+
+      console.log(`📌 #${clampedIndex + 1} de ${saved.length}: "${pick.recipeName}" (rating: ${pick.recipeRating})`);
+      return res.json([pick.recipeName]);
     }
 
-    // Sin categoría en query → leer de MongoDB
+    // Sin categoría: leer de MongoDB ordenado por recipeRating desc
     const saved = await Recommendation.find({ userId })
-      .sort({ score: -1 })
-      .limit(5)
+      .sort({ recipeRating: -1 })
       .lean();
 
-    if (saved.length > 0) {
-      console.log(`💾 Devolviendo ${saved.length} recomendaciones de MongoDB para ${userId}`);
-      return res.json(saved.map(r => r.recipeName));
+    if (saved.length === 0) {
+      return res.json(["Select a category to see your recommendation."]);
     }
 
-    return res.json(["Select a category to see your recommendation."]);
+    const clampedIndex = Math.min(index, saved.length - 1);
+    const pick = saved[clampedIndex];
+
+    console.log(`💾 #${clampedIndex + 1} de ${saved.length}: "${pick.recipeName}" (rating: ${pick.recipeRating})`);
+    return res.json([pick.recipeName]);
 
   } catch (err) {
     console.error('❌ Error en /recommendations:', err.message);
     res.json(["Error fetching recommendation"]);
+  }
+});
+
+// ============================================
+// GET /recommendations/:userId/all
+// Devuelve el ranking completo de recomendaciones guardadas, de mayor a menor nota.
+// Útil para debug o para mostrar lista en el frontend.
+// ============================================
+app.get('/recommendations/:userId/all', authenticateJWT, async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const saved = await Recommendation.find({ userId })
+      .sort({ recipeRating: -1 })
+      .lean();
+
+    return res.json(saved.map((r, i) => ({
+      position: i + 1,
+      name:     r.recipeName,
+      category: r.category,
+      rating:   r.recipeRating
+    })));
+  } catch (err) {
+    console.error('❌ Error en /recommendations/all:', err.message);
+    res.status(500).json({ error: 'Error fetching recommendations' });
   }
 });
 
