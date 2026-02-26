@@ -78,15 +78,15 @@ data:
           "targets": [
             {
               "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=~\"$job\"}[5m])) by (le, job, route))",
-              "legendFormat": "P50 {{job}} {{route}}"
+              "legendFormat": "P50 {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
             },
             {
               "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=~\"$job\"}[5m])) by (le, job, route))",
-              "legendFormat": "P95 {{job}} {{route}}"
+              "legendFormat": "P95 {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
             },
             {
               "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=~\"$job\"}[5m])) by (le, job, route))",
-              "legendFormat": "P99 {{job}} {{route}}"
+              "legendFormat": "P99 {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
             }
           ],
           "fieldConfig": {
@@ -105,7 +105,7 @@ data:
           "targets": [
             {
               "expr": "sum(rate(http_requests_total{job=~\"$job\"}[5m])) by (job, route)",
-              "legendFormat": "{{job}} {{route}}"
+              "legendFormat": "{{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
             }
           ],
           "fieldConfig": {
@@ -123,11 +123,11 @@ data:
           "targets": [
             {
               "expr": "sum(rate(http_request_errors_total{job=~\"$job\", error_type=\"server_error\"}[5m])) by (job, route)",
-              "legendFormat": "5xx {{job}} {{route}}"
+              "legendFormat": "5xx {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
             },
             {
               "expr": "sum(rate(http_request_errors_total{job=~\"$job\", error_type=\"client_error\"}[5m])) by (job, route)",
-              "legendFormat": "4xx {{job}} {{route}}"
+              "legendFormat": "4xx {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
             },
             {
               "expr": "100 * sum(rate(http_request_errors_total{job=~\"$job\"}[5m])) / sum(rate(http_requests_total{job=~\"$job\"}[5m]))",
@@ -157,7 +157,7 @@ data:
           "targets": [
             {
               "expr": "rate(process_cpu_user_seconds_total{job=~\"$job\"}[5m]) * 100",
-              "legendFormat": "CPU {{job}}"
+              "legendFormat": "CPU {{ "{{" }}job{{ "}}" }}"
             }
           ],
           "fieldConfig": {
@@ -173,7 +173,7 @@ data:
           "targets": [
             {
               "expr": "nodejs_heap_size_used_bytes{job=~\"$job\"} / 1024 / 1024",
-              "legendFormat": "Heap {{job}} (MB)"
+              "legendFormat": "Heap {{ "{{" }}job{{ "}}" }} (MB)"
             }
           ],
           "fieldConfig": {
@@ -189,7 +189,7 @@ data:
           "targets": [
             {
               "expr": "nodejs_eventloop_lag_seconds{job=~\"$job\"} * 1000",
-              "legendFormat": "Event Loop Lag {{job}} (ms)"
+              "legendFormat": "Event Loop Lag {{ "{{" }}job{{ "}}" }} (ms)"
             }
           ],
           "fieldConfig": {
