@@ -2,10 +2,9 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const { authenticateJWT, optionalAuthJWT } = require('./middleware/auth');
+const { authenticateJWT } = require('./middleware/auth');
 const client = require('prom-client');
-const multer = require('multer');
-const Minio = require('minio');
+
 const amqplib = require('amqplib');
 
 const app = express();
@@ -17,12 +16,7 @@ const Rating   = require('./models/Rating');
 const MealPlan = require('./models/MealPlan');
 require('dotenv').config();
 
-// ── MinIO ─────────────────────────────────────────────────────────
-const minioClient = new Minio.Client({ endPoint:'minio', port:9000, useSSL:false, accessKey:'admin', secretKey:'admin1234' });
-minioClient.bucketExists('recipes', function(err, exists) {
-  if (!err && !exists) minioClient.makeBucket('recipes','us-east-1', function(e){ if(!e) console.log('Bucket recipes creado'); });
-});
-const upload = multer({ storage: multer.memoryStorage() });
+
 
 // ── Prometheus ────────────────────────────────────────────────────
 client.collectDefaultMetrics({ timeout: 5000 });
@@ -99,39 +93,17 @@ const seedRecipes = [
   { name:'Banana Foster', category:'Desserts', cookingTime:15, description:'Caramelized bananas with rum and ice cream.', ingredients:['Bananas','Brown sugar','Rum','Butter','Vanilla ice cream'], instructions:'1. Melt butter and sugar.\n2. Add bananas.\n3. Add rum and flambe.\n4. Serve over ice cream.', imageUrl:'https://images.unsplash.com/photo-1587314168485-3236d6710814?auto=format&fit=crop&w=800&q=80', userId:'seed' }
 ];
 
-// Genera un rating base aleatorio entre 4.0 y 10.0
-function randomBaseRating() {
-  return parseFloat((4 + Math.random() * 6).toFixed(1));
-}
-
 async function autoSeed() {
   try {
     const count = await Recipe.countDocuments();
-    if (count > 0) {
-      console.log(`DB already has ${count} recipes — skipping seed`);
-      // ── Migración: asignar nota base a recetas que aún tienen averageRating=0 ──
-      const zeroRated = await Recipe.countDocuments({ averageRating: 0 });
-      if (zeroRated > 0) {
-        console.log(`📊 Migrando ${zeroRated} recetas sin nota base...`);
-        const toFix = await Recipe.find({ averageRating: 0 }).lean();
-        for (const r of toFix) {
-          await Recipe.updateOne({ _id: r._id }, { $set: { averageRating: randomBaseRating() } });
-        }
-        console.log(`✅ Migración completada: ${zeroRated} recetas actualizadas con nota base (4–10)`);
-      }
-      return;
-    }
+    if (count > 0) { console.log(`DB already has ${count} recipes — skipping seed`); return; }
     console.log('Empty DB — running auto-seed...');
     let inserted = 0;
     for (const r of seedRecipes) {
       const exists = await Recipe.findOne({ name: r.name });
-      if (!exists) {
-        // Asignar nota base aleatoria entre 4.0 y 10.0 en el momento del seed
-        await Recipe.create({ ...r, averageRating: randomBaseRating() });
-        inserted++;
-      }
+      if (!exists) { await Recipe.create(r); inserted++; }
     }
-    console.log(`Auto-seed complete: ${inserted} recipes inserted with base ratings (4–10)`);
+    console.log(`Auto-seed complete: ${inserted} recipes inserted`);
   } catch (err) {
     console.error('Auto-seed error:', err.message);
   }
@@ -184,7 +156,7 @@ async function generateMealPlanFromDB(userId, monthNum, yearNum, category) {
 }
 
 // ── RECIPE ENDPOINTS ──────────────────────────────────────────────
-app.get('/recipes', optionalAuthJWT, async (req, res) => {
+app.get('/recipes', authenticateJWT, async (req, res) => {
   try {
     const { sort } = req.query;
     let q = Recipe.find();
@@ -194,14 +166,7 @@ app.get('/recipes', optionalAuthJWT, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Error fetching recipes' }); }
 });
 
-app.post('/recipes/upload-image', authenticateJWT, upload.single('image'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
-  const fileName = Date.now() + '-' + req.file.originalname.replace(/\s+/g, '-');
-  minioClient.putObject('recipes', fileName, req.file.buffer, function(err) {
-    if (err) return res.status(500).json({ error: 'MinIO upload error' });
-    res.json({ imageUrl: `http://localhost:9000/recipes/${fileName}` });
-  });
-});
+
 
 app.post('/recipes', authenticateJWT, async (req, res) => {
   try {
@@ -318,7 +283,7 @@ app.get('/meal-plans/user/:userId', authenticateJWT, async (req, res) => {
 });
 
 // ── Prometheus ────────────────────────────────────────────────────
-app.get('/metrics', async (req, res) => { res.set('Content-Type', client.register.contentType); res.end(await client.register.metrics()); });
+app.get('/metrics', authenticateJWT, async (req, res) => { res.set('Content-Type', client.register.contentType); res.end(await client.register.metrics()); });
 
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => console.log(`Server on port ${PORT}`));

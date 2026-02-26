@@ -4,11 +4,11 @@ import Keycloak from 'keycloak-js';
 import './index.css'
 import App from './App.jsx'
 
-// Configuración de Keycloak según tu README y Propuesta
+
 const keycloak = new Keycloak({
-  url: 'https://keycloak.ltu-m7011e-5.se', // URL de tu servidor Keycloak
-  realm: 'ChefMatchRealm',       // Tu Realm definido
-  clientId: 'frontend-client',   // El ID del cliente que creaste en Keycloak
+  url: 'https://keycloak.ltu-m7011e-5.se', 
+  realm: 'ChefMatchRealm',       
+  clientId: 'frontend-client',   
 });
 
 const root = createRoot(document.getElementById('root'));
@@ -21,7 +21,7 @@ keycloak.init({
     console.log("Usuario autenticado con éxito");
     root.render(
       <StrictMode>
-        {/* Pasamos keycloak como prop para usar el token en las llamadas API */}
+        {/* Give keycloak as prop to use the token in the APIS */}
         <App keycloak={keycloak} />
       </StrictMode>,
     );

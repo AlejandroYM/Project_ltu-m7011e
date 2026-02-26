@@ -1,179 +1,29 @@
-# k8s/templates/grafana-dashboard-configmap.yaml
-# ConfigMap for Four Golden Signals dashboard + Complete Grafana Deployment
+# ================================================================
+#  ChefMatch — Grafana Dashboards
+#  Namespace: chefmatch  (corregido — antes estaba en 'default')
+#
+#  Recursos:
+#    1. grafana-dashboard-provisioning  → le dice a Grafana dónde leer los JSON
+#    2. grafana-dashboards              → el JSON del dashboard (Four Golden Signals)
+#
+#  Nota sobre el JSON:
+#    El formato correcto para file provisioning es el objeto del dashboard
+#    directamente, SIN el wrapper {"dashboard": {...}} que usa la API REST.
+# ================================================================
 
----
-# ConfigMap 1: Dashboard JSON
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: grafana-dashboards
-  namespace: default
-  labels:
-    grafana_dashboard: "1"
-data:
-  four-golden-signals.json: |
-    {
-      "dashboard": {
-        "title": "ChefMatch - Four Golden Signals",
-        "tags": ["chefmatch", "microservices", "sre"],
-        "timezone": "browser",
-        "refresh": "30s",
-        "time": {
-          "from": "now-1h",
-          "to": "now"
-        },
-        "panels": [
-          {
-            "id": 1,
-            "title": "🚦 GOLDEN SIGNAL 1: LATENCY (Response Time)",
-            "type": "graph",
-            "gridPos": { "x": 0, "y": 0, "w": 24, "h": 8 },
-            "targets": [
-              {
-                "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route))",
-                "legendFormat": "P50 - {{ "{{" }} route {{ "}}" }}"
-              },
-              {
-                "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route))",
-                "legendFormat": "P95 - {{ "{{" }} route {{ "}}" }}"
-              },
-              {
-                "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route))",
-                "legendFormat": "P99 - {{ "{{" }} route {{ "}}" }}"
-              }
-            ],
-            "yaxes": [{ "format": "s", "label": "Latency" }]
-          },
-          {
-            "id": 2,
-            "title": "📈 GOLDEN SIGNAL 2: TRAFFIC (Request Rate)",
-            "type": "graph",
-            "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
-            "targets": [
-              {
-                "expr": "sum(rate(http_requests_total[5m])) by (route)",
-                "legendFormat": "{{ "{{" }} route {{ "}}" }}"
-              }
-            ],
-            "yaxes": [{ "format": "reqps", "label": "Requests per second" }]
-          },
-          {
-            "id": 3,
-            "title": "❌ GOLDEN SIGNAL 3: ERRORS (Error Rate)",
-            "type": "graph",
-            "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
-            "targets": [
-              {
-                "expr": "sum(rate(http_request_errors_total{error_type=\"server_error\"}[5m])) by (route)",
-                "legendFormat": "5xx - {{ "{{" }} route {{ "}}" }}"
-              },
-              {
-                "expr": "sum(rate(http_request_errors_total{error_type=\"client_error\"}[5m])) by (route)",
-                "legendFormat": "4xx - {{ "{{" }} route {{ "}}" }}"
-              },
-              {
-                "expr": "(sum(rate(http_request_errors_total[5m])) / sum(rate(http_requests_total[5m]))) * 100",
-                "legendFormat": "Error Rate %"
-              }
-            ],
-            "yaxes": [{ "format": "percent", "label": "Error Rate" }]
-          },
-          {
-            "id": 4,
-            "title": "💾 GOLDEN SIGNAL 4: SATURATION (CPU)",
-            "type": "graph",
-            "gridPos": { "x": 0, "y": 16, "w": 8, "h": 6 },
-            "targets": [
-              {
-                "expr": "rate(process_cpu_user_seconds_total[5m]) * 100",
-                "legendFormat": "CPU User %"
-              }
-            ],
-            "yaxes": [{ "format": "percent", "label": "CPU %" }]
-          },
-          {
-            "id": 5,
-            "title": "💾 SATURATION: Memory Usage",
-            "type": "graph",
-            "gridPos": { "x": 8, "y": 16, "w": 8, "h": 6 },
-            "targets": [
-              {
-                "expr": "nodejs_heap_size_used_bytes / 1024 / 1024",
-                "legendFormat": "Heap Used (MB)"
-              }
-            ],
-            "yaxes": [{ "format": "decmbytes", "label": "Memory" }]
-          },
-          {
-            "id": 6,
-            "title": "💾 SATURATION: Event Loop Lag",
-            "type": "graph",
-            "gridPos": { "x": 16, "y": 16, "w": 8, "h": 6 },
-            "targets": [
-              {
-                "expr": "nodejs_eventloop_lag_seconds * 1000",
-                "legendFormat": "Event Loop Lag (ms)"
-              }
-            ],
-            "yaxes": [{ "format": "ms", "label": "Lag" }]
-          },
-          {
-            "id": 7,
-            "title": "🗄️ Database Operations (P95)",
-            "type": "graph",
-            "gridPos": { "x": 0, "y": 22, "w": 12, "h": 6 },
-            "targets": [
-              {
-                "expr": "histogram_quantile(0.95, sum(rate(db_operation_duration_seconds_bucket[5m])) by (le, operation))",
-                "legendFormat": "P95 - {{ "{{" }} operation {{ "}}" }}"
-              }
-            ],
-            "yaxes": [{ "format": "s", "label": "Duration" }]
-          },
-          {
-            "id": 8,
-            "title": "📊 Service Health",
-            "type": "stat",
-            "gridPos": { "x": 12, "y": 22, "w": 12, "h": 6 },
-            "targets": [
-              { "expr": "up{job=\"recipe-service\"}", "legendFormat": "Recipe Service" },
-              { "expr": "up{job=\"recommendation-service\"}", "legendFormat": "Recommendation Service" },
-              { "expr": "up{job=\"user-service\"}", "legendFormat": "User Service" }
-            ],
-            "options": {
-              "graphMode": "none",
-              "colorMode": "background"
-            },
-            "fieldConfig": {
-              "defaults": {
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    { "value": 0, "color": "red" },
-                    { "value": 1, "color": "green" }
-                  ]
-                }
-              }
-            }
-          }
-        ]
-      }
-    }
-
----
-# ConfigMap 2: Dashboard Provisioning Configuration
+# ── 1. Dashboard Provisioning Config ─────────────────────────────
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: grafana-dashboard-provisioning
-  namespace: default
+  namespace: chefmatch
 data:
   dashboards.yaml: |
     apiVersion: 1
     providers:
-      - name: 'Default'
+      - name: 'ChefMatch'
         orgId: 1
-        folder: ''
+        folder: 'ChefMatch'
         type: file
         disableDeletion: false
         updateIntervalSeconds: 10
@@ -182,88 +32,201 @@ data:
           path: /var/lib/grafana/dashboards
 
 ---
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: grafana
-  namespace: default
-  labels:
-    app: grafana
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: grafana
-  template:
-    metadata:
-      labels:
-        app: grafana
-    spec:
-      containers:
-      - name: grafana
-        image: grafana/grafana:latest
-        ports:
-        - containerPort: 3000
-          name: http
-          protocol: TCP
-        env:
-        - name: GF_SECURITY_ADMIN_PASSWORD
-          value: "admin"
-        - name: GF_USERS_ALLOW_SIGN_UP
-          value: "false"
-        - name: GF_AUTH_ANONYMOUS_ENABLED
-          value: "false"
-        volumeMounts:
-        - name: grafana-storage
-          mountPath: /var/lib/grafana
-        - name: dashboards
-          mountPath: /etc/grafana/provisioning/dashboards
-        - name: dashboard-config
-          mountPath: /var/lib/grafana/dashboards
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
-        livenessProbe:
-          httpGet:
-            path: /api/health
-            port: 3000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /api/health
-            port: 3000
-          initialDelaySeconds: 10
-          periodSeconds: 5
-      volumes:
-      - name: grafana-storage
-        emptyDir: {}
-      - name: dashboards
-        configMap:
-          name: grafana-dashboard-provisioning
-      - name: dashboard-config
-        configMap:
-          name: grafana-dashboards
-
----
-# Service para acceder a Grafana
+# ── 2. Dashboard JSON ─────────────────────────────────────────────
+# ⚠️  Sin wrapper {"dashboard": {...}} — ese formato es solo para la API REST.
+#     Para file provisioning el JSON empieza directamente con {"title": ...}
 apiVersion: v1
-kind: Service
+kind: ConfigMap
 metadata:
-  name: grafana
-  namespace: default
+  name: grafana-dashboards
+  namespace: chefmatch
   labels:
-    app: grafana
-spec:
-  type: ClusterIP
-  ports:
-  - port: 3000
-    targetPort: 3000
-    protocol: TCP
-    name: http
-  selector:
-    app: grafana
+    grafana_dashboard: "1"
+data:
+  four-golden-signals.json: |
+    {
+      "title": "ChefMatch - Four Golden Signals",
+      "tags": ["chefmatch", "microservices", "sre"],
+      "timezone": "browser",
+      "refresh": "30s",
+      "schemaVersion": 27,
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "templating": {
+        "list": [
+          {
+            "name": "job",
+            "type": "query",
+            "datasource": "Prometheus",
+            "query": "label_values(http_requests_total, job)",
+            "label": "Service",
+            "refresh": 2,
+            "includeAll": true,
+            "allValue": ".*"
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "🚦 GOLDEN SIGNAL 1: LATENCY — Response Time P50/P95/P99",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 0, "w": 24, "h": 8 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=~\"$job\"}[5m])) by (le, job, route))",
+              "legendFormat": "P50 {{job}} {{route}}"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=~\"$job\"}[5m])) by (le, job, route))",
+              "legendFormat": "P95 {{job}} {{route}}"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=~\"$job\"}[5m])) by (le, job, route))",
+              "legendFormat": "P99 {{job}} {{route}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": { "lineWidth": 2 }
+            }
+          }
+        },
+        {
+          "id": 2,
+          "title": "📈 GOLDEN SIGNAL 2: TRAFFIC — Requests per Second",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total{job=~\"$job\"}[5m])) by (job, route)",
+              "legendFormat": "{{job}} {{route}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "title": "❌ GOLDEN SIGNAL 3: ERRORS — Error Rate",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "sum(rate(http_request_errors_total{job=~\"$job\", error_type=\"server_error\"}[5m])) by (job, route)",
+              "legendFormat": "5xx {{job}} {{route}}"
+            },
+            {
+              "expr": "sum(rate(http_request_errors_total{job=~\"$job\", error_type=\"client_error\"}[5m])) by (job, route)",
+              "legendFormat": "4xx {{job}} {{route}}"
+            },
+            {
+              "expr": "100 * sum(rate(http_request_errors_total{job=~\"$job\"}[5m])) / sum(rate(http_requests_total{job=~\"$job\"}[5m]))",
+              "legendFormat": "Error Rate %"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": 0,  "color": "green" },
+                  { "value": 5,  "color": "yellow" },
+                  { "value": 10, "color": "red" }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 4,
+          "title": "💾 GOLDEN SIGNAL 4: SATURATION — CPU Usage",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 16, "w": 8, "h": 6 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "rate(process_cpu_user_seconds_total{job=~\"$job\"}[5m]) * 100",
+              "legendFormat": "CPU {{job}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "percent" }
+          }
+        },
+        {
+          "id": 5,
+          "title": "💾 SATURATION — Heap Memory Used",
+          "type": "timeseries",
+          "gridPos": { "x": 8, "y": 16, "w": 8, "h": 6 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "nodejs_heap_size_used_bytes{job=~\"$job\"} / 1024 / 1024",
+              "legendFormat": "Heap {{job}} (MB)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "decmbytes" }
+          }
+        },
+        {
+          "id": 6,
+          "title": "💾 SATURATION — Event Loop Lag",
+          "type": "timeseries",
+          "gridPos": { "x": 16, "y": 16, "w": 8, "h": 6 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "nodejs_eventloop_lag_seconds{job=~\"$job\"} * 1000",
+              "legendFormat": "Event Loop Lag {{job}} (ms)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "ms" }
+          }
+        },
+        {
+          "id": 7,
+          "title": "🟢 Service Health — Up/Down",
+          "type": "stat",
+          "gridPos": { "x": 0, "y": 22, "w": 24, "h": 4 },
+          "datasource": "Prometheus",
+          "targets": [
+            { "expr": "up{job=\"recipe-service\"}",         "legendFormat": "Recipe Service" },
+            { "expr": "up{job=\"user-service\"}",           "legendFormat": "User Service" },
+            { "expr": "up{job=\"recommendation-service\"}", "legendFormat": "Recommendation Service" }
+          ],
+          "options": {
+            "graphMode": "none",
+            "colorMode": "background",
+            "reduceOptions": { "calcs": ["lastNotNull"] }
+          },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" } } },
+                { "type": "value", "options": { "1": { "text": "UP",   "color": "green" } } }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": 0, "color": "red" },
+                  { "value": 1, "color": "green" }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }

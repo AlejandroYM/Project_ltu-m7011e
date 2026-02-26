@@ -17,6 +17,51 @@ app.use(express.json());
 const RECIPE_SERVICE_URL = process.env.RECIPE_SERVICE_URL || 'http://recipe-service:8000';
 
 // ============================================
+// KEYCLOAK — CLIENT CREDENTIALS
+// El recommendation-service actúa como cliente de máquina (sin usuario).
+// Obtiene su propio token para llamar a GET /recipes (que ahora requiere JWT).
+// Requiere que en Keycloak exista un cliente 'recommendation-service'
+// con "Service Accounts Enabled" = true.
+// ============================================
+const KC_URL    = process.env.KEYCLOAK_URL    || 'https://keycloak.ltu-m7011e-5.se';
+const KC_REALM  = process.env.KEYCLOAK_REALM  || 'ChefMatchRealm';
+const KC_CLIENT = process.env.KEYCLOAK_CLIENT_ID     || 'recommendation-service';
+const KC_SECRET = process.env.KEYCLOAK_CLIENT_SECRET || '';
+
+let serviceToken     = null;
+let serviceTokenExp  = 0; // timestamp de expiración en ms
+
+async function getServiceToken() {
+  // Reutilizar el token si aún tiene más de 30 segundos de vida
+  if (serviceToken && Date.now() < serviceTokenExp - 30000) {
+    return serviceToken;
+  }
+
+  try {
+    const params = new URLSearchParams({
+      grant_type:    'client_credentials',
+      client_id:     KC_CLIENT,
+      client_secret: KC_SECRET
+    });
+
+    const res = await axios.post(
+      `${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/token`,
+      params.toString(),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+    );
+
+    serviceToken    = res.data.access_token;
+    serviceTokenExp = Date.now() + (res.data.expires_in * 1000);
+
+    console.log('🔑 Service token obtenido de Keycloak (válido para recommendation-service)');
+    return serviceToken;
+  } catch (err) {
+    console.error('❌ Error obteniendo service token:', err.response?.data || err.message);
+    return null;
+  }
+}
+
+// ============================================
 // MONGODB
 // ============================================
 mongoose.connect(process.env.MONGO_URI || 'mongodb://mongo-service:27017/chefmatch')
@@ -53,8 +98,17 @@ app.use((req, res, next) => {
 // ============================================
 async function generateAndSave(userId, category) {
   try {
-    // Pedir recetas ordenadas por rating descendente directamente al recipe-service
-    const recipesRes = await axios.get(`${RECIPE_SERVICE_URL}/recipes?sort=rating_desc`);
+    // Obtener token de servicio para autenticarse ante el recipe-service
+    const token = await getServiceToken();
+    if (!token) {
+      console.error('❌ No se pudo obtener service token — abortando generateAndSave');
+      return [];
+    }
+
+    // Pedir recetas ordenadas por rating descendente
+    const recipesRes = await axios.get(`${RECIPE_SERVICE_URL}/recipes?sort=rating_desc`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
     const allRecipes = Array.isArray(recipesRes.data)
       ? recipesRes.data
       : recipesRes.data.recipes || [];
