@@ -156,7 +156,7 @@ async function generateMealPlanFromDB(userId, monthNum, yearNum, category) {
 }
 
 // ── RECIPE ENDPOINTS ──────────────────────────────────────────────
-app.get('/recipes', authenticateJWT, async (req, res) => {
+app.get('/recipes', async (req, res) => {
   try {
     const { sort } = req.query;
     let q = Recipe.find();
