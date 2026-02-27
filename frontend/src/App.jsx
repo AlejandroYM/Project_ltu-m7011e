@@ -135,14 +135,13 @@ function App() {
 
   const getRecipeImage = (recipe) => {
     if (!recipe || !recipe.name) return categoryImages.default;
-    if (recipe.imageUrl) return recipe.imageUrl;
     const nameKey = recipe.name.toLowerCase().trim();
     const specificImages = {
       "carbonara pasta":                "https://images.unsplash.com/photo-1612874742237-6526221588e3?auto=format&fit=crop&w=800&q=80",
       "pasta carbonara":                "https://images.unsplash.com/photo-1612874742237-6526221588e3?auto=format&fit=crop&w=800&q=80",
       "margherita pizza":               "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=800&q=80",
       "tacos al pastor":                "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?auto=format&fit=crop&w=800&q=80",
-      "traditional guacamole":          "https://images.unsplash.com/photo-1541519227354-08fa5d50c820?auto=format&fit=crop&w=800&q=80",
+      "traditional guacamole":          "https://images.unsplash.com/photo-1600335895229-6e75511892c8?auto=format&fit=crop&w=800&q=80",
       "chickpea curry":                 "https://images.unsplash.com/photo-1565557623262-b51c2513a641?auto=format&fit=crop&w=800&q=80",
       "buddha bowl":                    "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80",
       "sushi maki roll":                "https://images.unsplash.com/photo-1553621042-f6e147245754?auto=format&fit=crop&w=800&q=80",
@@ -153,32 +152,47 @@ function App() {
       "strawberry cheesecake":          "https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=800&q=80",
       "risotto ai funghi":              "https://images.unsplash.com/photo-1476124369491-e7addf5db371?auto=format&fit=crop&w=800&q=80",
       "lasagna bolognese":              "https://images.unsplash.com/photo-1619895092538-128341789043?auto=format&fit=crop&w=800&q=80",
-      "gnocchi al pesto":               "https://images.unsplash.com/photo-1548943487-a2e4e43b4853?auto=format&fit=crop&w=800&q=80",
+      "gnocchi al pesto":               "https://images.unsplash.com/photo-1551183053-bf91798d047d?auto=format&fit=crop&w=800&q=80",
       "penne arrabbiata":               "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?auto=format&fit=crop&w=800&q=80",
-      "focaccia genovese":              "https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&w=800&q=80",
+      "focaccia genovese":              "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80",
       "bruschetta al pomodoro":         "https://images.unsplash.com/photo-1572695157366-5e585ab2b69f?auto=format&fit=crop&w=800&q=80",
+      "saltimbocca alla romana":        "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=800&q=80",
+      "ossobuco milanese":              "https://images.unsplash.com/photo-1559847844-5315695dadae?auto=format&fit=crop&w=800&q=80",
       "enchiladas verdes":              "https://images.unsplash.com/photo-1534352956036-cd81e27dd615?auto=format&fit=crop&w=800&q=80",
-      "chiles rellenos":                "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&q=80",
+      "chiles rellenos":                "https://images.unsplash.com/photo-1617611413012-715a1c4b4c0f?auto=format&fit=crop&w=800&q=80",
+      "tamales de rajas":               "https://images.unsplash.com/photo-1625944525533-473f1a3d54e7?auto=format&fit=crop&w=800&q=80",
+      "quesadillas de flor de calabaza":"https://images.unsplash.com/photo-1618040996337-56904b7850b9?auto=format&fit=crop&w=800&q=80",
+      "mushroom tacos":                 "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&w=800&q=80",
+      "sopa de lima":                   "https://images.unsplash.com/photo-1603105037880-880cd4edfb0d?auto=format&fit=crop&w=800&q=80",
       "cochinita pibil":                "https://images.unsplash.com/photo-1599974579688-8dbdd335c77f?auto=format&fit=crop&w=800&q=80",
       "lentil dal":                     "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=800&q=80",
       "falafel wrap":                   "https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=800&q=80",
+      "stuffed bell peppers":           "https://images.unsplash.com/photo-1563699740773-cb7de04ba4dd?auto=format&fit=crop&w=800&q=80",
+      "avocado toast deluxe":           "https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=800&q=80",
       "vegetable paella":               "https://images.unsplash.com/photo-1534080564583-6be75777b70a?auto=format&fit=crop&w=800&q=80",
       "tonkatsu":                       "https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?auto=format&fit=crop&w=800&q=80",
+      "karaage":                        "https://images.unsplash.com/photo-1562802378-063ec186a863?auto=format&fit=crop&w=800&q=80",
+      "okonomiyaki":                    "https://images.unsplash.com/photo-1617196034183-421b4040ed20?auto=format&fit=crop&w=800&q=80",
       "gyoza":                          "https://images.unsplash.com/photo-1496116218417-1a781b1c416c?auto=format&fit=crop&w=800&q=80",
       "miso ramen":                     "https://images.unsplash.com/photo-1557872943-16a5ac26437e?auto=format&fit=crop&w=800&q=80",
       "yakitori":                       "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=800&q=80",
       "mac and cheese":                 "https://images.unsplash.com/photo-1543339308-43e59d6b73a6?auto=format&fit=crop&w=800&q=80",
+      "philly cheesesteak":             "https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?auto=format&fit=crop&w=800&q=80",
       "buffalo wings":                  "https://images.unsplash.com/photo-1527477396000-e27163b481c2?auto=format&fit=crop&w=800&q=80",
       "pulled pork sandwich":           "https://images.unsplash.com/photo-1558030089-8a11c5d46e0a?auto=format&fit=crop&w=800&q=80",
-      "tiramisu":                       "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?auto=format&fit=crop&w=800&q=80",
+      "lobster roll":                   "https://images.unsplash.com/photo-1569054474823-4afe79fbaee4?auto=format&fit=crop&w=800&q=80",
       "crème brûlée":                   "https://images.unsplash.com/photo-1470124182917-cc6e71b22ecc?auto=format&fit=crop&w=800&q=80",
       "creme brulee":                   "https://images.unsplash.com/photo-1470124182917-cc6e71b22ecc?auto=format&fit=crop&w=800&q=80",
+      "profiteroles":                   "https://images.unsplash.com/photo-1530610476181-d83430b64dcd?auto=format&fit=crop&w=800&q=80",
+      "churros con chocolate":          "https://images.unsplash.com/photo-1624371414361-e670edf4850e?auto=format&fit=crop&w=800&q=80",
       "chocolate lava cake":            "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=800&q=80",
       "apple pie":                      "https://images.unsplash.com/photo-1568571780765-9276ac8b75a2?auto=format&fit=crop&w=800&q=80",
-      "churros con chocolate":          "https://images.unsplash.com/photo-1624371414361-e670edf4850e?auto=format&fit=crop&w=800&q=80",
+      "mango sorbet":                   "https://images.unsplash.com/photo-1488900128323-21503983a07e?auto=format&fit=crop&w=800&q=80",
+      "banana foster":                  "https://images.unsplash.com/photo-1587314168485-3236d6710814?auto=format&fit=crop&w=800&q=80",
       "beef teriyaki bowl":             "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80",
     };
-    return specificImages[nameKey] || categoryImages[recipe.category?.toLowerCase()] || categoryImages.default;
+    // specificImages takes priority over stored imageUrl to ensure correct matching
+    return specificImages[nameKey] || recipe.imageUrl || categoryImages[recipe.category?.toLowerCase()] || categoryImages.default;
   };
 
   const searchUnsplash = async () => {
@@ -227,9 +241,7 @@ function App() {
 
   const fetchData = async (userId) => {
     try {
-      const resRecipes = await axios.get('https://ltu-m7011e-5.se/recipes', {
-        headers:{ Authorization: `Bearer ${keycloak.token}` } 
-      });
+      const resRecipes = await axios.get('https://ltu-m7011e-5.se/recipes');
       const data = Array.isArray(resRecipes.data) ? resRecipes.data : resRecipes.data.recipes || [];
       setRecipes(data);
       applyFilters(data, searchTerm, filterCategory, filterTime, filterRating);

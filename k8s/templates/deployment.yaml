@@ -16,11 +16,24 @@ spec:
     metadata:
       labels:
         app: {{ $service.name }}
-      # NEW: Monitoring Annotations
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: {{ $service.targetPort | default 8000 | quote }}
     spec:
+      # Wait for MongoDB to accept connections before starting any service
+      initContainers:
+      - name: wait-for-mongo
+        image: busybox:1.36
+        command:
+          - sh
+          - -c
+          - |
+            echo "Waiting for MongoDB at mongo-service:27017..."
+            until nc -z mongo-service 27017; do
+              echo "MongoDB not ready yet, retrying in 3s..."
+              sleep 3
+            done
+            echo "MongoDB is ready!"
       containers:
       - name: {{ $service.name }}
         image: {{ $service.image }}
@@ -29,44 +42,54 @@ spec:
         env:
         - name: PORT
           value: {{ $service.targetPort | default 8000 | quote }}
-        
-        # Secrets (From previous step)
         - name: RABBITMQ_URL
           valueFrom:
             secretKeyRef:
               name: app-secrets
               key: rabbitmq-url
-
         - name: MONGO_URI
           valueFrom:
             secretKeyRef:
               name: app-secrets
               key: mongo-uri
-
         {{- if $service.env }}
         {{- range $env := $service.env }}
         - name: {{ $env.name }}
           value: {{ $env.value | quote }}
         {{- end }}
         {{- end }}
-        
-        # Keycloak configuration from secrets
         - name: KEYCLOAK_URL
           valueFrom:
             secretKeyRef:
               name: app-secrets
               key: keycloak-url
-        
         - name: KEYCLOAK_REALM
           valueFrom:
             secretKeyRef:
               name: app-secrets
               key: keycloak-realm
-        
         - name: KEYCLOAK_CLIENT_ID
           valueFrom:
             secretKeyRef:
               name: app-secrets
               key: keycloak-client-id
+
+        # Readiness: only route traffic once /health returns 200
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ $service.targetPort | default 8000 }}
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          failureThreshold: 6
+
+        # Liveness: restart the container if it stops responding
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ $service.targetPort | default 8000 }}
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          failureThreshold: 3
 ---
 {{- end }}
