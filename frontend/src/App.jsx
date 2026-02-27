@@ -227,7 +227,9 @@ function App() {
 
   const fetchData = async (userId) => {
     try {
-      const resRecipes = await axios.get('https://ltu-m7011e-5.se/recipes');
+      const resRecipes = await axios.get('https://ltu-m7011e-5.se/recipes', {
+        headers:{ Authorization: `Bearer ${keycloak.token}` } 
+      });
       const data = Array.isArray(resRecipes.data) ? resRecipes.data : resRecipes.data.recipes || [];
       setRecipes(data);
       applyFilters(data, searchTerm, filterCategory, filterTime, filterRating);
