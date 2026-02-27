@@ -112,11 +112,6 @@ connectRabbit();
 // ============================================
 const userRouter = express.Router();
 
-// Health check — público
-userRouter.get('/health', (req, res) => {
-  res.json({ status: 'UP', service: 'user-service' });
-});
-
 // ✅ GET /users/:id — obtener o crear usuario en MongoDB
 // Arregla el 404 que aparecía en la consola del frontend
 userRouter.get('/:id', authenticateJWT, async (req, res) => {
@@ -227,6 +222,13 @@ userRouter.delete('/account', authenticateJWT, async (req, res) => {
     console.error('Error DELETE /account:', err.message);
     res.status(500).json({ error: 'Error interno procesando la baja del usuario' });
   }
+});
+
+// ============================================
+// HEALTH CHECK — público, en raíz (para las probes de Kubernetes)
+// ============================================
+app.get('/health', (req, res) => {
+  res.json({ status: 'UP', service: 'user-service' });
 });
 
 // ============================================
