@@ -1,7 +1,4 @@
 ---
-# ConfigMap con la configuración de RabbitMQ
-# Usamos rabbitmq.conf en vez de RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS
-# porque el formato Erlang de ERL_ARGS es propenso a errores de parsing.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -36,11 +33,13 @@ spec:
         - containerPort: 5672
         - containerPort: 15672
         env:
+        # Apuntamos a /custom-config/rabbitmq (sin .conf, la imagen lo añade)
+        # Así evitamos el conflicto con /etc/rabbitmq/rabbitmq.conf del contenedor
         - name: RABBITMQ_CONFIG_FILE
-          value: /etc/rabbitmq/rabbitmq.conf
+          value: /custom-config/rabbitmq
         volumeMounts:
         - name: rabbitmq-config
-          mountPath: /etc/rabbitmq/rabbitmq.conf
+          mountPath: /custom-config/rabbitmq.conf
           subPath: rabbitmq.conf
       volumes:
       - name: rabbitmq-config
