@@ -68,17 +68,17 @@ data:
             {
               "refId": "A",
               "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=~\"$job\"}[5m])) by (le, job, route))",
-              "legendFormat": "P50 {{job}} {{route}}"
+              "legendFormat": "P50 {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
             },
             {
               "refId": "B",
               "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=~\"$job\"}[5m])) by (le, job, route))",
-              "legendFormat": "P95 {{job}} {{route}}"
+              "legendFormat": "P95 {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
             },
             {
               "refId": "C",
               "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=~\"$job\"}[5m])) by (le, job, route))",
-              "legendFormat": "P99 {{job}} {{route}}"
+              "legendFormat": "P99 {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
             }
           ],
           "fieldConfig": {
@@ -95,7 +95,7 @@ data:
             {
               "refId": "A",
               "expr": "sum(rate(http_requests_total{job=~\"$job\"}[5m])) by (job, route)",
-              "legendFormat": "{{job}} {{route}}"
+              "legendFormat": "{{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "reqps" } }
@@ -110,12 +110,12 @@ data:
             {
               "refId": "A",
               "expr": "sum(rate(http_request_errors_total{job=~\"$job\",error_type=\"server_error\"}[5m])) by (job, route)",
-              "legendFormat": "5xx {{job}} {{route}}"
+              "legendFormat": "5xx {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
             },
             {
               "refId": "B",
               "expr": "sum(rate(http_request_errors_total{job=~\"$job\",error_type=\"client_error\"}[5m])) by (job, route)",
-              "legendFormat": "4xx {{job}} {{route}}"
+              "legendFormat": "4xx {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
             },
             {
               "refId": "C",
@@ -147,7 +147,7 @@ data:
             {
               "refId": "A",
               "expr": "rate(process_cpu_user_seconds_total{job=~\"$job\"}[5m]) * 100",
-              "legendFormat": "CPU {{job}}"
+              "legendFormat": "CPU {{ "{{" }}job{{ "}}" }}"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "percent" } }
@@ -162,7 +162,7 @@ data:
             {
               "refId": "A",
               "expr": "nodejs_heap_size_used_bytes{job=~\"$job\"} / 1024 / 1024",
-              "legendFormat": "Heap {{job}} MB"
+              "legendFormat": "Heap {{ "{{" }}job{{ "}}" }} MB"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "decmbytes" } }
@@ -177,7 +177,7 @@ data:
             {
               "refId": "A",
               "expr": "nodejs_eventloop_lag_seconds{job=~\"$job\"} * 1000",
-              "legendFormat": "EventLoop {{job}} ms"
+              "legendFormat": "EventLoop {{ "{{" }}job{{ "}}" }} ms"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "ms" } }
