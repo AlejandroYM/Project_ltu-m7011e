@@ -241,16 +241,27 @@ function App() {
 
   const fetchData = async (userId) => {
     try {
-      const resRecipes = await axios.get('https://ltu-m7011e-5.se/recipes');
-      const data = Array.isArray(resRecipes.data) ? resRecipes.data : resRecipes.data.recipes || [];
+      const [resRecipes, userRes] = await Promise.allSettled([
+        axios.get('https://ltu-m7011e-5.se/recipes'),
+        axios.get(`/users/${userId}`, { headers: { Authorization: `Bearer ${keycloak.token}` } })
+      ]);
+
+      const data = resRecipes.status === 'fulfilled'
+        ? (Array.isArray(resRecipes.value.data) ? resRecipes.value.data : resRecipes.value.data.recipes || [])
+        : [];
       setRecipes(data);
       applyFilters(data, searchTerm, filterCategory, filterTime, filterRating);
-      try {
-        const userRes = await axios.get(`/users/${userId}`, { headers: { Authorization: `Bearer ${keycloak.token}` } });
-        const pref = userRes.data.preference || userRes.data.category;
-        if (pref) setActiveCategory(pref);
-      } catch { /* silent */ }
-      await fetchRecommendations(userId);
+
+      let resolvedCategory = null;
+      if (userRes.status === 'fulfilled') {
+        const pref = userRes.value.data.preference || userRes.value.data.category;
+        if (pref) {
+          resolvedCategory = pref;
+          setActiveCategory(pref);
+        }
+      }
+
+      await fetchRecommendations(userId, resolvedCategory);
     } catch (err) {
       console.error("Error loading data:", err);
     }

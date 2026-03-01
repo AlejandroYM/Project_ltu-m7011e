@@ -17,8 +17,13 @@ spec:
       - name: rabbitmq
         image: rabbitmq:3-management
         ports:
-        - containerPort: 5672 
-        - containerPort: 15672 
+        - containerPort: 5672
+        - containerPort: 15672
+        env:
+        # Necesario para que la UI funcione detrás del path /rabbitmq del ingress
+        - name: RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS
+          value: "-rabbitmq_management path_prefix \"/rabbitmq\""
+
 ---
 apiVersion: v1
 kind: Service
@@ -30,10 +35,8 @@ spec:
   - name: amqp
     port: 5672
     targetPort: 5672
-  # --- AÑADIR ESTO ---
   - name: management
     port: 15672
     targetPort: 15672
-  # -------------------
   selector:
     app: rabbitmq
