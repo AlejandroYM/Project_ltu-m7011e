@@ -52,12 +52,6 @@ spec:
             secretKeyRef:
               name: app-secrets
               key: mongo-uri
-        {{- if $service.env }}
-        {{- range $env := $service.env }}
-        - name: {{ $env.name }}
-          value: {{ $env.value | quote }}
-        {{- end }}
-        {{- end }}
         - name: KEYCLOAK_URL
           valueFrom:
             secretKeyRef:
@@ -73,6 +67,23 @@ spec:
             secretKeyRef:
               name: app-secrets
               key: keycloak-client-id
+        - name: KEYCLOAK_RECOMMENDATION_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: keycloak-recommendation-client-id
+        - name: KEYCLOAK_RECOMMENDATION_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: keycloak-recommendation-client-secret
+        # Service-specific env goes LAST so it overrides shared secrets above
+        {{- if $service.env }}
+        {{- range $env := $service.env }}
+        - name: {{ $env.name }}
+          value: {{ $env.value | quote }}
+        {{- end }}
+        {{- end }}
 
         # Readiness: only route traffic once /health returns 200
         readinessProbe:

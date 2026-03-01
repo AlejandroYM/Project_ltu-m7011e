@@ -25,8 +25,8 @@ const RECIPE_SERVICE_URL = process.env.RECIPE_SERVICE_URL || 'http://recipe-serv
 // ============================================
 const KC_URL    = process.env.KEYCLOAK_URL    || 'https://keycloak.ltu-m7011e-5.se';
 const KC_REALM  = process.env.KEYCLOAK_REALM  || 'ChefMatchRealm';
-const KC_CLIENT = process.env.KEYCLOAK_CLIENT_ID     || 'recommendation-service';
-const KC_SECRET = process.env.KEYCLOAK_CLIENT_SECRET || '';
+const KC_CLIENT = process.env.KEYCLOAK_RECOMMENDATION_CLIENT_ID     || 'recommendation-service';
+const KC_SECRET = process.env.KEYCLOAK_RECOMMENDATION_CLIENT_SECRET || '';
 
 let serviceToken     = null;
 let serviceTokenExp  = 0; // timestamp de expiración en ms

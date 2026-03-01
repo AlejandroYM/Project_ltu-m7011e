@@ -12,13 +12,14 @@ services:
     replicas: 1
     port: 8000
     targetPort: 8000
-    
+
   recommendation:
     name: recommendation-service
     image: aym3/chef-recommendation-service:latest
     port: 8000
     targetPort: 8000
     replicas: 1
+
   frontend:
     name: chef-frontend
     image: aym3/chef-frontend:latest
