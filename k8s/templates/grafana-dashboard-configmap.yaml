@@ -2,11 +2,9 @@
 #  ChefMatch — Grafana Dashboards
 #  Namespace: chefmatch
 #
-#  FIX: El path del provisioner ahora apunta a /tmp/dashboards,
-#       que es donde el sidecar de kube-prometheus-stack monta
-#       los ConfigMaps con label grafana_dashboard="1".
-#       Antes apuntaba a /var/lib/grafana/dashboards → Grafana
-#       no encontraba ningún dashboard.
+#  FIX Helm: todos los {{ }} del JSON de Grafana (legendFormat,
+#  variables de template) están escapados con {{ "{{" }} y {{ "}}" }}
+#  para que Helm no los interprete como funciones propias.
 # ================================================================
 
 # ── 1. Dashboard Provisioning Config ─────────────────────────────
@@ -27,15 +25,10 @@ data:
         updateIntervalSeconds: 10
         allowUiUpdates: true
         options:
-          # FIX: era /var/lib/grafana/dashboards — el sidecar de
-          # kube-prometheus-stack monta los ConfigMaps en /tmp/dashboards.
-          # Debe coincidir con grafana.sidecar.dashboards.folder en values.yaml.
           path: /tmp/dashboards
 
 ---
 # ── 2. Dashboard JSON ─────────────────────────────────────────────
-# Label grafana_dashboard: "1" → el sidecar lo detecta y lo monta en /tmp/dashboards
-# Sin wrapper {"dashboard": {...}} — formato correcto para file provisioning.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -79,15 +72,15 @@ data:
           "targets": [
             {
               "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=~\"$job\"}[5m])) by (le, job, route))",
-              "legendFormat": "P50 {{job}} {{route}}"
+              "legendFormat": "P50 {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
             },
             {
               "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=~\"$job\"}[5m])) by (le, job, route))",
-              "legendFormat": "P95 {{job}} {{route}}"
+              "legendFormat": "P95 {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
             },
             {
               "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=~\"$job\"}[5m])) by (le, job, route))",
-              "legendFormat": "P99 {{job}} {{route}}"
+              "legendFormat": "P99 {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
             }
           ],
           "fieldConfig": {
@@ -106,7 +99,7 @@ data:
           "targets": [
             {
               "expr": "sum(rate(http_requests_total{job=~\"$job\"}[5m])) by (job, route)",
-              "legendFormat": "{{job}} {{route}}"
+              "legendFormat": "{{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
             }
           ],
           "fieldConfig": {
@@ -124,11 +117,11 @@ data:
           "targets": [
             {
               "expr": "sum(rate(http_request_errors_total{job=~\"$job\", error_type=\"server_error\"}[5m])) by (job, route)",
-              "legendFormat": "5xx {{job}} {{route}}"
+              "legendFormat": "5xx {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
             },
             {
               "expr": "sum(rate(http_request_errors_total{job=~\"$job\", error_type=\"client_error\"}[5m])) by (job, route)",
-              "legendFormat": "4xx {{job}} {{route}}"
+              "legendFormat": "4xx {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
             },
             {
               "expr": "100 * sum(rate(http_request_errors_total{job=~\"$job\"}[5m])) / sum(rate(http_requests_total{job=~\"$job\"}[5m]))",
@@ -158,7 +151,7 @@ data:
           "targets": [
             {
               "expr": "rate(process_cpu_user_seconds_total{job=~\"$job\"}[5m]) * 100",
-              "legendFormat": "CPU {{job}}"
+              "legendFormat": "CPU {{ "{{" }}job{{ "}}" }}"
             }
           ],
           "fieldConfig": {
@@ -174,7 +167,7 @@ data:
           "targets": [
             {
               "expr": "nodejs_heap_size_used_bytes{job=~\"$job\"} / 1024 / 1024",
-              "legendFormat": "Heap {{job}} (MB)"
+              "legendFormat": "Heap {{ "{{" }}job{{ "}}" }} (MB)"
             }
           ],
           "fieldConfig": {
@@ -190,7 +183,7 @@ data:
           "targets": [
             {
               "expr": "nodejs_eventloop_lag_seconds{job=~\"$job\"} * 1000",
-              "legendFormat": "Event Loop Lag {{job}} (ms)"
+              "legendFormat": "Event Loop Lag {{ "{{" }}job{{ "}}" }} (ms)"
             }
           ],
           "fieldConfig": {
