@@ -192,13 +192,13 @@ spec:
               cpu: "500m"
           livenessProbe:
             httpGet:
-              path: /api/health
+              path: /grafana/api/health
               port: 3000
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /api/health
+              path: /grafana/api/health
               port: 3000
             initialDelaySeconds: 10
             periodSeconds: 5
@@ -236,27 +236,3 @@ spec:
   type: ClusterIP
 
 ---
-# ── 7. Ingress — Grafana en /grafana ─────────────────────────────
-# Acceso: https://ltu-m7011e-5.se/grafana
-# Prioridad 50: por debajo de las APIs (100) pero por encima del frontend (1)
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: grafana-ingress
-  namespace: chefmatch
-  annotations:
-    kubernetes.io/ingress.class: traefik
-    traefik.ingress.kubernetes.io/router.priority: "50"
-spec:
-  ingressClassName: traefik
-  rules:
-    - host: ltu-m7011e-5.se
-      http:
-        paths:
-          - path: /grafana
-            pathType: Prefix
-            backend:
-              service:
-                name: grafana-service
-                port:
-                  number: 3000
