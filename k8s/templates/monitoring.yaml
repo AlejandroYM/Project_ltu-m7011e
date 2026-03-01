@@ -36,7 +36,7 @@ data:
       - job_name: 'recipe-service'
         static_configs:
           - targets: ['recipe-service:8000']
-        metrics_path: /recipes/metrics
+        metrics_path: /metrics
 
       - job_name: 'user-service'
         static_configs:
@@ -46,7 +46,7 @@ data:
       - job_name: 'recommendation-service'
         static_configs:
           - targets: ['recommendation-service:8000']
-        metrics_path: /recommendations/metrics
+        metrics_path: /metrics
 
 ---
 # ── 2. Prometheus — Deployment ───────────────────────────────────
