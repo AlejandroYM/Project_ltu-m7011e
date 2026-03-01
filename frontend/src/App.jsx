@@ -111,7 +111,6 @@ function App() {
   const [selectedImageUrl, setSelectedImageUrl] = useState('');
   const [imageFile, setImageFile]             = useState(null);
 
-  // Recipe index counter for cards
   const [recipeIndex, setRecipeIndex] = useState({});
 
   const cuisines = [
@@ -191,7 +190,6 @@ function App() {
       "banana foster":                  "https://images.unsplash.com/photo-1587314168485-3236d6710814?auto=format&fit=crop&w=800&q=80",
       "beef teriyaki bowl":             "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80",
     };
-    // specificImages takes priority over stored imageUrl to ensure correct matching
     return specificImages[nameKey] || recipe.imageUrl || categoryImages[recipe.category?.toLowerCase()] || categoryImages.default;
   };
 
@@ -206,6 +204,20 @@ function App() {
     } catch {
       toast.error("Error searching images.");
     }
+  };
+
+  // ─────────────────────────────────────────────────────────────────
+  // FIX Bug 3: helper que refresca el token antes de cada llamada.
+  // Si el token expira en menos de 30s lo renueva automáticamente.
+  // Si el refresh también ha expirado, fuerza re-login.
+  // ─────────────────────────────────────────────────────────────────
+  const getValidToken = async () => {
+    try {
+      await keycloak.updateToken(30);
+    } catch {
+      keycloak.login();
+    }
+    return keycloak.token;
   };
 
   useEffect(() => {
@@ -229,21 +241,26 @@ function App() {
   const fetchRecommendations = async (userId, categoryOverride = null) => {
     if (!categoryOverride && !activeCategory) return;
     try {
-      const url = `https://ltu-m7011e-5.se/recommendations/${userId}` +
-        (categoryOverride ? `?category=${categoryOverride}` :
-          activeCategory ? `?category=${activeCategory}` : '');
-      const res = await axios.get(url, { headers: { Authorization: `Bearer ${keycloak.token}` } });
+      // FIX Bug 3: usar token fresco
+      const token = await getValidToken();
+      const category = categoryOverride || activeCategory;
+      const url = `https://ltu-m7011e-5.se/recommendations/${userId}?category=${category}`;
+      const res = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data?.length > 0 && res.data[0] !== "Select a category to see your recommendation.") {
         setRecommendations(res.data);
       }
-    } catch { /* silent */ }
+    } catch (err) {
+      // FIX Bug 2: ya no silenciamos el error
+      console.error('fetchRecommendations error:', err.response?.status, err.response?.data || err.message);
+    }
   };
 
   const fetchData = async (userId) => {
     try {
+      const token = await getValidToken();
       const [resRecipes, userRes] = await Promise.allSettled([
         axios.get('https://ltu-m7011e-5.se/recipes'),
-        axios.get(`/users/${userId}`, { headers: { Authorization: `Bearer ${keycloak.token}` } })
+        axios.get(`/users/${userId}`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
       const data = resRecipes.status === 'fulfilled'
@@ -287,20 +304,38 @@ function App() {
     applyFilters(recipes, t, filterCategory, filterTime, filterRating);
   };
 
+  // ─────────────────────────────────────────────────────────────────
+  // FIX Bug 1: try/catch separados para que un fallo en el POST de
+  // preferencias no impida cargar las recomendaciones ni el meal plan.
+  // ─────────────────────────────────────────────────────────────────
   const updatePreferences = async (newPref) => {
     setActiveCategory(newPref);
     const loadId = toast.loading(`Creating ${newPref} menu...`);
+
+    // 1. Guardar preferencia en el user-service (fallo no bloquea el flujo)
     try {
-      await axios.post('/users/preferences',
+      const token = await getValidToken();
+      await axios.post(
+        '/users/preferences',
         { userId: keycloak.tokenParsed.sub, category: newPref },
-        { headers: { Authorization: `Bearer ${keycloak.token}`, 'Content-Type': 'application/json' } }
+        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
       );
+    } catch (err) {
+      console.error('Error guardando preferencia:', err.response?.status, err.response?.data || err.message);
+      // No hacemos return: seguimos pidiendo recomendaciones igualmente
+    }
+
+    // 2. Pedir recomendaciones siempre, aunque el POST haya fallado
+    try {
       await fetchRecommendations(keycloak.tokenParsed.sub, newPref);
       toast.success(`Monthly meal plan updated!`, { id: loadId });
-      setTimeout(() => fetchData(keycloak.tokenParsed.sub), 1000);
-    } catch {
-      toast.error("Error updating profile", { id: loadId });
+    } catch (err) {
+      console.error('Error fetching recommendations after preference update:', err.message);
+      toast.error("Couldn't load recommendations", { id: loadId });
     }
+
+    // 3. Refrescar datos con pequeño delay para dar tiempo a RabbitMQ
+    setTimeout(() => fetchData(keycloak.tokenParsed.sub), 1000);
   };
 
   const handleCreateRecipe = async (e) => {
@@ -309,13 +344,14 @@ function App() {
     let finalImageUrl = "";
     const loadId = toast.loading("Processing recipe...");
     try {
+      const token = await getValidToken();
       if (imageOption === 'unsplash' && selectedImageUrl) {
         finalImageUrl = selectedImageUrl;
       } else if (imageOption === 'upload' && imageFile) {
         const imgData = new FormData();
         imgData.append('image', imageFile);
         const uploadRes = await axios.post('https://ltu-m7011e-5.se/recipes/upload-image', imgData, {
-          headers: { Authorization: `Bearer ${keycloak.token}`, 'Content-Type': 'multipart/form-data' }
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
         });
         finalImageUrl = uploadRes.data.imageUrl;
       }
@@ -328,7 +364,7 @@ function App() {
         instructions: formData.get('instructions'),
         cookingTime: formData.get('cookingTime'),
         imageUrl: finalImageUrl
-      }, { headers: { Authorization: `Bearer ${keycloak.token}`, 'Content-Type': 'application/json' } });
+      }, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
 
       toast.success("Recipe published!", { id: loadId });
       setShowModal(false);
@@ -344,8 +380,9 @@ function App() {
   const handleDeleteRecipe = async (id) => {
     if (!window.confirm("Are you sure you want to delete this recipe?")) return;
     try {
+      const token = await getValidToken();
       await axios.delete(`https://ltu-m7011e-5.se/recipes/${id}`, {
-        headers: { Authorization: `Bearer ${keycloak.token}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
       toast.success("Recipe deleted!");
       setSelectedRecipe(null);
@@ -362,10 +399,11 @@ function App() {
     }
     setRatingLoading(true);
     try {
+      const token = await getValidToken();
       const res = await axios.post(
         `https://ltu-m7011e-5.se/recipes/${recipeId}/rate`,
         { score },
-        { headers: { Authorization: `Bearer ${keycloak.token}`, 'Content-Type': 'application/json' } }
+        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
       );
       setUserRatings(prev => ({ ...prev, [recipeId]: score }));
       const updated = recipes.map(r =>
@@ -496,6 +534,7 @@ function App() {
           activeCategory={activeCategory}
           recipes={recipes}
           onRecipeClick={(r) => setSelectedRecipe(r)}
+          getValidToken={getValidToken}
         />
 
         {/* EXPLORE BAR */}

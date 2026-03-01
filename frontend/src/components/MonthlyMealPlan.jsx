@@ -2,16 +2,17 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const MonthlyMealPlan = ({ keycloak, activeCategory, recipes, onRecipeClick }) => {
-  const [mealPlan, setMealPlan]       = useState(null);
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
-  const [currentYear, setCurrentYear]   = useState(new Date().getFullYear());
-  const [loading, setLoading]           = useState(true);
-  const [selectedDay, setSelectedDay]   = useState(null);
+// FIX Bug 3: recibe getValidToken como prop desde App.jsx
+const MonthlyMealPlan = ({ keycloak, activeCategory, recipes, onRecipeClick, getValidToken }) => {
+  const [mealPlan, setMealPlan]           = useState(null);
+  const [currentMonth, setCurrentMonth]   = useState(new Date().getMonth() + 1);
+  const [currentYear, setCurrentYear]     = useState(new Date().getFullYear());
+  const [loading, setLoading]             = useState(true);
+  const [selectedDay, setSelectedDay]     = useState(null);
   const [draggedRecipe, setDraggedRecipe] = useState(null);
 
   const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const daysInMonth    = new Date(currentYear, currentMonth, 0).getDate();
+  const daysInMonth     = new Date(currentYear, currentMonth, 0).getDate();
   const firstDayOfMonth = new Date(currentYear, currentMonth - 1, 1).getDay();
 
   useEffect(() => {
@@ -21,14 +22,20 @@ const MonthlyMealPlan = ({ keycloak, activeCategory, recipes, onRecipeClick }) =
   const fetchMealPlan = async () => {
     setLoading(true);
     try {
-      const userId = keycloak.tokenParsed.sub;
+      // FIX Bug 3: usar token fresco en vez de keycloak.token directamente
+      const token = getValidToken
+        ? await getValidToken()
+        : keycloak.token;
+
+      const userId   = keycloak.tokenParsed.sub;
       const catParam = activeCategory ? `?category=${activeCategory}` : '';
       const res = await axios.get(
         `https://ltu-m7011e-5.se/meal-plans/${userId}/${currentMonth}/${currentYear}${catParam}`,
-        { headers: { Authorization: `Bearer ${keycloak.token}` } }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       setMealPlan(res.data);
-    } catch {
+    } catch (err) {
+      console.error('fetchMealPlan error:', err.response?.status, err.response?.data || err.message);
       toast.error('Error loading meal plan');
     } finally {
       setLoading(false);
@@ -53,13 +60,14 @@ const MonthlyMealPlan = ({ keycloak, activeCategory, recipes, onRecipeClick }) =
 
   const updateDay = async (dayNumber, mealType, recipe) => {
     try {
+      const token = getValidToken ? await getValidToken() : keycloak.token;
       const data = {
         [mealType]: { recipeId: recipe._id || recipe.id, recipeName: recipe.name, category: recipe.category }
       };
       await axios.put(
         `https://ltu-m7011e-5.se/meal-plans/${mealPlan._id}/day/${dayNumber}`,
         data,
-        { headers: { Authorization: `Bearer ${keycloak.token}` } }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       const updatedDays = [...mealPlan.days];
       const idx = updatedDays.findIndex(d => d.dayNumber === dayNumber);
@@ -67,7 +75,8 @@ const MonthlyMealPlan = ({ keycloak, activeCategory, recipes, onRecipeClick }) =
       else updatedDays[idx] = { ...updatedDays[idx], ...data };
       setMealPlan({ ...mealPlan, days: updatedDays });
       toast.success(`${recipe.name} added to ${mealType}!`);
-    } catch {
+    } catch (err) {
+      console.error('updateDay error:', err.response?.status, err.response?.data || err.message);
       toast.error('Error updating meal plan');
     }
   };
@@ -75,13 +84,15 @@ const MonthlyMealPlan = ({ keycloak, activeCategory, recipes, onRecipeClick }) =
   const clearDay = async (dayNumber) => {
     if (!window.confirm('Clear all meals for this day?')) return;
     try {
+      const token = getValidToken ? await getValidToken() : keycloak.token;
       await axios.delete(
         `https://ltu-m7011e-5.se/meal-plans/${mealPlan._id}/day/${dayNumber}`,
-        { headers: { Authorization: `Bearer ${keycloak.token}` } }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       setMealPlan({ ...mealPlan, days: mealPlan.days.filter(d => d.dayNumber !== dayNumber) });
       toast.success('Day cleared!');
-    } catch {
+    } catch (err) {
+      console.error('clearDay error:', err.response?.status, err.response?.data || err.message);
       toast.error('Error clearing day');
     }
   };
@@ -235,7 +246,7 @@ const MonthlyMealPlan = ({ keycloak, activeCategory, recipes, onRecipeClick }) =
 
         {/* Day cells */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
-          {/* Empty cells */}
+          {/* Empty offset cells */}
           {Array.from({ length: firstDayOfMonth }, (_, i) => (
             <div key={`e-${i}`} style={{
               minHeight: '110px',

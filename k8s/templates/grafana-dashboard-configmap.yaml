@@ -1,14 +1,12 @@
 # ================================================================
 #  ChefMatch — Grafana Dashboards
-#  Namespace: chefmatch  (corregido — antes estaba en 'default')
+#  Namespace: chefmatch
 #
-#  Recursos:
-#    1. grafana-dashboard-provisioning  → le dice a Grafana dónde leer los JSON
-#    2. grafana-dashboards              → el JSON del dashboard (Four Golden Signals)
-#
-#  Nota sobre el JSON:
-#    El formato correcto para file provisioning es el objeto del dashboard
-#    directamente, SIN el wrapper {"dashboard": {...}} que usa la API REST.
+#  FIX: El path del provisioner ahora apunta a /tmp/dashboards,
+#       que es donde el sidecar de kube-prometheus-stack monta
+#       los ConfigMaps con label grafana_dashboard="1".
+#       Antes apuntaba a /var/lib/grafana/dashboards → Grafana
+#       no encontraba ningún dashboard.
 # ================================================================
 
 # ── 1. Dashboard Provisioning Config ─────────────────────────────
@@ -29,12 +27,15 @@ data:
         updateIntervalSeconds: 10
         allowUiUpdates: true
         options:
-          path: /var/lib/grafana/dashboards
+          # FIX: era /var/lib/grafana/dashboards — el sidecar de
+          # kube-prometheus-stack monta los ConfigMaps en /tmp/dashboards.
+          # Debe coincidir con grafana.sidecar.dashboards.folder en values.yaml.
+          path: /tmp/dashboards
 
 ---
 # ── 2. Dashboard JSON ─────────────────────────────────────────────
-# ⚠️  Sin wrapper {"dashboard": {...}} — ese formato es solo para la API REST.
-#     Para file provisioning el JSON empieza directamente con {"title": ...}
+# Label grafana_dashboard: "1" → el sidecar lo detecta y lo monta en /tmp/dashboards
+# Sin wrapper {"dashboard": {...}} — formato correcto para file provisioning.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -78,15 +79,15 @@ data:
           "targets": [
             {
               "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=~\"$job\"}[5m])) by (le, job, route))",
-              "legendFormat": "P50 {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
+              "legendFormat": "P50 {{job}} {{route}}"
             },
             {
               "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=~\"$job\"}[5m])) by (le, job, route))",
-              "legendFormat": "P95 {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
+              "legendFormat": "P95 {{job}} {{route}}"
             },
             {
               "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=~\"$job\"}[5m])) by (le, job, route))",
-              "legendFormat": "P99 {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
+              "legendFormat": "P99 {{job}} {{route}}"
             }
           ],
           "fieldConfig": {
@@ -105,7 +106,7 @@ data:
           "targets": [
             {
               "expr": "sum(rate(http_requests_total{job=~\"$job\"}[5m])) by (job, route)",
-              "legendFormat": "{{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
+              "legendFormat": "{{job}} {{route}}"
             }
           ],
           "fieldConfig": {
@@ -123,11 +124,11 @@ data:
           "targets": [
             {
               "expr": "sum(rate(http_request_errors_total{job=~\"$job\", error_type=\"server_error\"}[5m])) by (job, route)",
-              "legendFormat": "5xx {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
+              "legendFormat": "5xx {{job}} {{route}}"
             },
             {
               "expr": "sum(rate(http_request_errors_total{job=~\"$job\", error_type=\"client_error\"}[5m])) by (job, route)",
-              "legendFormat": "4xx {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
+              "legendFormat": "4xx {{job}} {{route}}"
             },
             {
               "expr": "100 * sum(rate(http_request_errors_total{job=~\"$job\"}[5m])) / sum(rate(http_requests_total{job=~\"$job\"}[5m]))",
@@ -157,7 +158,7 @@ data:
           "targets": [
             {
               "expr": "rate(process_cpu_user_seconds_total{job=~\"$job\"}[5m]) * 100",
-              "legendFormat": "CPU {{ "{{" }}job{{ "}}" }}"
+              "legendFormat": "CPU {{job}}"
             }
           ],
           "fieldConfig": {
@@ -173,7 +174,7 @@ data:
           "targets": [
             {
               "expr": "nodejs_heap_size_used_bytes{job=~\"$job\"} / 1024 / 1024",
-              "legendFormat": "Heap {{ "{{" }}job{{ "}}" }} (MB)"
+              "legendFormat": "Heap {{job}} (MB)"
             }
           ],
           "fieldConfig": {
@@ -189,7 +190,7 @@ data:
           "targets": [
             {
               "expr": "nodejs_eventloop_lag_seconds{job=~\"$job\"} * 1000",
-              "legendFormat": "Event Loop Lag {{ "{{" }}job{{ "}}" }} (ms)"
+              "legendFormat": "Event Loop Lag {{job}} (ms)"
             }
           ],
           "fieldConfig": {
