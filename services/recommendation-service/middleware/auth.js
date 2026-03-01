@@ -1,10 +1,8 @@
 const jwt = require('jsonwebtoken');
 const jwksClient = require('jwks-rsa');
 
-// Configuración de Keycloak desde variables de entorno
-const KEYCLOAK_URL = process.env.KEYCLOAK_URL || 'https://keycloak.ltu-m7011e-5.se';
+const KEYCLOAK_URL   = process.env.KEYCLOAK_URL   || 'https://keycloak.ltu-m7011e-5.se';
 const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM || 'ChefMatchRealm';
-const KEYCLOAK_CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID || 'account';
 
 const client = jwksClient({
   jwksUri: `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs`,
@@ -15,44 +13,35 @@ const client = jwksClient({
 
 function getKey(header, callback) {
   client.getSigningKey(header.kid, (err, key) => {
-    if (err) {
-      return callback(err);
-    }
-    const signingKey = key.getPublicKey();
-    callback(null, signingKey);
+    if (err) return callback(err);
+    callback(null, key.getPublicKey());
   });
 }
 
 const authenticateJWT = (req, res, next) => {
   const authHeader = req.headers.authorization;
-  
-  if (!authHeader) {
-    return res.status(401).json({ error: 'No authorization header' });
-  }
+
+  if (!authHeader) return res.status(401).json({ error: 'No authorization header' });
 
   const token = authHeader.split(' ')[1];
-  
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
+  if (!token) return res.status(401).json({ error: 'No token provided' });
 
   jwt.verify(token, getKey, {
-    audience: KEYCLOAK_CLIENT_ID,
     issuer: `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`,
     algorithms: ['RS256']
+    // audience eliminado: el token de frontend-client no coincide con
+    // KEYCLOAK_CLIENT_ID y causaba 401 en todos los endpoints protegidos
   }, (err, decoded) => {
     if (err) {
       console.error('JWT verification failed:', err.message);
       return res.status(401).json({ error: 'Invalid token' });
     }
-
     req.user = {
-      sub: decoded.sub,
-      email: decoded.email,
+      sub:                decoded.sub,
+      email:              decoded.email,
       preferred_username: decoded.preferred_username,
-      realm_access: decoded.realm_access
+      realm_access:       decoded.realm_access
     };
-
     next();
   });
 };
