@@ -2,9 +2,9 @@
 #  ChefMatch — Grafana Dashboards
 #  Namespace: chefmatch
 #
-#  FIX Helm: todos los {{ }} del JSON de Grafana (legendFormat,
-#  variables de template) están escapados con {{ "{{" }} y {{ "}}" }}
-#  para que Helm no los interprete como funciones propias.
+#  FIX Helm: los delimitadores de Grafana en legendFormat estan
+#  escapados con la sintaxis de Go template para que Helm no los
+#  interprete como funciones propias.
 # ================================================================
 
 # ── 1. Dashboard Provisioning Config ─────────────────────────────
