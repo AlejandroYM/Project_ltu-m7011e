@@ -1,4 +1,20 @@
 ---
+# advanced.config — formato Erlang nativo, SIEMPRE cargado por RabbitMQ
+# Es la forma más fiable de setear management.path_prefix
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-advanced-config
+  namespace: chefmatch
+data:
+  advanced.config: |
+    [
+      {rabbitmq_management, [
+        {path_prefix, "/rabbitmq"}
+      ]}
+    ].
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -25,10 +41,14 @@ spec:
           value: "admin"
         - name: RABBITMQ_DEFAULT_PASS
           value: "admin"
-        # Erlang args — forma fiable de setear el path prefix en K8s
-        # Los << >> son la sintaxis Erlang para strings binarios
-        - name: RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS
-          value: "-rabbitmq_management path_prefix <<\"/rabbitmq\">>"
+        volumeMounts:
+        - name: rabbitmq-advanced-config
+          mountPath: /etc/rabbitmq/advanced.config
+          subPath: advanced.config
+      volumes:
+      - name: rabbitmq-advanced-config
+        configMap:
+          name: rabbitmq-advanced-config
 
 ---
 apiVersion: v1
