@@ -67,23 +67,10 @@ spec:
               number: 80
 
 ---
-# Middleware: elimina el prefijo /rabbitmq antes de enviar la petición al pod.
-# Sin esto, RabbitMQ recibe /rabbitmq/api/... y no encuentra el recurso
-# porque internamente ya sabe que está montado en /rabbitmq (path_prefix).
-# El nombre del middleware en la anotación sigue el patrón:
-#   <namespace>-<metadata.name>@kubernetescrd
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: rabbitmq-stripprefix
-  namespace: chefmatch
-spec:
-  stripPrefix:
-    prefixes:
-      - /rabbitmq
-
----
-# Ingress 3: RabbitMQ Management UI en /rabbitmq
+# Ingress 3: RabbitMQ Management UI
+# RabbitMQ ya sabe que está en /rabbitmq (management.path_prefix en rabbitmq.conf)
+# así que genera todos sus assets como /rabbitmq/js/... — NO necesitamos StripPrefix.
+# StripPrefix + path_prefix simultáneos rompen los assets JS.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -92,8 +79,6 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: traefik
     traefik.ingress.kubernetes.io/router.priority: "50"
-    # Aplica el middleware StripPrefix para quitar /rabbitmq antes de llegar al pod
-    traefik.ingress.kubernetes.io/router.middlewares: chefmatch-rabbitmq-stripprefix@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
@@ -107,3 +92,27 @@ spec:
             name: rabbitmq-service
             port:
               number: 15672
+
+---
+# Ingress 4: Grafana en /grafana
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-ingress
+  namespace: chefmatch
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.priority: "50"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: ltu-m7011e-5.se
+      http:
+        paths:
+          - path: /grafana
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana-service
+                port:
+                  number: 3000

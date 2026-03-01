@@ -1,3 +1,19 @@
+---
+# ConfigMap con la configuración de RabbitMQ
+# Usamos rabbitmq.conf en vez de RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS
+# porque el formato Erlang de ERL_ARGS es propenso a errores de parsing.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-config
+  namespace: chefmatch
+data:
+  rabbitmq.conf: |
+    default_user = admin
+    default_pass = admin
+    management.path_prefix = /rabbitmq
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -20,14 +36,16 @@ spec:
         - containerPort: 5672
         - containerPort: 15672
         env:
-        # Forma moderna y fiable de configurar el path prefix de la UI
-        # Evita problemas de parsing con RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS
-        - name: RABBITMQ_DEFAULT_USER
-          value: "admin"
-        - name: RABBITMQ_DEFAULT_PASS
-          value: "admin"
-        - name: RABBITMQ_MANAGEMENT_PATH_PREFIX
-          value: "/rabbitmq"
+        - name: RABBITMQ_CONFIG_FILE
+          value: /etc/rabbitmq/rabbitmq.conf
+        volumeMounts:
+        - name: rabbitmq-config
+          mountPath: /etc/rabbitmq/rabbitmq.conf
+          subPath: rabbitmq.conf
+      volumes:
+      - name: rabbitmq-config
+        configMap:
+          name: rabbitmq-config
 
 ---
 apiVersion: v1

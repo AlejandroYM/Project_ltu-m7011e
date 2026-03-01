@@ -1,13 +1,9 @@
 # ================================================================
 #  ChefMatch — Grafana Dashboards
-#  Namespace: chefmatch
-#
-#  FIX Helm: los delimitadores de Grafana en legendFormat estan
-#  escapados con la sintaxis de Go template para que Helm no los
-#  interprete como funciones propias.
+#  FIX: datasource referenciado por uid en cada panel para evitar
+#  el "No data" cuando el nombre no coincide exactamente.
 # ================================================================
 
-# ── 1. Dashboard Provisioning Config ─────────────────────────────
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -28,7 +24,6 @@ data:
           path: /tmp/dashboards
 
 ---
-# ── 2. Dashboard JSON ─────────────────────────────────────────────
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -39,91 +34,91 @@ metadata:
 data:
   four-golden-signals.json: |
     {
+      "id": null,
+      "uid": "chefmatch-golden",
       "title": "ChefMatch - Four Golden Signals",
-      "tags": ["chefmatch", "microservices", "sre"],
+      "tags": ["chefmatch"],
       "timezone": "browser",
       "refresh": "30s",
-      "schemaVersion": 27,
-      "time": {
-        "from": "now-1h",
-        "to": "now"
-      },
+      "schemaVersion": 36,
+      "time": { "from": "now-1h", "to": "now" },
       "templating": {
         "list": [
           {
             "name": "job",
             "type": "query",
-            "datasource": "Prometheus",
-            "query": "label_values(http_requests_total, job)",
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "query": { "query": "label_values(http_requests_total, job)", "refId": "A" },
             "label": "Service",
             "refresh": 2,
             "includeAll": true,
-            "allValue": ".*"
+            "allValue": ".*",
+            "current": {}
           }
         ]
       },
       "panels": [
         {
           "id": 1,
-          "title": "🚦 GOLDEN SIGNAL 1: LATENCY — Response Time P50/P95/P99",
+          "title": "LATENCY - Response Time P50/P95/P99",
           "type": "timeseries",
           "gridPos": { "x": 0, "y": 0, "w": 24, "h": 8 },
-          "datasource": "Prometheus",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
+              "refId": "A",
               "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=~\"$job\"}[5m])) by (le, job, route))",
-              "legendFormat": "P50 {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
+              "legendFormat": "P50 {{job}} {{route}}"
             },
             {
+              "refId": "B",
               "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=~\"$job\"}[5m])) by (le, job, route))",
-              "legendFormat": "P95 {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
+              "legendFormat": "P95 {{job}} {{route}}"
             },
             {
+              "refId": "C",
               "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=~\"$job\"}[5m])) by (le, job, route))",
-              "legendFormat": "P99 {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
+              "legendFormat": "P99 {{job}} {{route}}"
             }
           ],
           "fieldConfig": {
-            "defaults": {
-              "unit": "s",
-              "custom": { "lineWidth": 2 }
-            }
+            "defaults": { "unit": "s", "custom": { "lineWidth": 2 } }
           }
         },
         {
           "id": 2,
-          "title": "📈 GOLDEN SIGNAL 2: TRAFFIC — Requests per Second",
+          "title": "TRAFFIC - Requests per Second",
           "type": "timeseries",
           "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
-          "datasource": "Prometheus",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
+              "refId": "A",
               "expr": "sum(rate(http_requests_total{job=~\"$job\"}[5m])) by (job, route)",
-              "legendFormat": "{{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
+              "legendFormat": "{{job}} {{route}}"
             }
           ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "reqps"
-            }
-          }
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
         },
         {
           "id": 3,
-          "title": "❌ GOLDEN SIGNAL 3: ERRORS — Error Rate",
+          "title": "ERRORS - Error Rate",
           "type": "timeseries",
           "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
-          "datasource": "Prometheus",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(rate(http_request_errors_total{job=~\"$job\", error_type=\"server_error\"}[5m])) by (job, route)",
-              "legendFormat": "5xx {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
+              "refId": "A",
+              "expr": "sum(rate(http_request_errors_total{job=~\"$job\",error_type=\"server_error\"}[5m])) by (job, route)",
+              "legendFormat": "5xx {{job}} {{route}}"
             },
             {
-              "expr": "sum(rate(http_request_errors_total{job=~\"$job\", error_type=\"client_error\"}[5m])) by (job, route)",
-              "legendFormat": "4xx {{ "{{" }}job{{ "}}" }} {{ "{{" }}route{{ "}}" }}"
+              "refId": "B",
+              "expr": "sum(rate(http_request_errors_total{job=~\"$job\",error_type=\"client_error\"}[5m])) by (job, route)",
+              "legendFormat": "4xx {{job}} {{route}}"
             },
             {
+              "refId": "C",
               "expr": "100 * sum(rate(http_request_errors_total{job=~\"$job\"}[5m])) / sum(rate(http_requests_total{job=~\"$job\"}[5m]))",
               "legendFormat": "Error Rate %"
             }
@@ -134,8 +129,8 @@ data:
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": 0,  "color": "green" },
-                  { "value": 5,  "color": "yellow" },
+                  { "value": 0, "color": "green" },
+                  { "value": 5, "color": "yellow" },
                   { "value": 10, "color": "red" }
                 ]
               }
@@ -144,62 +139,59 @@ data:
         },
         {
           "id": 4,
-          "title": "💾 GOLDEN SIGNAL 4: SATURATION — CPU Usage",
+          "title": "SATURATION - CPU Usage",
           "type": "timeseries",
           "gridPos": { "x": 0, "y": 16, "w": 8, "h": 6 },
-          "datasource": "Prometheus",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
+              "refId": "A",
               "expr": "rate(process_cpu_user_seconds_total{job=~\"$job\"}[5m]) * 100",
-              "legendFormat": "CPU {{ "{{" }}job{{ "}}" }}"
+              "legendFormat": "CPU {{job}}"
             }
           ],
-          "fieldConfig": {
-            "defaults": { "unit": "percent" }
-          }
+          "fieldConfig": { "defaults": { "unit": "percent" } }
         },
         {
           "id": 5,
-          "title": "💾 SATURATION — Heap Memory Used",
+          "title": "SATURATION - Heap Memory Used",
           "type": "timeseries",
           "gridPos": { "x": 8, "y": 16, "w": 8, "h": 6 },
-          "datasource": "Prometheus",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
+              "refId": "A",
               "expr": "nodejs_heap_size_used_bytes{job=~\"$job\"} / 1024 / 1024",
-              "legendFormat": "Heap {{ "{{" }}job{{ "}}" }} (MB)"
+              "legendFormat": "Heap {{job}} MB"
             }
           ],
-          "fieldConfig": {
-            "defaults": { "unit": "decmbytes" }
-          }
+          "fieldConfig": { "defaults": { "unit": "decmbytes" } }
         },
         {
           "id": 6,
-          "title": "💾 SATURATION — Event Loop Lag",
+          "title": "SATURATION - Event Loop Lag",
           "type": "timeseries",
           "gridPos": { "x": 16, "y": 16, "w": 8, "h": 6 },
-          "datasource": "Prometheus",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
+              "refId": "A",
               "expr": "nodejs_eventloop_lag_seconds{job=~\"$job\"} * 1000",
-              "legendFormat": "Event Loop Lag {{ "{{" }}job{{ "}}" }} (ms)"
+              "legendFormat": "EventLoop {{job}} ms"
             }
           ],
-          "fieldConfig": {
-            "defaults": { "unit": "ms" }
-          }
+          "fieldConfig": { "defaults": { "unit": "ms" } }
         },
         {
           "id": 7,
-          "title": "🟢 Service Health — Up/Down",
+          "title": "Service Health - Up/Down",
           "type": "stat",
           "gridPos": { "x": 0, "y": 22, "w": 24, "h": 4 },
-          "datasource": "Prometheus",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
-            { "expr": "up{job=\"recipe-service\"}",         "legendFormat": "Recipe Service" },
-            { "expr": "up{job=\"user-service\"}",           "legendFormat": "User Service" },
-            { "expr": "up{job=\"recommendation-service\"}", "legendFormat": "Recommendation Service" }
+            { "refId": "A", "expr": "up{job=\"recipe-service\"}",         "legendFormat": "Recipe Service" },
+            { "refId": "B", "expr": "up{job=\"user-service\"}",           "legendFormat": "User Service" },
+            { "refId": "C", "expr": "up{job=\"recommendation-service\"}", "legendFormat": "Recommendation Service" }
           ],
           "options": {
             "graphMode": "none",
@@ -210,7 +202,7 @@ data:
             "defaults": {
               "mappings": [
                 { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" } } },
-                { "type": "value", "options": { "1": { "text": "UP",   "color": "green" } } }
+                { "type": "value", "options": { "1": { "text": "UP", "color": "green" } } }
               ],
               "thresholds": {
                 "mode": "absolute",
