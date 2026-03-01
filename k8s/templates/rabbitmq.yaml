@@ -20,9 +20,14 @@ spec:
         - containerPort: 5672
         - containerPort: 15672
         env:
-        # Necesario para que la UI funcione detrás del path /rabbitmq del ingress
-        - name: RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS
-          value: "-rabbitmq_management path_prefix \"/rabbitmq\""
+        # Forma moderna y fiable de configurar el path prefix de la UI
+        # Evita problemas de parsing con RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS
+        - name: RABBITMQ_DEFAULT_USER
+          value: "admin"
+        - name: RABBITMQ_DEFAULT_PASS
+          value: "admin"
+        - name: RABBITMQ_MANAGEMENT_PATH_PREFIX
+          value: "/rabbitmq"
 
 ---
 apiVersion: v1

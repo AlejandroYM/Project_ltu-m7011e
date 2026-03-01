@@ -16,8 +16,6 @@ const Rating   = require('./models/Rating');
 const MealPlan = require('./models/MealPlan');
 require('dotenv').config();
 
-
-
 // ── Prometheus ────────────────────────────────────────────────────
 client.collectDefaultMetrics({ timeout: 5000 });
 const httpRequestDuration = new client.Histogram({ name:'http_request_duration_seconds', help:'Duration', labelNames:['method','route','status_code'], buckets:[0.005,0.01,0.025,0.05,0.1,0.25,0.5,1,2.5,5] });
@@ -30,9 +28,6 @@ app.use((req,res,next)=>{
 });
 
 // ── Seed data ─────────────────────────────────────────────────────
-// Recipes are stored directly in MongoDB — import via recipes.json using MongoDB Compass
-
-
 async function autoSeed() {
   try {
     const count = await Recipe.countDocuments();
@@ -64,7 +59,7 @@ async function listenForUserEvents() {
           await Promise.all([
             Recipe.deleteMany({ userId: event.userId }),
             MealPlan.deleteMany({ userId: event.userId }),
-            Rating.deleteMany({ userId: event.userId })   // cascada de ratings
+            Rating.deleteMany({ userId: event.userId })
           ]);
         }
         channel.ack(msg);
@@ -104,8 +99,6 @@ app.get('/recipes', async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Error fetching recipes' }); }
 });
 
-
-
 app.post('/recipes', authenticateJWT, async (req, res) => {
   try {
     const recipe = new Recipe({ ...req.body, userId: req.user.sub });
@@ -114,7 +107,6 @@ app.post('/recipes', authenticateJWT, async (req, res) => {
   } catch (err) { res.status(400).json({ error: 'Error saving recipe', details: err.message }); }
 });
 
-// ✅ DELETE — solo el autor puede borrar + cascada en Rating
 app.delete('/recipes/:id', authenticateJWT, async (req, res) => {
   try {
     const { id } = req.params;
@@ -127,7 +119,6 @@ app.delete('/recipes/:id', authenticateJWT, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Error deleting recipe' }); }
 });
 
-// ✅ RATE — colección Rating separada, una valoración por usuario por receta
 app.post('/recipes/:id/rate', authenticateJWT, async (req, res) => {
   try {
     const { id } = req.params;
@@ -220,8 +211,11 @@ app.get('/meal-plans/user/:userId', authenticateJWT, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Internal server error' }); }
 });
 
-// ── Prometheus ────────────────────────────────────────────────────
-app.get('/metrics', authenticateJWT, async (req, res) => { res.set('Content-Type', client.register.contentType); res.end(await client.register.metrics()); });
+// ── Prometheus metrics — SIN autenticación para que Prometheus pueda hacer scrape ──
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', client.register.contentType);
+  res.end(await client.register.metrics());
+});
 
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => console.log(`Server on port ${PORT}`));
