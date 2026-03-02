@@ -14,8 +14,6 @@ spec:
       labels:
         app: rabbitmq
     spec:
-      # El init container escribe advanced.config en un volumen compartido
-      # ANTES de que RabbitMQ arranque — garantiza que el config se carga
       initContainers:
       - name: write-config
         image: busybox:1.36
@@ -26,9 +24,10 @@ spec:
           echo '[{rabbitmq_management, [{path_prefix, "/rabbitmq"}]}].' > /mnt/rabbitmq-config/advanced.config
           echo "default_user = admin" > /mnt/rabbitmq-config/rabbitmq.conf
           echo "default_pass = admin" >> /mnt/rabbitmq-config/rabbitmq.conf
-          echo "Config written:"
+          echo "[rabbitmq_management]." > /mnt/rabbitmq-config/enabled_plugins
+          echo "Files written:"
+          cat /mnt/rabbitmq-config/enabled_plugins
           cat /mnt/rabbitmq-config/advanced.config
-          cat /mnt/rabbitmq-config/rabbitmq.conf
         volumeMounts:
         - name: rabbitmq-config-dir
           mountPath: /mnt/rabbitmq-config
