@@ -21,13 +21,14 @@ spec:
         - sh
         - -c
         - |
-          echo '[{rabbitmq_management, [{path_prefix, "/rabbitmq"}]}].' > /mnt/rabbitmq-config/advanced.config
+          cat > /mnt/rabbitmq-config/advanced.config << 'ERLANG'
+          [{rabbitmq_management, [{path_prefix, <<"/rabbitmq">>}]}].
+          ERLANG
           echo "default_user = admin" > /mnt/rabbitmq-config/rabbitmq.conf
           echo "default_pass = admin" >> /mnt/rabbitmq-config/rabbitmq.conf
           echo "[rabbitmq_management]." > /mnt/rabbitmq-config/enabled_plugins
-          echo "Files written:"
-          cat /mnt/rabbitmq-config/enabled_plugins
-          cat /mnt/rabbitmq-config/advanced.config
+          echo "=== advanced.config ===" && cat /mnt/rabbitmq-config/advanced.config
+          echo "=== enabled_plugins ===" && cat /mnt/rabbitmq-config/enabled_plugins
         volumeMounts:
         - name: rabbitmq-config-dir
           mountPath: /mnt/rabbitmq-config
