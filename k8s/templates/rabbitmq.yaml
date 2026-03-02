@@ -1,20 +1,4 @@
 ---
-# advanced.config — formato Erlang nativo, SIEMPRE cargado por RabbitMQ
-# Es la forma más fiable de setear management.path_prefix
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: rabbitmq-advanced-config
-  namespace: chefmatch
-data:
-  advanced.config: |
-    [
-      {rabbitmq_management, [
-        {path_prefix, "/rabbitmq"}
-      ]}
-    ].
-
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -30,6 +14,24 @@ spec:
       labels:
         app: rabbitmq
     spec:
+      # El init container escribe advanced.config en un volumen compartido
+      # ANTES de que RabbitMQ arranque — garantiza que el config se carga
+      initContainers:
+      - name: write-config
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          echo '[{rabbitmq_management, [{path_prefix, "/rabbitmq"}]}].' > /mnt/rabbitmq-config/advanced.config
+          echo "default_user = admin" > /mnt/rabbitmq-config/rabbitmq.conf
+          echo "default_pass = admin" >> /mnt/rabbitmq-config/rabbitmq.conf
+          echo "Config written:"
+          cat /mnt/rabbitmq-config/advanced.config
+          cat /mnt/rabbitmq-config/rabbitmq.conf
+        volumeMounts:
+        - name: rabbitmq-config-dir
+          mountPath: /mnt/rabbitmq-config
       containers:
       - name: rabbitmq
         image: rabbitmq:3-management
@@ -37,18 +39,16 @@ spec:
         - containerPort: 5672
         - containerPort: 15672
         env:
-        - name: RABBITMQ_DEFAULT_USER
-          value: "admin"
-        - name: RABBITMQ_DEFAULT_PASS
-          value: "admin"
+        - name: RABBITMQ_CONFIG_FILE
+          value: /etc/rabbitmq/rabbitmq.conf
+        - name: RABBITMQ_ADVANCED_CONFIG_FILE
+          value: /etc/rabbitmq/advanced.config
         volumeMounts:
-        - name: rabbitmq-advanced-config
-          mountPath: /etc/rabbitmq/advanced.config
-          subPath: advanced.config
+        - name: rabbitmq-config-dir
+          mountPath: /etc/rabbitmq
       volumes:
-      - name: rabbitmq-advanced-config
-        configMap:
-          name: rabbitmq-advanced-config
+      - name: rabbitmq-config-dir
+        emptyDir: {}
 
 ---
 apiVersion: v1
