@@ -267,7 +267,7 @@ const swaggerDocument = {
   components: { securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } } }
 };
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.use('/recommendations/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // ============================================
 // GET /recommendations/:userId
 //

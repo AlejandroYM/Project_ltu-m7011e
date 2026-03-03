@@ -147,7 +147,7 @@ const swaggerDocument = {
   components: { securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } } }
 };
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.use('/recipes/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // ── RECIPE ENDPOINTS ──────────────────────────────────────────────
 app.get('/recipes', async (req, res) => {
   try {
