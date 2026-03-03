@@ -9,7 +9,7 @@ const ratingSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Un usuario solo puede valorar una receta una vez
+// A user can only rate a recipe once
 ratingSchema.index({ userId: 1, recipeId: 1 }, { unique: true });
 
 module.exports = mongoose.model('Rating', ratingSchema);

@@ -39,10 +39,10 @@ jest.mock('../models/Rating', () => {
   return MockRating;
 });
 
-// ⚠️  IMPORTANTE: el auth.js real del recipe-service devuelve:
-//     sin header  → 401
-//     token malo  → 403   ← NO es 401, es 403 (ver middleware/auth.js línea ~50)
-//     token bueno → next()
+// Important: the real auth.js in recipe-service returns:
+//     no header  → 401
+//     bad token  → 403   ← NOT 401, it's 403 (see middleware/auth.js line ~50)
+//     good token → next()
 jest.mock('../middleware/auth', () => ({
   authenticateJWT: (req, res, next) => {
     const header = req.headers.authorization;
@@ -305,7 +305,7 @@ describe('Recipe Service – Full API Tests (REQ5, REQ7)', () => {
     });
   });
 
-  // ── Ruta desconocida ───────────────────────────────────────────────────────
+  // ── Unknown routes ───────────────────────────────────────────────────────
   describe('Unknown routes', () => {
     it('returns 404 for non-existent path', async () => {
       const res = await request(app).get('/api/v99/fantasy');

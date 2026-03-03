@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-// FIX Bug 3: recibe getValidToken como prop desde App.jsx
+// FIX Bug 3: recibes getValidToken like prop from App.jsx
 const MonthlyMealPlan = ({ keycloak, activeCategory, recipes, onRecipeClick, getValidToken }) => {
   const [mealPlan, setMealPlan]           = useState(null);
   const [currentMonth, setCurrentMonth]   = useState(new Date().getMonth() + 1);
@@ -22,7 +22,7 @@ const MonthlyMealPlan = ({ keycloak, activeCategory, recipes, onRecipeClick, get
   const fetchMealPlan = async () => {
     setLoading(true);
     try {
-      // FIX Bug 3: usar token fresco en vez de keycloak.token directamente
+      // FIX Bug 3: use a fresh token instead of keycloak.token directly, to avoid 401 errors after token expiration
       const token = getValidToken
         ? await getValidToken()
         : keycloak.token;

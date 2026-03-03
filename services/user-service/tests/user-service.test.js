@@ -1,8 +1,6 @@
 // services/user-service/tests/user-service.test.js
-//
-// Tests del user-service.
-// Cubren los endpoints de perfil con casos de éxito y de fallo.
-//
+// Tests for user-service API 
+// Fills the endpoints related to user profile management, including authentication scenarios and error handling.
 const request = require('supertest');
 const express = require('express');
 
@@ -27,8 +25,8 @@ jest.mock('amqplib', () => ({
 
 jest.mock('dotenv', () => ({ config: jest.fn() }));
 
-// Mock del User model — importamos el real para no romper el schema,
-// pero mockeamos los métodos estáticos y de instancia
+// Mock for User model: we keep the real constructor to preserve schema validation,
+// but mock static methods and instance methods.
 jest.mock('../models/User', () => {
   function MockUser(data) {
     Object.assign(this, data);
@@ -40,17 +38,17 @@ jest.mock('../models/User', () => {
   MockUser.findByKeycloakId  = jest.fn();
   MockUser.prototype.save   = jest.fn().mockResolvedValue(undefined);
 
-  // validatePreferences es un método de instancia del modelo real
+  // validatePreferences is a method of the real model instance
   MockUser.prototype.validatePreferences = jest.fn().mockReturnValue(true);
 
   return MockUser;
 });
 
-// ⚠️  IMPORTANTE: ajustar el mock al comportamiento real del auth.js del user-service.
-//     Por consistencia con el resto del proyecto usamos el mismo patrón JWKS:
-//     sin header  → 401
-//     token malo  → 401  (el verificador JWKS devuelve error y retorna 401)
-//     token bueno → next()
+// IMPORTANT: adjust the mock to match the real behavior of auth.js in user-service.
+// For consistency with the rest of the project, we use the same JWKS pattern:
+//     no header  → 401
+//     bad token  → 401  (JWKS verifier throws error and returns 401)
+//     good token → next()
 jest.mock('../middleware/auth', () => ({
   authenticateJWT: (req, res, next) => {
     const header = req.headers.authorization;
@@ -253,7 +251,7 @@ describe('User Service – API Tests (REQ5, REQ7)', () => {
       const res = await request(app)
         .put('/users/profile')
         .set('Authorization', 'Bearer valid-token')
-        .send({}); // body vacío
+        .send({}); // empty body, no preferences
       expect(res.status).toBe(400);
       expect(res.body.error).toBe('Missing required field: preferences');
     });
@@ -286,7 +284,7 @@ describe('User Service – API Tests (REQ5, REQ7)', () => {
     });
   });
 
-  // ── Ruta desconocida ───────────────────────────────────────────────────────
+  // ── Unknown route ───────────────────────────────────────────────────────
   describe('Unknown routes', () => {
     it('returns 404 for non-existent path', async () => {
       const res = await request(app).get('/api/v1/fantasy-route');

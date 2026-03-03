@@ -1,20 +1,20 @@
-# Usamos una imagen ligera de Node.js
+# We use a lightweight Node.js image
 FROM node:18-slim
 
-# Directorio de trabajo
+# Work directory inside the container
 WORKDIR /usr/src/app
 
-# Copiamos solo los archivos de dependencias primero para aprovechar el cache
+# We copy only the dependency files first to leverage caching
 COPY package*.json ./
 
-# Instalamos dependencias (solo producción para que sea ligero)
+# Install dependencies (only production to keep it lightweight)
 RUN npm install --only=production
 
-# Copiamos el resto del código
+# Copy the rest of the application code to the container
 COPY . .
 
-# Exponemos el puerto definido en tu server.js
+# Expose the port defined in your server.js
 EXPOSE 8000
 
-# Comando para arrancar el servicio
+# Command to start the service with debugging enabled for keycloak-connect
 CMD ["sh", "-c", "DEBUG=keycloak-connect:* node server.js"]

@@ -29,8 +29,8 @@ const authenticateJWT = (req, res, next) => {
   jwt.verify(token, getKey, {
     issuer: `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`,
     algorithms: ['RS256']
-    // audience eliminado: el token de frontend-client no coincide con
-    // KEYCLOAK_CLIENT_ID y causaba 401 en todos los endpoints protegidos
+    // removed audience check because the token from frontend-client doesn't 
+    // match KEYCLOAK_CLIENT_ID and caused 401 on all protected endpoints
   }, (err, decoded) => {
     if (err) {
       console.error('JWT verification failed:', err.message);

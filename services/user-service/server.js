@@ -119,20 +119,20 @@ connectRabbit();
 // ============================================
 const userRouter = express.Router();
 
-// ✅ GET /users/:id — obtener o crear usuario en MongoDB
-// Arregla el 404 que aparecía en la consola del frontend
+// GET /users/:id — obtain or create user in MongoDB
+// Fixes the 404 that appeared in the frontend console
 userRouter.get('/:id', authenticateJWT, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Solo el propio usuario puede ver su perfil
+    // Only the user themselves can view their profile
     if (req.user.sub !== id) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
     let user = await User.findByKeycloakId(id);
 
-    // Si no existe todavía lo creamos (upsert en el primer acceso)
+    // If the user doesn't exist, we create it (upsert on first access)
     if (!user) {
       user = new User({
         keycloakId: id,
@@ -157,7 +157,7 @@ userRouter.get('/:id', authenticateJWT, async (req, res) => {
   }
 });
 
-// ✅ POST /users/preferences — guardar en MongoDB + publicar en RabbitMQ
+// POST /users/preferences - save to MongoDB + publish to RabbitMQ
 userRouter.post('/preferences', authenticateJWT, async (req, res) => {
   try {
     const userId   = req.user.sub;
@@ -165,7 +165,7 @@ userRouter.post('/preferences', authenticateJWT, async (req, res) => {
 
     if (!category) return res.status(400).json({ error: 'Falta el campo category' });
 
-    // Upsert: actualizar o crear
+    // Upsert: update if exists, otherwise create
     let user = await User.findByKeycloakId(userId);
     if (!user) {
       user = new User({
@@ -179,7 +179,7 @@ userRouter.post('/preferences', authenticateJWT, async (req, res) => {
     await user.save();
     console.log(`✅ Preferencias guardadas en MongoDB para ${userId}: ${category}`);
 
-    // Publicar en RabbitMQ para que otros servicios reaccionen
+    // Publicate in RabbitMQ so other services can react
     const message = {
       userId,
       category,
@@ -198,13 +198,14 @@ userRouter.post('/preferences', authenticateJWT, async (req, res) => {
   }
 });
 
-// ✅ DELETE /users/account — borrar usuario de MongoDB + evento USER_DELETED en RabbitMQ
-// El recipe-service escucha ese evento y borra en cascada: recetas, meal plans y ratings
+// Delete /users/account — removes the user from MongoDB and publishes USER_DELETED 
+// to RabbitMQ for cascading deletion in recipe-service
+// the recipe-service listens to that event and deletes in cascade: recipes, meal plans and ratings
 userRouter.delete('/account', authenticateJWT, async (req, res) => {
   try {
     const userId = req.user.sub;
 
-    // 1. Borrar el usuario de MongoDB
+    // 1. Remove the user from MongoDB
     const deleted = await User.findOneAndDelete({ keycloakId: userId });
     if (deleted) {
       console.log(`🗑️ Usuario ${userId} eliminado de MongoDB`);
@@ -212,7 +213,7 @@ userRouter.delete('/account', authenticateJWT, async (req, res) => {
       console.log(`⚠️ Usuario ${userId} no estaba en MongoDB (ya eliminado o nunca creado)`);
     }
 
-    // 2. Publicar USER_DELETED en RabbitMQ para cascada en recipe-service
+    // 2. Publishes USER_DELETED in RabbitMQ for cascading deletion in recipe-service
     const message = {
       userId,
       action: 'USER_DELETED',
@@ -232,20 +233,20 @@ userRouter.delete('/account', authenticateJWT, async (req, res) => {
 });
 
 // ============================================
-// HEALTH CHECK — público, en raíz (para las probes de Kubernetes)
+// HEALTH CHECK — public, at root (for Kubernetes probes)
 // ============================================
 app.get('/health', (req, res) => {
   res.json({ status: 'UP', service: 'user-service' });
 });
 
 // ============================================
-// SWAGGER UI + MONTAJE DE RUTAS
+// SWAGGER UI + Route Mounting
 // ============================================
 app.use('/users/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 app.use('/users', userRouter);
 
 // ============================================
-// ARRANQUE
+// ARRANGE
 // ============================================
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {

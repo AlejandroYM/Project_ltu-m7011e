@@ -3,18 +3,18 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-# IMPORTANTE: package-lock.json NO debe estar aquí. Se debe subir.
+# IMPORTANT: package-lock.json should NOT be here. It should be committed.
 
 # --- React / Frontend ---
 build/
 dist/
 
-# --- Python (Residuos del proyecto anterior) ---
+# --- Python (Residues from past proyect) ---
 venv/
 __pycache__/
 *.py[cod]
 
-# --- Secretos y Entorno (Seguridad REQ20) ---
+# --- Secrets and Environment Variables (Security REQ20) ---
 .env
 *.env
 .env.local
@@ -29,7 +29,7 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# --- Logs y Certificados ---
+# --- Logs and Certificates ---
 *.log
 logs/
 *.pem
