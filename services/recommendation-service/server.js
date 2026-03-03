@@ -8,11 +8,20 @@ const { authenticateJWT } = require('./middleware/auth');
 const cors = require('cors');
 const client = require('prom-client');
 const Recommendation = require('./models/Recommendation');
+const swaggerUi = require('swagger-ui-express');
+
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const xss = require('xss-clean');
 
 dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+app.use(helmet());
+app.use(mongoSanitize());
+app.use(xss());
 
 const RECIPE_SERVICE_URL = process.env.RECIPE_SERVICE_URL || 'http://recipe-service:8000';
 
@@ -212,7 +221,53 @@ async function startConsuming() {
 }
 
 startConsuming();
+// ============================================
+// SWAGGER DOCS - RECOMMENDATION SERVICE (REQ16)
+// ============================================
+const swaggerDocument = {
+  openapi: '3.0.0',
+  info: { 
+    title: 'ChefMatch Recommendation Service API', 
+    version: '1.0.0', 
+    description: 'Motor de sugerencias dinámicas basadas en el historial, interacciones del usuario y popularidad de las recetas.' 
+  },
+  servers: [{ url: '/recommendations' }],
+  paths: {
+    '/{userId}': {
+      get: { 
+        summary: 'Obtener la recomendación principal para el usuario', 
+        description: 'Devuelve la receta recomendada con mayor puntuación para el usuario. Si se proporciona la categoría, filtra y genera las recomendaciones al vuelo consultando al recipe-service.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'userId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'category', in: 'query', schema: { type: 'string' }, description: 'Filtrar sugerencias por categoría (Ej: Vegan)' },
+          { name: 'index', in: 'query', schema: { type: 'integer' }, description: 'Posición de la recomendación (0 = la de mayor nota)' }
+        ],
+        responses: { 
+          200: { description: 'Recomendación devuelta exitosamente (Array con el nombre de la receta)' },
+          401: { description: 'Token JWT inválido o ausente' }
+        } 
+      }
+    },
+    '/{userId}/all': {
+      get: { 
+        summary: 'Obtener el ranking completo de recomendaciones guardadas', 
+        description: 'Devuelve todas las recomendaciones guardadas para el usuario, ordenadas de mayor a menor puntuación.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'userId', in: 'path', required: true, schema: { type: 'string' } }
+        ],
+        responses: { 
+          200: { description: 'Lista completa de recomendaciones obtenida con éxito' },
+          401: { description: 'Token JWT inválido o ausente' }
+        } 
+      }
+    }
+  },
+  components: { securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } } }
+};
 
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // ============================================
 // GET /recommendations/:userId
 //

@@ -22,32 +22,31 @@ spec:
         - -c
         - |
           cat > /mnt/rabbitmq-config/advanced.config << 'ERLANG'
-          [{rabbitmq_management, [{path_prefix, <<"/rabbitmq">>}]}].
+          [{rabbitmq_management, [
+            {listener, [
+              {port, 15672},
+              {path_prefix, <<"/rabbitmq">>}
+            ]}
+          ]}].
           ERLANG
           echo "default_user = admin" > /mnt/rabbitmq-config/rabbitmq.conf
           echo "default_pass = admin" >> /mnt/rabbitmq-config/rabbitmq.conf
           echo "[rabbitmq_management]." > /mnt/rabbitmq-config/enabled_plugins
           echo "=== advanced.config ===" && cat /mnt/rabbitmq-config/advanced.config
-          echo "=== enabled_plugins ===" && cat /mnt/rabbitmq-config/enabled_plugins
         volumeMounts:
-        - name: rabbitmq-config-dir
+        - name: config-dir
           mountPath: /mnt/rabbitmq-config
       containers:
       - name: rabbitmq
-        image: rabbitmq:3-management
+        image: rabbitmq:3.12-management
         ports:
         - containerPort: 5672
         - containerPort: 15672
-        env:
-        - name: RABBITMQ_CONFIG_FILE
-          value: /etc/rabbitmq/rabbitmq.conf
-        - name: RABBITMQ_ADVANCED_CONFIG_FILE
-          value: /etc/rabbitmq/advanced.config
         volumeMounts:
-        - name: rabbitmq-config-dir
+        - name: config-dir
           mountPath: /etc/rabbitmq
       volumes:
-      - name: rabbitmq-config-dir
+      - name: config-dir
         emptyDir: {}
 
 ---

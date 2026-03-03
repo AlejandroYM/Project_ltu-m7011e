@@ -7,6 +7,9 @@ const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const { authenticateJWT } = require('./middleware/auth');
 const client = require('prom-client');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const xss = require('xss-clean');
 
 dotenv.config();
 const app = express();
@@ -55,6 +58,10 @@ const swaggerDocument = {
 app.set('trust proxy', true);
 app.use(express.json());
 app.use(cors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }));
+
+app.use(helmet());
+app.use(mongoSanitize());
+app.use(xss());
 
 // ============================================
 // PROMETHEUS

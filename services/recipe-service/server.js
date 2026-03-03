@@ -4,12 +4,21 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const { authenticateJWT } = require('./middleware/auth');
 const client = require('prom-client');
+const swaggerUi = require('swagger-ui-express');
 
 const amqplib = require('amqplib');
+
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const xss = require('xss-clean');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+app.use(helmet());
+app.use(mongoSanitize());
+app.use(xss());
 
 const Recipe   = require('./models/Recipe');
 const Rating   = require('./models/Rating');
@@ -86,7 +95,59 @@ async function generateMealPlanFromDB(userId, monthNum, yearNum, category) {
   }
   return new MealPlan({ userId, month:monthNum, year:yearNum, category:category||'Mixed', days });
 }
+// ============================================
+// SWAGGER DOCS - RECIPE SERVICE (REQ16)
+// ============================================
+const swaggerDocument = {
+  openapi: '3.0.0',
+  info: { 
+    title: 'ChefMatch Recipe Service API', 
+    version: '1.0.0', 
+    description: 'Gestión de recetas, planes de comidas y valoraciones.' 
+  },
+  servers: [{ url: '/recipes' }],
+  paths: {
+    '/': {
+      get: { 
+        summary: 'Obtener todas las recetas (Público)',
+        parameters: [
+          { name: 'sort', in: 'query', schema: { type: 'string', enum: ['rating_asc', 'rating_desc'] } },
+          { name: 'category', in: 'query', schema: { type: 'string' } }
+        ],
+        responses: { 200: { description: 'Lista de recetas obtenida con éxito' } } 
+      },
+      post: { 
+        summary: 'Crear una nueva receta', 
+        security: [{ bearerAuth: [] }], 
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { type: 'object', properties: { title: { type: 'string' }, ingredients: { type: 'array' } } } } }
+        },
+        responses: { 201: { description: 'Receta creada exitosamente' } } 
+      }
+    },
+    '/{id}': {
+      delete: { 
+        summary: 'Eliminar una receta propia', 
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { 200: { description: 'Receta eliminada' }, 403: { description: 'No autorizado' } } 
+      }
+    },
+    '/{id}/rate': {
+      post: {
+        summary: 'Valorar una receta (0-10)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { score: { type: 'number' } } } } } },
+        responses: { 200: { description: 'Valoración guardada' }, 409: { description: 'Ya has valorado esta receta' } }
+      }
+    }
+  },
+  components: { securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } } }
+};
 
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // ── RECIPE ENDPOINTS ──────────────────────────────────────────────
 app.get('/recipes', async (req, res) => {
   try {
