@@ -53,7 +53,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # ── Servicios backend (sin build args especiales) ──────────────────────
+      # ── Services backend ──────────────────────
       - name: 🔨 Build and Push (backend services)
         if: matrix.service != 'frontend'
         uses: docker/build-push-action@v5
@@ -62,7 +62,7 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/chef-${{ matrix.service }}:latest
 
-      # ── Frontend (necesita la Unsplash key en tiempo de build) ─────────────
+      # ── Frontend ─────────────
       - name: 🔨 Build and Push (frontend)
         if: matrix.service == 'frontend'
         uses: docker/build-push-action@v5

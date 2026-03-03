@@ -207,11 +207,6 @@ function App() {
     }
   };
 
-  // ─────────────────────────────────────────────────────────────────
-  // FIX Bug 3: helper que refresca el token antes de cada llamada.
-  // Si el token expira en menos de 30s lo renueva automáticamente.
-  // Si el refresh también ha expirado, fuerza re-login.
-  // ─────────────────────────────────────────────────────────────────
   const getValidToken = async () => {
     try {
       await keycloak.updateToken(30);
@@ -242,7 +237,6 @@ function App() {
   const fetchRecommendations = async (userId, categoryOverride = null) => {
     if (!categoryOverride && !activeCategory) return;
     try {
-      // FIX Bug 3: usar token fresco
       const token = await getValidToken();
       const category = categoryOverride || activeCategory;
       const url = `https://ltu-m7011e-5.se/recommendations/${userId}?category=${category}`;
@@ -251,7 +245,6 @@ function App() {
         setRecommendations(res.data);
       }
     } catch (err) {
-      // FIX Bug 2: ya no silenciamos el error
       console.error('fetchRecommendations error:', err.response?.status, err.response?.data || err.message);
     }
   };
@@ -305,10 +298,6 @@ function App() {
     applyFilters(recipes, t, filterCategory, filterTime, filterRating);
   };
 
-  // ─────────────────────────────────────────────────────────────────
-  // FIX Bug 1: try/catch separados para que un fallo en el POST de
-  // preferencias no impida cargar las recomendaciones ni el meal plan.
-  // ─────────────────────────────────────────────────────────────────
   const updatePreferences = async (newPref) => {
     setActiveCategory(newPref);
     const loadId = toast.loading(`Creating ${newPref} menu...`);
@@ -323,10 +312,8 @@ function App() {
       );
     } catch (err) {
       console.error('Error guardando preferencia:', err.response?.status, err.response?.data || err.message);
-      // No hacemos return: seguimos pidiendo recomendaciones igualmente
     }
 
-    // 2. Pedir recomendaciones siempre, aunque el POST haya fallado
     try {
       await fetchRecommendations(keycloak.tokenParsed.sub, newPref);
       toast.success(`Monthly meal plan updated!`, { id: loadId });
@@ -335,7 +322,6 @@ function App() {
       toast.error("Couldn't load recommendations", { id: loadId });
     }
 
-    // 3. Refrescar datos con pequeño delay para dar tiempo a RabbitMQ
     setTimeout(() => fetchData(keycloak.tokenParsed.sub), 1000);
   };
 

@@ -1,7 +1,5 @@
 # ================================================================
 #  ChefMatch — Grafana Dashboards
-#  FIX: datasource referenciado por uid en cada panel para evitar
-#  el "No data" cuando el nombre no coincide exactamente.
 # ================================================================
 
 apiVersion: v1

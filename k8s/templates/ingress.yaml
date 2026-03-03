@@ -1,4 +1,4 @@
-# Ingress 1: API routes (prioridad alta)
+
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -7,13 +7,13 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: traefik
     traefik.ingress.kubernetes.io/router.priority: "100"
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"   # ← NUEVO
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"   
 spec:
   ingressClassName: traefik
-  tls:                                                    # ← NUEVO
+  tls:                                                    
     - hosts:
         - ltu-m7011e-5.se
-      secretName: chefmatch-tls                          # cert-manager crea este secret solo
+      secretName: chefmatch-tls                          
   rules:
   - host: ltu-m7011e-5.se
     http:
@@ -48,7 +48,7 @@ spec:
               number: 8000
 
 ---
-# Ingress 2: Frontend catch-all (prioridad baja)
+
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -57,13 +57,13 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: traefik
     traefik.ingress.kubernetes.io/router.priority: "1"
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"   # ← NUEVO
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"   
 spec:
   ingressClassName: traefik
-  tls:                                                    # ← NUEVO
+  tls:                                                    
     - hosts:
         - ltu-m7011e-5.se
-      secretName: chefmatch-tls                          # mismo secret, mismo dominio
+      secretName: chefmatch-tls                          
   rules:
   - host: ltu-m7011e-5.se
     http:
@@ -86,10 +86,10 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: traefik
     traefik.ingress.kubernetes.io/router.priority: "50"
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"   # ← NUEVO
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"   
 spec:
   ingressClassName: traefik
-  tls:                                                    # ← NUEVO
+  tls:                                                    
     - hosts:
         - ltu-m7011e-5.se
       secretName: chefmatch-tls
@@ -115,10 +115,10 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: traefik
     traefik.ingress.kubernetes.io/router.priority: "50"
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"   # ← NUEVO
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"   
 spec:
   ingressClassName: traefik
-  tls:                                                    # ← NUEVO
+  tls:                                                   
     - hosts:
         - ltu-m7011e-5.se
       secretName: chefmatch-tls

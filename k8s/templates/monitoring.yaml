@@ -1,26 +1,10 @@
 # ================================================================
 #  ChefMatch — Monitoring Stack
 #  Namespace: chefmatch
-#
-#  Recursos:
-#    1. Prometheus ConfigMap  (scrape config con paths correctos por servicio)
-#    2. Prometheus Deployment + Service
-#    3. Grafana Datasource ConfigMap  (auto-provisioning → apunta a Prometheus)
-#    4. Grafana Deployment  (con todos los volúmenes montados)
-#    5. Grafana Service  (ClusterIP)
-#    6. Ingress  (expone Grafana en https://ltu-m7011e-5.se/grafana)
-#
-#  Acceso:
-#    https://ltu-m7011e-5.se/grafana  →  admin / admin
-#
-#  Aplicar:
-#    kubectl apply -f k8s/templates/monitoring.yaml
-#    kubectl apply -f k8s/templates/grafana-dashboard-configmap.yaml
 # ================================================================
 
 # ── 1. Prometheus — ConfigMap ────────────────────────────────────
-# Cada servicio expone /metrics en una ruta diferente.
-# Hay que declararlos como jobs separados para poder usar metrics_path.
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -115,8 +99,7 @@ spec:
 
 ---
 # ── 4. Grafana — Datasource ConfigMap (auto-provisioning) ────────
-# Grafana lo carga al arrancar: apunta automáticamente a Prometheus.
-# Sin esto Grafana arranca vacío y hay que configurarlo a mano.
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -136,10 +119,7 @@ data:
 
 ---
 # ── 5. Grafana — Deployment ──────────────────────────────────────
-# Monta tres volúmenes:
-#   /etc/grafana/provisioning/datasources  ← grafana-datasources (ConfigMap 4)
-#   /etc/grafana/provisioning/dashboards   ← grafana-dashboard-provisioning (en grafana-dashboard-configmap.yaml)
-#   /var/lib/grafana/dashboards            ← grafana-dashboards (en grafana-dashboard-configmap.yaml)
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -169,7 +149,6 @@ spec:
               value: "false"
             - name: GF_AUTH_ANONYMOUS_ENABLED
               value: "false"
-            # Necesario para que funcione detrás del path /grafana del ingress
             - name: GF_SERVER_ROOT_URL
               value: "https://ltu-m7011e-5.se/grafana"
             - name: GF_SERVER_SERVE_FROM_SUB_PATH
@@ -217,8 +196,6 @@ spec:
 
 ---
 # ── 6. Grafana — Service (ClusterIP) ─────────────────────────────
-# ClusterIP: solo accesible desde dentro del cluster.
-# El acceso externo se hace a través del Ingress de abajo.
 apiVersion: v1
 kind: Service
 metadata:

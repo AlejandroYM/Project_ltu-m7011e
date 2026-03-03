@@ -1,4 +1,3 @@
-# values.yaml definitivo (Limpio de secretos)
 services:
   user:
     name: user-service
