@@ -79,8 +79,8 @@ export function setup() {
   );
 
   const ok = check(res, {
-    'Keycloak login exitoso (200)': (r) => r.status === 200,
-    'Token recibido en respuesta':  (r) => r.json('access_token') !== undefined
+    'Keycloak login (200)': (r) => r.status === 200,
+    'Token got':  (r) => r.json('access_token') !== undefined
   });
 
   if (!ok) {
@@ -118,8 +118,8 @@ export default function (data) {
 
     const ok = check(res, {
       'GET /recipes → 200': (r) => r.status === 200,
-      'Devuelve array':     (r) => { try { return Array.isArray(JSON.parse(r.body)); } catch(e) { return false; } },
-      'Al menos 1 receta':  (r) => { try { return JSON.parse(r.body).length > 0; }   catch(e) { return false; } }
+      'Gives array':     (r) => { try { return Array.isArray(JSON.parse(r.body)); } catch(e) { return false; } },
+      'At least 1 recipe':  (r) => { try { return JSON.parse(r.body).length > 0; }   catch(e) { return false; } }
     });
 
     recipeDuration.add(res.timings.duration);
@@ -128,14 +128,14 @@ export default function (data) {
 
   sleep(1);
 
-  group('GET /recipes ordenado por rating', () => {
+  group('GET /recipes by rating', () => {
     const res = http.get(`${BASE_URL}/recipes?sort=rating_desc`, {
       tags: { name: 'GET_recipes_sorted' }
     });
 
     const ok = check(res, {
       'GET /recipes?sort=rating_desc → 200': (r) => r.status === 200,
-      'Devuelve array':                      (r) => { try { return Array.isArray(JSON.parse(r.body)); } catch(e) { return false; } }
+      'Gives array':                      (r) => { try { return Array.isArray(JSON.parse(r.body)); } catch(e) { return false; } }
     });
 
     recipeDuration.add(res.timings.duration);
@@ -152,8 +152,8 @@ export default function (data) {
 
     const ok = check(res, {
       'GET /recommendations → 200':  (r) => r.status === 200,
-      'Devuelve array':              (r) => { try { return Array.isArray(JSON.parse(r.body)); } catch(e) { return false; } },
-      'Sin error de auth':           (r) => r.status !== 401 && r.status !== 403
+      'Gives array':              (r) => { try { return Array.isArray(JSON.parse(r.body)); } catch(e) { return false; } },
+      'No error from auth':           (r) => r.status !== 401 && r.status !== 403
     });
 
     recDuration.add(res.timings.duration);
@@ -174,7 +174,7 @@ export default function (data) {
 
     const ok = check(res, {
       'GET /recommendations?category → 200': (r) => r.status === 200,
-      'Devuelve recomendación':              (r) => { try { return JSON.parse(r.body).length > 0; } catch(e) { return false; } }
+      'Gives recomemendation':              (r) => { try { return JSON.parse(r.body).length > 0; } catch(e) { return false; } }
     });
 
     recDuration.add(res.timings.duration);
@@ -191,8 +191,8 @@ export default function (data) {
 
     const ok = check(res, {
       'GET /users → 200':              (r) => r.status === 200,
-      'Tiene keycloakId en respuesta': (r) => { try { return JSON.parse(r.body).keycloakId !== undefined; } catch(e) { return false; } },
-      'Sin error de auth':             (r) => r.status !== 401 && r.status !== 403
+      'Got keycloakId': (r) => { try { return JSON.parse(r.body).keycloakId !== undefined; } catch(e) { return false; } },
+      'No error from auth':             (r) => r.status !== 401 && r.status !== 403
     });
 
     errorRate.add(!ok);
@@ -219,7 +219,7 @@ export default function (data) {
 
     const ok = check(res, {
       'POST /recipes → 201':      (r) => r.status === 201,
-      'Receta creada con nombre': (r) => { try { return JSON.parse(r.body).name !== undefined; } catch(e) { return false; } }
+      'Recipe created with name': (r) => { try { return JSON.parse(r.body).name !== undefined; } catch(e) { return false; } }
     });
 
     errorRate.add(!ok);

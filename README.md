@@ -223,7 +223,6 @@ Prometheus scrapes `/metrics` every 15 seconds. All three services report health
 ├── .github/workflows/ci.yml       # GitHub Actions pipeline (test + build + push)
 ├── docker-compose.yml             # Local development environment
 ├── load-test.js                   # k6 load test (REQ18/REQ19)
-├── mongodb-kubernetes-manifests.yaml
 ├── role-based-auth.md             # RBAC documentation
 │
 ├── DOCUMENTATION/

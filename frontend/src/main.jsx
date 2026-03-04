@@ -18,7 +18,7 @@ keycloak.init({
   checkLoginIframe: false 
 }).then((authenticated) => {
   if (authenticated) {
-    console.log("Usuario autenticado con éxito");
+    console.log("User successfully authenticated");
     root.render(
       <StrictMode>
         {/* Give keycloak as prop to use the token in the APIS */}
@@ -29,6 +29,6 @@ keycloak.init({
     window.location.reload();
   }
 }).catch((err) => {
-  console.error("Error al inicializar Keycloak:", err);
-  root.render(<div>Error de conexión con el servicio de identidad.</div>);
+  console.error("Error initialazing Keycloak:", err);
+  root.render(<div>Error.</div>);
 });

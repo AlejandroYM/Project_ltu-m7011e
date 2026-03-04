@@ -190,7 +190,7 @@ function App() {
       "banana foster":                  "https://images.unsplash.com/photo-1587314168485-3236d6710814?auto=format&fit=crop&w=800&q=80",
       "beef teriyaki bowl":             "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80",
     };
-    // FIX: recipe.imageUrl (MongoDB) tiene prioridad — los cambios en BD se reflejan sin redesplegar
+    // FIX: recipe.imageUrl (MongoDB) priority
     return recipe.imageUrl || specificImages[nameKey] || categoryImages[recipe.category?.toLowerCase()] || categoryImages.default;
   };
 
@@ -302,7 +302,6 @@ function App() {
     setActiveCategory(newPref);
     const loadId = toast.loading(`Creating ${newPref} menu...`);
 
-    // 1. Guardar preferencia en el user-service (fallo no bloquea el flujo)
     try {
       const token = await getValidToken();
       await axios.post(
