@@ -1,8 +1,7 @@
 // services/recommendation-service/tests/recommendation-service.test.js
-//
-// Tests del recommendation-service.
-// Cubren el endpoint principal con casos de éxito y de fallo.
-//
+// Test for for the recommendation-service, 
+// covering the main endpoint with success and failure cases.
+
 const request = require('supertest');
 const express = require('express');
 
@@ -36,7 +35,7 @@ jest.mock('mongoose', () => {
 });
 
 jest.mock('../models/Recommendation', () => {
-  // Los métodos se definen como jest.fn() para poder configurarlos en cada test
+  // The methods are defined as jest.fn() so they can be configured in each test
   const findMock        = jest.fn();
   const deleteManyMock  = jest.fn().mockResolvedValue({});
   const insertManyMock  = jest.fn().mockResolvedValue([]);
@@ -50,7 +49,7 @@ jest.mock('../models/Recommendation', () => {
   }
 
   findMock.mockImplementation((query) => {
-    // Por defecto devuelve recomendaciones para user-123
+    // By default, it returns recommendations for user-123, but can be overridden in specific tests
     if (query && query.userId === 'user-123') {
       return buildChain([
         { recipeName: 'Chickpea Curry', recipeRating: 9.1 },
@@ -63,10 +62,10 @@ jest.mock('../models/Recommendation', () => {
   return { find: findMock, deleteMany: deleteManyMock, insertMany: insertManyMock };
 });
 
-// ⚠️  IMPORTANTE: el auth.js real del recommendation-service devuelve:
-//     sin header  → 401
-//     token malo  → 401   ← también 401 (ver middleware/auth.js línea ~46)
-//     token bueno → next()
+// IMPORTANT: the real auth.js of the recommendation-service returns:
+//     no header  → 401
+//     bad token  → 401   ← also 401 (see middleware/auth.js line ~46)
+//     good token → next()
 jest.mock('../middleware/auth', () => ({
   authenticateJWT: (req, res, next) => {
     const header = req.headers.authorization;
@@ -98,7 +97,7 @@ app.get('/health', (_req, res) =>
   res.json({ status: 'UP', service: 'recommendation-service' })
 );
 
-// Endpoint principal — refleja la lógica real del server.js
+// Principal endpoint - reflects the real server.js logic, including sorting and fallback message
 app.get('/recommendations/:userId', authenticateJWT, async (req, res) => {
   const { userId } = req.params;
   const queryCategory = req.query.category;
@@ -163,8 +162,8 @@ describe('Recommendation Service – API Tests (REQ5, REQ7)', () => {
 
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
-      expect(res.body[0]).toBe('Chickpea Curry'); // la de mayor rating primero
-    });
+      expect(res.body[0]).toBe('Chickpea Curry'); // the bigger rating should be returned first, regardless of the order in the mock
+    }); 
 
     it('SUCCESS: ?index=1 returns second recommendation', async () => {
       Recommendation.find.mockReturnValue({
@@ -200,7 +199,7 @@ describe('Recommendation Service – API Tests (REQ5, REQ7)', () => {
     });
   });
 
-  // ── Failure cases (REQUERIDOS por el profesor) ────────────────────────────
+  // ── Failure cases (Required by the teacher) ────────────────────────────
   describe('GET /recommendations/:userId – REQ failure cases', () => {
     it('REQ FAIL: returns 401 – no token provided', async () => {
       const res = await request(app).get('/recommendations/user-123');
@@ -231,7 +230,7 @@ describe('Recommendation Service – API Tests (REQ5, REQ7)', () => {
     });
   });
 
-  // ── Ruta desconocida ───────────────────────────────────────────────────────
+  // ── Unknown routes ───────────────────────────────────────────────────────
   describe('Unknown routes', () => {
     it('returns 404 for non-existent path', async () => {
       const res = await request(app).get('/api/v1/fantasy-route');

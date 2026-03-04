@@ -18,9 +18,10 @@ const recommendationSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  // Rating copiado del recipe-service en el momento de generar la recomendación.
-  // Refleja el averageRating real de la receta (base 4–10 o calculado por votos).
-  // Es el campo que determina el orden de las recomendaciones.
+
+  // Rating copied from recipe-service at the moment of generating the recommendation.
+  // Reflects the actual averageRating of the recipe (base 4–10 or calculated by votes).
+  // It is the field that determines the order of recommendations.
   recipeRating: {
     type: Number,
     default: 5.0,
@@ -45,10 +46,10 @@ const recommendationSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Índice único para evitar duplicados por usuario + receta
+// Unique index to prevent duplicates by user + recipe
 recommendationSchema.index({ userId: 1, recipeName: 1 }, { unique: true });
 
-// Índice para ordenar eficientemente por rating descendente
+// Index to efficiently sort by rating descending
 recommendationSchema.index({ userId: 1, recipeRating: -1 });
 
 module.exports = mongoose.model('Recommendation', recommendationSchema);

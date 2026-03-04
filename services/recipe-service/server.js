@@ -272,7 +272,7 @@ app.get('/meal-plans/user/:userId', authenticateJWT, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Internal server error' }); }
 });
 
-// ── Prometheus metrics — SIN autenticación para que Prometheus pueda hacer scrape ──
+// ── Prometheus metrics — NO AUTH for Prometheus scraping ──
 app.get('/metrics', async (req, res) => {
   res.set('Content-Type', client.register.contentType);
   res.end(await client.register.metrics());

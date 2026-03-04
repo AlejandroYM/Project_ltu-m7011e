@@ -25,23 +25,20 @@ app.use(xss());
 
 const RECIPE_SERVICE_URL = process.env.RECIPE_SERVICE_URL || 'http://recipe-service:8000';
 
-// ============================================
-// KEYCLOAK — CLIENT CREDENTIALS
-// El recommendation-service actúa como cliente de máquina (sin usuario).
-// Obtiene su propio token para llamar a GET /recipes (que ahora requiere JWT).
-// Requiere que en Keycloak exista un cliente 'recommendation-service'
-// con "Service Accounts Enabled" = true.
-// ============================================
+// KEYCLOACK - CLIENT CREDENTIALS
+// The recommendation-service acts as a machine client (no user).
+// It obtains its own token to call GET /recipes (which now requires JWT).
+// Requires a Keycloak client 'recommendation-service' with "Service Accounts Enabled" = true.
 const KC_URL    = process.env.KEYCLOAK_URL    || 'https://keycloak.ltu-m7011e-5.se';
 const KC_REALM  = process.env.KEYCLOAK_REALM  || 'ChefMatchRealm';
 const KC_CLIENT = process.env.KEYCLOAK_RECOMMENDATION_CLIENT_ID     || 'recommendation-service';
 const KC_SECRET = process.env.KEYCLOAK_RECOMMENDATION_CLIENT_SECRET || '';
 
 let serviceToken     = null;
-let serviceTokenExp  = 0; // timestamp de expiración en ms
+let serviceTokenExp  = 0; // timestamp of expiration in ms
 
 async function getServiceToken() {
-  // Reutilizar el token si aún tiene más de 30 segundos de vida
+  // Reutilize the token if it still has more than 30 seconds of life
   if (serviceToken && Date.now() < serviceTokenExp - 30000) {
     return serviceToken;
   }
@@ -97,14 +94,11 @@ app.use((req, res, next) => {
   next();
 });
 
-// ============================================
-// LÓGICA CENTRAL: generar y persistir recomendaciones
-//
-// 1. Pide las recetas al recipe-service YA ORDENADAS por averageRating desc
-//    usando el parámetro ?sort=rating_desc que el recipe-service ya soporta.
-// 2. Filtra por categoría (case-insensitive).
-// 3. Guarda hasta 10 recetas en MongoDB con su averageRating para poder paginar.
-// ============================================
+// CENTRAL LOGIC: generate and persist recommendations
+// 1. Requests recipes from the recipe-service ALREADY SORTED by averageRating desc
+//    using the ?sort=rating_desc parameter that the recipe-service already supports.
+// 2. Filters by category (case-insensitive).
+// 3. Saves up to 10 recipes in MongoDB with their averageRating for pagination.
 async function generateAndSave(userId, category) {
   try {
     // Obtener token de servicio para autenticarse ante el recipe-service
@@ -114,7 +108,7 @@ async function generateAndSave(userId, category) {
       return [];
     }
 
-    // Pedir recetas ordenadas por rating descendente
+    // Asking for sorted results from the recipe-service to minimize our in-memory sorting and ensure we get the top-rated recipes first.
     const recipesRes = await axios.get(`${RECIPE_SERVICE_URL}/recipes?sort=rating_desc`, {
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -124,7 +118,7 @@ async function generateAndSave(userId, category) {
 
     const safeCat = category.toLowerCase().trim();
 
-    // Filtrar por categoría manteniendo el orden de rating que ya viene del API
+    // Filter by category while preserving the rating order that already comes from the API
     const matching = allRecipes.filter(r =>
       r.category && r.category.toLowerCase().trim() === safeCat
     );
@@ -134,17 +128,17 @@ async function generateAndSave(userId, category) {
       return [];
     }
 
-    // Guardar hasta 10 para tener margen de paginación
+    // Save up to 10 to have some margin for pagination (index=0..9) without needing to regenerate immediately.
     const top10 = matching.slice(0, 10);
 
-    // Borrar recomendaciones anteriores del usuario para esta categoría y reemplazar
+    // Delete previous recommendations of the user for this category and replace with the new ones.
     await Recommendation.deleteMany({ userId });
 
     const docs = top10.map((recipe, i) => {
-      // averageRating ya viene del recipe-service (4–10 base o calculado por votos)
+      // averageRating comes from the recipe-service (4–10 base or calculated by votes)
       const recipeRating = typeof recipe.averageRating === 'number' && recipe.averageRating > 0
         ? recipe.averageRating
-        : 5.0; // fallback de seguridad
+        : 5.0; // security fallback 
 
       return {
         userId,
@@ -182,7 +176,7 @@ async function startConsuming() {
 
     console.log('📥 Recommendation Service escuchando RabbitMQ...');
 
-    // PREFERENCES_UPDATED → regenerar recomendaciones con la nueva categoría
+    // PREFERENCES_UPDATED -> regerenate recommendations with the new category
     channel.consume('user_updates', async (msg) => {
       if (msg !== null) {
         try {
@@ -198,7 +192,7 @@ async function startConsuming() {
       }
     });
 
-    // USER_DELETED → borrar todas sus recomendaciones
+    // USER_DELETED → delete all recommendations of that user to keep the DB clean
     channel.consume('user_events', async (msg) => {
       if (msg !== null) {
         try {
@@ -268,26 +262,25 @@ const swaggerDocument = {
 };
 
 app.use('/recommendations/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-// ============================================
+
 // GET /recommendations/:userId
 //
 // Query params:
-//   ?category=Vegan     → filtra/regenera por categoría
-//   ?index=0            → posición deseada (0-based, 0 = la mejor nota)
+//   ?category=Vegan     → filter/regenerate by category
+//   ?index=0            → desired position (0-based, 0 = highest rating)
 //
-// Comportamiento:
-//   - Con ?category: si no hay recomendaciones guardadas para esa categoría,
-//     las genera llamando al recipe-service. Devuelve la receta en la posición
-//     indicada por ?index (por defecto 0 = la de mayor nota).
-//   - Sin ?category: devuelve de las guardadas en MongoDB la del índice solicitado.
+// Behavior:
+//   - With ?category: if there are no saved recommendations for that category,
+//     it generates them by calling the recipe-service. Returns the recipe at the
+//     position indicated by ?index (default 0 = highest rating).
+//   - Without ?category: returns from MongoDB the one at the requested index.
 //
-// Ejemplos:
-//   GET /recommendations/123?category=Vegan           → 1ª receta vegana (mayor nota)
-//   GET /recommendations/123?category=Vegan&index=1   → 2ª receta vegana
-//   GET /recommendations/123?category=Vegan&index=2   → 3ª receta vegana
-//   GET /recommendations/123                          → mejor receta guardada
-//   GET /recommendations/123?index=2                  → 3ª mejor receta guardada
-// ============================================
+// Examples:
+//   GET /recommendations/123?category=Vegan           → 1st vegan recipe (highest rating)
+//   GET /recommendations/123?category=Vegan&index=1   → 2nd vegan recipe
+//   GET /recommendations/123?category=Vegan&index=2   → 3rd vegan recipe
+//   GET /recommendations/123                          → best saved recipe
+//   GET /recommendations/123?index=2                  → 3rd best saved recipe
 app.get('/recommendations/:userId', authenticateJWT, async (req, res) => {
   const { userId } = req.params;
   const queryCategory = req.query.category;
@@ -297,7 +290,7 @@ app.get('/recommendations/:userId', authenticateJWT, async (req, res) => {
     if (queryCategory) {
       console.log(`🎯 Categoría: "${queryCategory}" | índice: ${index} | usuario: ${userId}`);
 
-      // Buscar recomendaciones ya guardadas para esta categoría
+      // Search recommendations already saved for this category 
       let saved = await Recommendation.find({
         userId,
         category: { $regex: new RegExp(`^${queryCategory}$`, 'i') }
@@ -305,10 +298,10 @@ app.get('/recommendations/:userId', authenticateJWT, async (req, res) => {
         .sort({ recipeRating: -1 })
         .lean();
 
-      // Si no hay nada guardado, generarlo ahora
+      // If there is nothing saved, generate it now
       if (saved.length === 0) {
         const generated = await generateAndSave(userId, queryCategory);
-        // generateAndSave ya devuelve los docs ordenados por recipeRating desc
+        // generateAndSave already returns the docs sorted by recipeRating desc
         saved = generated.sort((a, b) => b.recipeRating - a.recipeRating);
       }
 
@@ -323,7 +316,7 @@ app.get('/recommendations/:userId', authenticateJWT, async (req, res) => {
       return res.json([pick.recipeName]);
     }
 
-    // Sin categoría: leer de MongoDB ordenado por recipeRating desc
+    // Whithout category: read from MongoDB sorted by recipeRating desc
     const saved = await Recommendation.find({ userId })
       .sort({ recipeRating: -1 })
       .lean();
@@ -344,11 +337,9 @@ app.get('/recommendations/:userId', authenticateJWT, async (req, res) => {
   }
 });
 
-// ============================================
 // GET /recommendations/:userId/all
-// Devuelve el ranking completo de recomendaciones guardadas, de mayor a menor nota.
-// Útil para debug o para mostrar lista en el frontend.
-// ============================================
+// Returns the full ranking of saved recommendations, from highest to lowest rating.
+// Useful for debugging or to show a list in the frontend.
 app.get('/recommendations/:userId/all', authenticateJWT, async (req, res) => {
   const { userId } = req.params;
   try {

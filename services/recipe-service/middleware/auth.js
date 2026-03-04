@@ -1,12 +1,12 @@
 // services/recipe-service/middleware/auth.js
-// Middleware de autenticación JWT usando JWKS
+// Authentication middleware for JWT using JWKS
 const jwt = require('jsonwebtoken');
 const jwksClient = require('jwks-rsa');
 
 const KEYCLOAK_URL   = process.env.KEYCLOAK_URL   || 'https://keycloak.ltu-m7011e-5.se';
 const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM || 'ChefMatchRealm';
 
-// Cliente JWKS para obtener las claves públicas de Keycloak
+// Client JWKS to fetch public keys from Keycloak
 const client = jwksClient({
   jwksUri: `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs`,
   cache: true,
@@ -23,9 +23,9 @@ function getKey(header, callback) {
   });
 }
 
-// FIX: eliminada la validación de 'audience' porque el token emitido
-// por Keycloak para 'frontend-client' no coincide con KEYCLOAK_CLIENT_ID
-// ('account'). El check del issuer es suficiente para validar la procedencia.
+// FIX: 'audience' validation removed because the token issued
+//  by Keycloak for 'frontend-client' does not match KEYCLOAK_CLIENT_ID 
+// ('account'). The issuer check is sufficient to validate the origin.
 const authenticateJWT = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
@@ -41,9 +41,9 @@ const authenticateJWT = (req, res, next) => {
   jwt.verify(token, getKey, {
     issuer: `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`,
     algorithms: ['RS256']
-    // audience eliminado: los tokens de Keycloak pueden tener múltiples
-    // audiences y el valor varía por cliente. El issuer ya garantiza
-    // que el token viene de nuestro realm.
+    // removed audience: Keycloak tokens can have multiple 
+    // audiences and the value varies by client. The issuer
+    // already guarantees the token is from our realm.
   }, (err, decoded) => {
     if (err) {
       console.error('JWT verification error:', err.message);

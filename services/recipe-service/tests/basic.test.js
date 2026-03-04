@@ -1,9 +1,7 @@
 // services/recipe-service/tests/basic.test.js
-//
-// Tests básicos del recipe-service.
-// Usan una mini-app en lugar del server real para evitar
-// conexiones a MongoDB/RabbitMQ/MinIO durante los tests.
-//
+// Basic tests for recipe-service,
+//  using a mini-app to avoid real 
+// DB/RabbitMQ/MinIO connections during tests.
 const request = require('supertest');
 const express = require('express');
 const mongoose = require('mongoose');
@@ -17,7 +15,7 @@ jest.mock('mongoose', () => {
     connect: jest.fn().mockResolvedValue({}),
     Types: {
       ObjectId: {
-        // Solo 'valid-object-id-123' se considera válido en los tests
+        // Only 'valid-object-id-123' is considered valid in tests
         isValid: jest.fn((id) => id === 'valid-object-id-123')
       }
     }
@@ -39,10 +37,10 @@ jest.mock('../models/Recipe', () => {
   return MockRecipe;
 });
 
-// auth.js mock — refleja el comportamiento REAL del middleware:
-//   sin header  → 401
-//   token malo  → 403  (recipe-service devuelve 403 para token inválido)
-//   token bueno → next()
+// auth.js mock — reflects REAL middleware behavior:
+//   no header  → 401
+//   bad token  → 403  (recipe-service returns 403 for invalid token)
+//   good token → next()
 jest.mock('../middleware/auth', () => ({
   authenticateJWT: (req, res, next) => {
     const header = req.headers.authorization;
@@ -63,7 +61,7 @@ beforeAll(() => {
   jest.spyOn(console, 'error').mockImplementation(() => {});
 });
 
-// ── Mini-app de prueba ────────────────────────────────────────────────────────
+// ── Mini-app for testing ────────────────────────────────────────────────────────
 
 const app = express();
 app.use(express.json());
@@ -142,7 +140,7 @@ describe('Recipe Service – Basic Tests (REQ5)', () => {
     });
   });
 
-  // ── POST /recipes – failure cases (requeridos por el profesor) ─────────────
+  // ── POST /recipes – failure cases (required by the teacher) ─────────────
   describe('POST /recipes – failure cases', () => {
     it('REQ: returns 401 when no token is provided', async () => {
       const res = await request(app)
@@ -167,7 +165,7 @@ describe('Recipe Service – Basic Tests (REQ5)', () => {
       const res = await request(app)
         .post('/recipes')
         .set('Authorization', 'Bearer valid-token')
-        .send({ name: 'Incomplete' }); // falta category e ingredients
+        .send({ name: 'Incomplete' }); // category and ingredients are missing
 
       expect(res.statusCode).toBe(400);
       expect(res.body).toHaveProperty('error');
@@ -237,7 +235,7 @@ describe('Recipe Service – Basic Tests (REQ5)', () => {
     });
   });
 
-  // ── Ruta desconocida ───────────────────────────────────────────────────────
+  // ── Unknown routes ───────────────────────────────────────────────────────
   describe('Unknown routes', () => {
     it('returns 404 for a non-existent path', async () => {
       const res = await request(app).get('/api/fantasy-route');

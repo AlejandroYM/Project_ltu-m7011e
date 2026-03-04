@@ -27,20 +27,20 @@ const UserSchema = new mongoose.Schema({
   }
 });
 
-// Middleware para actualizar updatedAt
+// Middleware to update the updatedAt field before saving
 UserSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();
 });
 
-// Método para validar preferencias
+// Method to validate preferences
 UserSchema.methods.validatePreferences = function() {
-  // Mongoose siempre inicializa preferences como {} si no se proporciona
-  // Simplemente verificamos que exista
+  // Mongoodr always initializes preferences as {} if not provided, so we can check if it's empty
+  // Verify if this exists and has at least one property
   return !!this.preferences;
 };
 
-// Método estático para buscar por Keycloak ID
+// Static method to find a user by Keycloak ID
 UserSchema.statics.findByKeycloakId = async function(keycloakId) {
   return await this.findOne({ keycloakId });
 };
