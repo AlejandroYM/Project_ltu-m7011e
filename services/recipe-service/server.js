@@ -103,44 +103,44 @@ const swaggerDocument = {
   info: { 
     title: 'ChefMatch Recipe Service API', 
     version: '1.0.0', 
-    description: 'Gestión de recetas, planes de comidas y valoraciones.' 
+    description: 'Recipe management, meal plans, and ratings.' 
   },
   servers: [{ url: '/recipes' }],
   paths: {
     '/': {
       get: { 
-        summary: 'Obtener todas las recetas (Público)',
+        summary: 'Get all recipes (Public)',
         parameters: [
           { name: 'sort', in: 'query', schema: { type: 'string', enum: ['rating_asc', 'rating_desc'] } },
           { name: 'category', in: 'query', schema: { type: 'string' } }
         ],
-        responses: { 200: { description: 'Lista de recetas obtenida con éxito' } } 
+        responses: { 200: { description: 'List of recipes successfully obtained' } } 
       },
       post: { 
-        summary: 'Crear una nueva receta', 
+        summary: 'Create a new recipe', 
         security: [{ bearerAuth: [] }], 
         requestBody: {
           required: true,
           content: { 'application/json': { schema: { type: 'object', properties: { title: { type: 'string' }, ingredients: { type: 'array' } } } } }
         },
-        responses: { 201: { description: 'Receta creada exitosamente' } } 
+        responses: { 201: { description: 'Recipe successfully created' } } 
       }
     },
     '/{id}': {
       delete: { 
-        summary: 'Eliminar una receta propia', 
+        summary: 'Delete your own recipe', 
         security: [{ bearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
-        responses: { 200: { description: 'Receta eliminada' }, 403: { description: 'No autorizado' } } 
+        responses: { 200: { description: 'Recipe deleted' }, 403: { description: 'Unauthorized' } } 
       }
     },
     '/{id}/rate': {
       post: {
-        summary: 'Valorar una receta (0-10)',
+        summary: 'Rate a recipe (0-10)',
         security: [{ bearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { score: { type: 'number' } } } } } },
-        responses: { 200: { description: 'Valoración guardada' }, 409: { description: 'Ya has valorado esta receta' } }
+        responses: { 200: { description: 'Saved rating' }, 409: { description: 'You have already rated this recipe' } }
       }
     }
   },

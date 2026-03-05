@@ -1,53 +1,61 @@
 # System Architecture - ChefMatch (REQ17)
 
-Este documento describe la arquitectura de microservicios distribuida del proyecto ChefMatch.
+This document describes the distributed microservices architecture of the ChefMatch project.
 
-## 1. Estructura del Repositorio
-Siguiendo un diseño modular, el proyecto se organiza de la siguiente manera:
-- **/services**: Contiene los microservicios core (user-service, recipe-service, recommendation-service).
-- **/frontend**: Interfaz de usuario interactiva.
-- **/k8s**: Manifiestos de orquestación para el despliegue en la nube.
+## 1. Repository Structure
 
-## 2. Diagrama de Contenedores (C4 Model - Level 2)
+Following a modular design, the project is organised as follows:
+
+- **/services** — Core microservices: `user-service`, `recipe-service`, `recommendation-service`.
+- **/frontend** — Interactive user interface (React/Vite).
+- **/k8s** — Orchestration manifests for cloud deployment.
+
+---
+
+## 2. Container Diagram (C4 Model - Level 2)
 
 ```mermaid
 graph TD
-    User((Usuario)) -->|HTTPS| Ingress[Nginx Ingress]
-    
-    subgraph "Nube - Kubernetes Cluster"
-        Ingress --> FE[Frontend · React/Vite]
-        FE -->|REST API| US[User Service :3001]
-        FE -->|REST API| RS[Recipe Service :3002]
-        FE -->|REST API| RCS[Recommendation Service :3003]
+    User((User)) -->|HTTPS| Ingress[Nginx Ingress]
 
-        subgraph "Microservicios /services (REQ11)"
+    subgraph "Cloud - Kubernetes Cluster"
+        Ingress --> FE[Frontend · React/Vite]
+        FE -->|REST API| US[User Service :8000]
+        FE -->|REST API| RS[Recipe Service :8000]
+        FE -->|REST API| RCS[Recommendation Service :8000]
+
+        subgraph "Microservices /services (REQ11)"
             US
             RS
             RCS
         end
 
-        subgraph "Infraestructura (REQ15)"
+        subgraph "Infrastructure (REQ15)"
             RMQ[(RabbitMQ)]
             KC[Keycloak Auth Server]
             MDB[(MongoDB)]
         end
 
-        US -->|Publica eventos| RMQ
-        RMQ -->|Notifica cambios| RCS
-        RS -->|Persiste recetas| MDB
-        RCS -->|Persiste recomendaciones| MDB
+        US -->|Publishes events| RMQ
+        RMQ -->|Notifies changes| RCS
+        RMQ -->|Notifies changes| RS
+        RS -->|Persists recipes, ratings, meal plans| MDB
+        RCS -->|Persists recommendations| MDB
+        RCS -->|Client Credentials token request| KC
     end
 
-    US -->|Valida JWT via JWKS| KC
-    RS -->|Valida JWT via JWKS| KC
-    RCS -->|Valida JWT via JWKS| KC
+    US -->|Validates JWT via JWKS| KC
+    RS -->|Validates JWT via JWKS| KC
+    RCS -->|Validates JWT via JWKS| KC
 ```
 
-## 3. Autenticación y Control de Acceso Basado en Roles (RBAC)
+---
 
-### 3.1 Flujo de Autenticación
+## 3. Authentication
 
-La autenticación se delega íntegramente a **Keycloak**, que actúa como Identity Provider (IdP). El flujo es el siguiente:
+### 3.1 Authentication Flow
+
+Authentication is fully delegated to **Keycloak**, which acts as the Identity Provider (IdP). The flow is as follows:
 
 ```mermaid
 sequenceDiagram
@@ -67,82 +75,154 @@ sequenceDiagram
     RCS-->>FE: 200 OK · recommendations[]
 ```
 
-### 3.2 Roles definidos en Keycloak
+### 3.2 Endpoint Protection per Service
 
-| Rol | Descripción | Permisos |
-|-----|-------------|----------|
-| `user` | Usuario registrado estándar | Leer recetas, ver sus recomendaciones, actualizar su perfil |
-| `chef` | Usuario con permisos de creación | Todo lo de `user` + crear y eliminar sus propias recetas |
-| `admin` | Administrador de la plataforma | Acceso completo, gestión de usuarios, eliminación de cualquier receta |
-
-Los roles se configuran en Keycloak bajo **Realm Roles** y se incluyen automáticamente en el claim `realm_access.roles` del JWT.
-
-### 3.3 Aplicación de RBAC por servicio
+No custom roles are defined in Keycloak. Access control is based solely on **token validity** and **resource ownership** (the `sub` claim in the JWT is compared to the requested resource's owner).
 
 **User Service** (`/services/user-service`)
-- `POST /register` — público
-- `POST /login` — público
-- `GET /profile` — requiere token válido (`user`, `chef`, `admin`)
-- `GET /logout` — requiere token válido
+
+| Method | Endpoint | Auth required |
+|--------|----------|---------------|
+| GET | `/users/health` | No |
+| GET | `/users/:id` | Yes · own profile only (`req.user.sub === id`) |
+| POST | `/users/preferences` | Yes |
+| DELETE | `/users/account` | Yes |
 
 **Recipe Service** (`/services/recipe-service`)
-- `GET /recipes` — público (`optionalAuthJWT`)
-- `POST /recipes` — requiere token válido; rol recomendado: `chef` o `admin`
-- `DELETE /recipes/:id` — requiere token válido; solo elimina recetas dinámicas (MongoDB), no estáticas
+
+| Method | Endpoint | Auth required |
+|--------|----------|---------------|
+| GET | `/health` | No |
+| GET | `/recipes` | No |
+| POST | `/recipes` | Yes |
+| DELETE | `/recipes/:id` | Yes · own recipes only (`recipe.userId === req.user.sub`) |
+| POST | `/recipes/:id/rate` | Yes · one rating per user per recipe |
+| GET/POST/PUT/DELETE | `/meal-plans/...` | Yes · own meal plans only |
+| GET | `/metrics` | No |
 
 **Recommendation Service** (`/services/recommendation-service`)
-- `GET /recommendations/:userId` — requiere token válido (`user`, `chef`, `admin`)
-- El servicio verifica que `req.user.sub` corresponde al `userId` solicitado para evitar accesos cruzados
 
-### 3.4 Implementación del middleware JWT
+| Method | Endpoint | Auth required |
+|--------|----------|---------------|
+| GET | `/health` | No |
+| GET | `/recommendations/:userId` | Yes |
+| GET | `/recommendations/:userId/all` | Yes |
+| GET | `/metrics` | No |
 
-Todos los servicios de backend utilizan la librería `jwks-rsa` para verificar tokens sin gestionar secretos compartidos. La clave pública se descarga del endpoint JWKS de Keycloak y se cachea 10 minutos:
+### 3.3 JWT Middleware Implementation
+
+All backend services use the `jwks-rsa` library to verify tokens without managing shared secrets. The public key is downloaded from Keycloak's JWKS endpoint and cached for 10 minutes:
 
 ```javascript
-// Patrón común en middleware/auth.js de cada servicio
+// Common pattern in middleware/auth.js of each service
 const client = jwksClient({
   jwksUri: `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs`,
   cache: true,
-  cacheMaxAge: 600000,       // 10 minutos
+  cacheMaxAge: 600000,       // 10 minutes
   rateLimit: true,
-  jwksRequestsPerMinute: 10  // Protección contra abuso
+  jwksRequestsPerMinute: 10  // Protection against abuse
 });
 
 jwt.verify(token, getKey, {
   audience: KEYCLOAK_CLIENT_ID,
-  issuer: `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`,
-  algorithms: ['RS256']      // Solo RS256, nunca HS256
+  issuer:   `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`,
+  algorithms: ['RS256']      // RS256 only, never HS256
 }, callback);
 ```
 
-La elección de **RS256** (firma asimétrica) sobre HS256 es intencional: los microservicios solo necesitan la clave pública para verificar tokens, nunca tienen acceso al secreto de firma de Keycloak.
+**Why RS256 over HS256:** RS256 uses asymmetric cryptography. Microservices only need the public key to verify tokens — they never have access to Keycloak's private signing key. This means a compromised microservice cannot forge tokens.
 
-### 3.5 Variables de entorno requeridas
+### 3.4 Service-to-Service Authentication (Client Credentials)
 
-Todas las configuraciones sensibles se inyectan como variables de entorno definidas en `k8s/templates/secrets.yaml`, nunca hardcodeadas en el código:
+The `recommendation-service` needs to call `GET /recipes` on the `recipe-service` (which requires a valid JWT), but there is no human user involved in this call. It uses the **OAuth2 Client Credentials flow**:
 
-| Variable | Servicio | Descripción |
-|----------|----------|-------------|
-| `KEYCLOAK_URL` | user, recipe, recommendation | URL base del servidor Keycloak |
-| `KEYCLOAK_REALM` | user, recipe, recommendation | Nombre del realm (`ChefMatchRealm`) |
-| `KEYCLOAK_CLIENT_ID` | user, recipe, recommendation | Client ID de la aplicación |
-| `KEYCLOAK_CLIENT_SECRET` | user-service | Secret del cliente (solo user-service vía `keycloak-connect`) |
-| `MONGODB_URI` | recipe, recommendation | Cadena de conexión a MongoDB |
-| `RABBITMQ_URL` | user, recommendation | URL del broker de mensajería |
+```mermaid
+sequenceDiagram
+    participant RCS as Recommendation Service
+    participant KC as Keycloak
+    participant RS as Recipe Service
 
-## 4. Comunicación Asíncrona (REQ15)
+    RCS->>KC: POST /token · grant_type=client_credentials · client_id + client_secret
+    KC-->>RCS: Service access token (JWT)
+    RCS->>RS: GET /recipes?sort=rating_desc · Authorization: Bearer <service_token>
+    RS-->>RCS: recipes[]
+```
 
-El **User Service** publica un evento `PREFERENCES_UPDATED` en la cola `user_updates` de RabbitMQ cada vez que un usuario modifica sus preferencias culinarias. El **Recommendation Service** consume esa cola y regenera automáticamente las recomendaciones personalizadas para ese usuario en MongoDB.
+The token is cached and reused until it has less than 30 seconds of remaining validity, at which point a new one is requested.
+
+### 3.5 Required Environment Variables
+
+All sensitive configuration is injected as environment variables defined in `k8s/templates/secrets.yaml`. Nothing is hardcoded in the source code:
+
+| Variable | Service | Description |
+|----------|---------|-------------|
+| `KEYCLOAK_URL` | user, recipe, recommendation | Base URL of the Keycloak server |
+| `KEYCLOAK_REALM` | user, recipe, recommendation | Realm name (`ChefMatchRealm`) |
+| `KEYCLOAK_CLIENT_ID` | user, recipe, recommendation | Application client ID |
+| `KEYCLOAK_CLIENT_SECRET` | recommendation | Secret for Client Credentials flow |
+| `MONGO_URI` | user, recipe, recommendation | MongoDB connection string |
+| `RABBITMQ_URL` | user, recommendation | Messaging broker URL |
+| `RECIPE_SERVICE_URL` | recommendation | Internal URL of the recipe-service |
+
+---
+
+## 4. Asynchronous Communication (REQ15)
+
+Services communicate via **RabbitMQ** for operations that must propagate across multiple services without tight coupling. There are two queues:
+
+### Queue: `user_updates`
+
+Published by `user-service` when a user changes their food category preference. Consumed by `recommendation-service`, which regenerates personalised recommendations from the real recipe data in MongoDB.
 
 ```mermaid
 graph LR
-    US[User Service] -->|PREFERENCES_UPDATED| Q[(user_updates · RabbitMQ)]
-    Q -->|consume| RCS[Recommendation Service]
-    RCS -->|upsert top-5| MDB[(MongoDB)]
+    US[User Service] -->|PREFERENCES_UPDATED · userId · category| Q1[(user_updates · RabbitMQ)]
+    Q1 -->|consume| RCS[Recommendation Service]
+    RCS -->|calls GET /recipes?sort=rating_desc| RS[Recipe Service]
+    RCS -->|saves top-10 by rating| MDB[(MongoDB)]
 ```
 
-## 5. Observabilidad (REQ13)
+### Queue: `user_events`
 
-El **Recipe Service** expone métricas en formato Prometheus en el endpoint `GET /metrics` usando la librería `prom-client`. Estas métricas incluyen latencia HTTP por ruta y código de estado, además de las métricas de proceso por defecto (CPU, memoria, event loop).
+Published by `user-service` when a user deletes their account. Consumed by both `recipe-service` and `recommendation-service` to delete all data belonging to that user (cascade deletion across services).
 
-Prometheus y Grafana se despliegan en el cluster vía `k8s/templates/monitoring.yaml` con almacenamiento persistente (PVC), y Prometheus scrapeará automáticamente los pods anotados con `prometheus.io/scrape: "true"`.
+```mermaid
+graph LR
+    US[User Service] -->|USER_DELETED · userId| Q2[(user_events · RabbitMQ)]
+    Q2 -->|consume| RS[Recipe Service]
+    Q2 -->|consume| RCS[Recommendation Service]
+    RS -->|deletes recipes, meal plans, ratings| MDB[(MongoDB)]
+    RCS -->|deletes recommendations| MDB[(MongoDB)]
+```
+
+Both services retry the RabbitMQ connection every 5 seconds if the broker is unavailable at startup.
+
+---
+
+## 5. Observability (REQ13)
+
+All three services expose HTTP metrics in Prometheus format via `prom-client`. The following metrics are tracked per service:
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `http_request_duration_seconds` | Histogram | Response time per route and status code |
+| `http_requests_total` | Counter | Total requests per route and status code |
+| `http_request_errors_total` | Counter | Error requests (4xx/5xx) with error type label |
+
+Prometheus and Grafana are deployed in the cluster via `k8s/templates/monitoring.yaml` with persistent storage (PVC). Prometheus automatically scrapes pods annotated with `prometheus.io/scrape: "true"`.
+
+---
+
+## 6. Data Persistence
+
+All persistent data is stored in a single **MongoDB** instance (`mongo-service:27017`, database `chefmatch`) with separate collections per service domain:
+
+| Collection | Owner service | Description |
+|------------|---------------|-------------|
+| `recipes` | recipe-service | Recipe documents with rating fields |
+| `ratings` | recipe-service | One rating per user per recipe (enforced by unique index) |
+| `mealplans` | recipe-service | Monthly meal plans, one per user per month/year |
+| `users` | user-service | User profiles and food category preferences |
+| `recommendations` | recommendation-service | Top-10 recommendations per user, TTL 7 days |
+
+Recommendations have a **7-day TTL** (`expires: 604800` in the schema) so MongoDB automatically removes stale data without manual cleanup.

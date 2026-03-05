@@ -10,7 +10,7 @@ const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM || 'ChefMatchRealm';
 const client = jwksClient({
   jwksUri: `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs`,
   cache: true,
-  cacheMaxAge: 600000, // 10 minutos
+  cacheMaxAge: 600000, // 10 minutes
   rateLimit: true,
   jwksRequestsPerMinute: 10
 });

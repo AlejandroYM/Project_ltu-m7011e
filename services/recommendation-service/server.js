@@ -104,7 +104,7 @@ async function generateAndSave(userId, category) {
     // Obtener token de servicio para autenticarse ante el recipe-service
     const token = await getServiceToken();
     if (!token) {
-      console.error('❌ No se pudo obtener service token — abortando generateAndSave');
+      console.error('❌ Could not obtain service token — aborting generateAndSave');
       return [];
     }
 
@@ -154,7 +154,7 @@ async function generateAndSave(userId, category) {
     await Recommendation.insertMany(docs, { ordered: false })
       .catch(err => { if (err.code !== 11000) throw err; });
 
-    console.log(`✅ ${docs.length} recomendaciones guardadas para ${userId} (${category}) — top rating: ${docs[0]?.recipeRating}`);
+    console.log(`✅ ${docs.length} recommendations saved for ${userId} (${category}) — top rating: ${docs[0]?.recipeRating}`);
     return docs;
   } catch (err) {
     console.error('❌ generateAndSave error:', err.message);
@@ -174,7 +174,7 @@ async function startConsuming() {
     await channel.assertQueue('user_updates');
     await channel.assertQueue('user_events');
 
-    console.log('📥 Recommendation Service escuchando RabbitMQ...');
+    console.log('📥 Recommendation Service listening RabbitMQ...');
 
     // PREFERENCES_UPDATED -> regerenate recommendations with the new category
     channel.consume('user_updates', async (msg) => {
@@ -182,11 +182,11 @@ async function startConsuming() {
         try {
           const event = JSON.parse(msg.content.toString());
           if (event.action === 'PREFERENCES_UPDATED' && event.userId && event.category) {
-            console.log(`📨 PREFERENCES_UPDATED para ${event.userId} → ${event.category}`);
+            console.log(`📨 PREFERENCES_UPDATED for ${event.userId} → ${event.category}`);
             await generateAndSave(event.userId, event.category);
           }
         } catch (e) {
-          console.error('Error procesando user_updates:', e.message);
+          console.error('Error processing user_updates:', e.message);
         }
         channel.ack(msg);
       }
@@ -198,11 +198,11 @@ async function startConsuming() {
         try {
           const event = JSON.parse(msg.content.toString());
           if (event.action === 'USER_DELETED' && event.userId) {
-            console.log(`🗑️ USER_DELETED: borrando recomendaciones de ${event.userId}`);
+            console.log(`🗑️ USER_DELETED: deleting recommendations ${event.userId}`);
             await Recommendation.deleteMany({ userId: event.userId });
           }
         } catch (e) {
-          console.error('Error procesando user_events:', e.message);
+          console.error('Error processing user_events:', e.message);
         }
         channel.ack(msg);
       }
@@ -223,37 +223,37 @@ const swaggerDocument = {
   info: { 
     title: 'ChefMatch Recommendation Service API', 
     version: '1.0.0', 
-    description: 'Motor de sugerencias dinámicas basadas en el historial, interacciones del usuario y popularidad de las recetas.' 
+    description: 'Dynamic suggestion engine based on history, user interactions, and recipe popularity.' 
   },
   servers: [{ url: '/recommendations' }],
   paths: {
     '/{userId}': {
       get: { 
-        summary: 'Obtener la recomendación principal para el usuario', 
-        description: 'Devuelve la receta recomendada con mayor puntuación para el usuario. Si se proporciona la categoría, filtra y genera las recomendaciones al vuelo consultando al recipe-service.',
+        summary: 'Get the top recommendation for the user', 
+        description: 'Returns the highest-rated recommended recipe for the user. If the category is provided, it filters and generates recommendations on the fly by querying the recipe service.',
         security: [{ bearerAuth: [] }],
         parameters: [
           { name: 'userId', in: 'path', required: true, schema: { type: 'string' } },
-          { name: 'category', in: 'query', schema: { type: 'string' }, description: 'Filtrar sugerencias por categoría (Ej: Vegan)' },
+          { name: 'category', in: 'query', schema: { type: 'string' }, description: 'Filter suggestions by category (e.g., Vegan)' },
           { name: 'index', in: 'query', schema: { type: 'integer' }, description: 'Posición de la recomendación (0 = la de mayor nota)' }
         ],
         responses: { 
-          200: { description: 'Recomendación devuelta exitosamente (Array con el nombre de la receta)' },
-          401: { description: 'Token JWT inválido o ausente' }
+          200: { description: 'Recommendation successfully returned (Array with recipe name)' },
+          401: { description: 'Invalid or missing JWT token' }
         } 
       }
     },
     '/{userId}/all': {
       get: { 
-        summary: 'Obtener el ranking completo de recomendaciones guardadas', 
-        description: 'Devuelve todas las recomendaciones guardadas para el usuario, ordenadas de mayor a menor puntuación.',
+        summary: 'Get the full ranking of saved recommendations', 
+        description: 'Returns all saved recommendations for the user, sorted from highest to lowest score.',
         security: [{ bearerAuth: [] }],
         parameters: [
           { name: 'userId', in: 'path', required: true, schema: { type: 'string' } }
         ],
         responses: { 
-          200: { description: 'Lista completa de recomendaciones obtenida con éxito' },
-          401: { description: 'Token JWT inválido o ausente' }
+          200: { description: 'Complete list of recommendations successfully obtained' },
+          401: { description: 'Invalid or missing JWT token' }
         } 
       }
     }
@@ -288,7 +288,7 @@ app.get('/recommendations/:userId', authenticateJWT, async (req, res) => {
 
   try {
     if (queryCategory) {
-      console.log(`🎯 Categoría: "${queryCategory}" | índice: ${index} | usuario: ${userId}`);
+      console.log(`🎯 Category: "${queryCategory}" | index: ${index} | user: ${userId}`);
 
       // Search recommendations already saved for this category 
       let saved = await Recommendation.find({
@@ -332,7 +332,7 @@ app.get('/recommendations/:userId', authenticateJWT, async (req, res) => {
     return res.json([pick.recipeName]);
 
   } catch (err) {
-    console.error('❌ Error en /recommendations:', err.message);
+    console.error('❌ Error in /recommendations:', err.message);
     res.json(["Error fetching recommendation"]);
   }
 });
@@ -354,7 +354,7 @@ app.get('/recommendations/:userId/all', authenticateJWT, async (req, res) => {
       rating:   r.recipeRating
     })));
   } catch (err) {
-    console.error('❌ Error en /recommendations/all:', err.message);
+    console.error('❌ Error in /recommendations/all:', err.message);
     res.status(500).json({ error: 'Error fetching recommendations' });
   }
 });
@@ -370,6 +370,6 @@ app.get('/metrics', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 8000;
-app.listen(PORT, () => console.log(`🚀 Recommendation Service en puerto ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Recommendation Service in port ${PORT}`));
 
 module.exports = app;

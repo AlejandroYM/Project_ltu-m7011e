@@ -21,31 +21,31 @@ const User = require('./models/User');
 // ============================================
 const swaggerDocument = {
   openapi: '3.0.0',
-  info: { title: 'ChefMatch User Service API', version: '1.0.0', description: 'Gestión de usuarios y preferencias' },
+  info: { title: 'ChefMatch User Service API', version: '1.0.0', description: 'User and preference management' },
   servers: [{ url: '/users' }],
   paths: {
-    '/health': { get: { summary: 'Estado del servicio', responses: { 200: { description: 'OK' } } } },
+    '/health': { get: { summary: 'Service status', responses: { 200: { description: 'OK' } } } },
     '/{id}': {
       get: {
-        summary: 'Obtener usuario por Keycloak ID',
+        summary: 'Get user by Keycloak ID',
         security: [{ bearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
-        responses: { 200: { description: 'Usuario encontrado' }, 404: { description: 'No encontrado' } }
+        responses: { 200: { description: 'User found' }, 404: { description: 'Not found' } }
       }
     },
     '/preferences': {
       post: {
-        summary: 'Actualizar preferencias del usuario',
+        summary: 'Update user preferences',
         security: [{ bearerAuth: [] }],
         requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { category: { type: 'string' } } } } } },
-        responses: { 200: { description: 'Preferencias actualizadas' } }
+        responses: { 200: { description: 'Updated preferences' } }
       }
     },
     '/account': {
       delete: {
-        summary: 'Borrar cuenta del usuario',
+        summary: 'Delete user account',
         security: [{ bearerAuth: [] }],
-        responses: { 200: { description: 'Cuenta eliminada' } }
+        responses: { 200: { description: 'Deleted account' } }
       }
     }
   },
@@ -92,7 +92,7 @@ app.get('/users/metrics', async (req, res) => {
 // MONGODB
 // ============================================
 mongoose.connect(process.env.MONGO_URI || 'mongodb://mongo-service:27017/chefmatch')
-  .then(() => console.log('✅ User Service conectado a MongoDB'))
+  .then(() => console.log('✅ User Service connected to MongoDB'))
   .catch(err => console.error('❌ MongoDB error:', err.message));
 
 // ============================================
@@ -106,7 +106,7 @@ async function connectRabbit() {
     channel = await conn.createChannel();
     await channel.assertQueue('user_updates');
     await channel.assertQueue('user_events');
-    console.log('✅ RabbitMQ conectado y colas listas');
+    console.log('✅ RabbitMQ connected and queues ready');
   } catch (err) {
     console.error('❌ RabbitMQ error:', err.message);
     setTimeout(connectRabbit, 5000);
@@ -140,7 +140,7 @@ userRouter.get('/:id', authenticateJWT, async (req, res) => {
         preferences: {}
       });
       await user.save();
-      console.log(`👤 Nuevo usuario creado en MongoDB: ${id}`);
+      console.log(`👤 New user created in MongoDB: ${id}`);
     }
 
     res.json({
@@ -163,7 +163,7 @@ userRouter.post('/preferences', authenticateJWT, async (req, res) => {
     const userId   = req.user.sub;
     const category = req.body.category || req.body.preferences;
 
-    if (!category) return res.status(400).json({ error: 'Falta el campo category' });
+    if (!category) return res.status(400).json({ error: 'The category field is missing.' });
 
     // Upsert: update if exists, otherwise create
     let user = await User.findByKeycloakId(userId);
@@ -177,7 +177,7 @@ userRouter.post('/preferences', authenticateJWT, async (req, res) => {
       user.preferences = { ...user.preferences, category };
     }
     await user.save();
-    console.log(`✅ Preferencias guardadas en MongoDB para ${userId}: ${category}`);
+    console.log(`✅ Preferences saved in MongoDB for ${userId}: ${category}`);
 
     // Publicate in RabbitMQ so other services can react
     const message = {
@@ -188,13 +188,13 @@ userRouter.post('/preferences', authenticateJWT, async (req, res) => {
     };
     if (channel) {
       channel.sendToQueue('user_updates', Buffer.from(JSON.stringify(message)));
-      console.log(`📤 Mensaje enviado a RabbitMQ: ${JSON.stringify(message)}`);
+      console.log(`📤 Message sent to RabbitMQ: ${JSON.stringify(message)}`);
     }
 
-    res.json({ success: true, message: 'Preferencias guardadas', category });
+    res.json({ success: true, message: 'Saved preferences', category });
   } catch (err) {
     console.error('Error POST /preferences:', err.message);
-    res.status(500).json({ error: 'Error al procesar la solicitud' });
+    res.status(500).json({ error: 'Error processing request' });
   }
 });
 
@@ -208,9 +208,9 @@ userRouter.delete('/account', authenticateJWT, async (req, res) => {
     // 1. Remove the user from MongoDB
     const deleted = await User.findOneAndDelete({ keycloakId: userId });
     if (deleted) {
-      console.log(`🗑️ Usuario ${userId} eliminado de MongoDB`);
+      console.log(`🗑️ User ${userId} removed from MongoDB`);
     } else {
-      console.log(`⚠️ Usuario ${userId} no estaba en MongoDB (ya eliminado o nunca creado)`);
+      console.log(`⚠️ User ${userId} it was not in MongoDB (either already deleted or never created)`);
     }
 
     // 2. Publishes USER_DELETED in RabbitMQ for cascading deletion in recipe-service
@@ -222,13 +222,13 @@ userRouter.delete('/account', authenticateJWT, async (req, res) => {
     if (channel) {
       await channel.assertQueue('user_events');
       channel.sendToQueue('user_events', Buffer.from(JSON.stringify(message)));
-      console.log(`📢 USER_DELETED publicado en RabbitMQ para ${userId}`);
+      console.log(`📢 USER_DELETED published in RabbitMQ for ${userId}`);
     }
 
-    res.json({ message: 'Cuenta eliminada. Todas las recetas, planes y valoraciones asociados se eliminarán en segundo plano.' });
+    res.json({ message: 'Account deleted. All associated recipes, plans, and ratings will be deleted in the background.' });
   } catch (err) {
     console.error('Error DELETE /account:', err.message);
-    res.status(500).json({ error: 'Error interno procesando la baja del usuario' });
+    res.status(500).json({ error: 'Internal error processing user cancellation' });
   }
 });
 
@@ -250,7 +250,7 @@ app.use('/users', userRouter);
 // ============================================
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
-  console.log(`🚀 User Service en puerto ${PORT}`);
+  console.log(`🚀 User Service in port ${PORT}`);
   console.log(`📖 Docs: https://ltu-m7011e-5.se/users/api-docs`);
 });
 

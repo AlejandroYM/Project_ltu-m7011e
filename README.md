@@ -36,7 +36,7 @@ Frontend           User Service        Recipe Service    Recommendation
 |---|---|---|
 | **User Service** | 8000 | User profiles, preferences, publishes events to RabbitMQ |
 | **Recipe Service** | 8000 | Recipe CRUD, ratings, image upload, meal plans, exposes `/metrics` |
-| **Recommendation Service** | 8000 | Generates top-5 recommendations, consumes RabbitMQ events |
+| **Recommendation Service** | 8000 | Generates top-10 recommendations, consumes RabbitMQ events |
 | **Frontend** | 80 | React SPA served by Nginx, communicates with all services |
 
 ### Infrastructure
@@ -105,7 +105,7 @@ User Service  ──publishes──►  RabbitMQ queue: user_updates
                                       │
                                       └──► Recommendation Service
                                                     │
-                                          regenerates top-5 recommendations
+                                          regenerates top-10 recommendations
                                                     │
                                                MongoDB updated
 ```
@@ -223,7 +223,6 @@ Prometheus scrapes `/metrics` every 15 seconds. All three services report health
 ├── .github/workflows/ci.yml       # GitHub Actions pipeline (test + build + push)
 ├── docker-compose.yml             # Local development environment
 ├── load-test.js                   # k6 load test (REQ18/REQ19)
-├── role-based-auth.md             # RBAC documentation
 │
 ├── DOCUMENTATION/
 │   ├── ARCHITECTURE.md
@@ -231,7 +230,6 @@ Prometheus scrapes `/metrics` every 15 seconds. All three services report health
 │   ├── ETHICAL_ANALYSIS.md
 │   ├── GDPR_PRIVACY_DOC.md
 │   ├── SecurityDocumentation.md
-│   └── SystemArchitecture.md
 │
 ├── services/
 │   ├── user-service/
@@ -239,7 +237,6 @@ Prometheus scrapes `/metrics` every 15 seconds. All three services report health
 │   │   ├── server.js              # Express app — profiles, preferences, event producer
 │   │   ├── middleware/auth.js     # authenticateJWT + requireRole
 │   │   ├── models/User.js
-│   │   ├── swagger.json           # API documentation
 │   │   └── tests/user-service.test.js
 │   │
 │   ├── recipe-service/

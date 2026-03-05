@@ -25,7 +25,7 @@ const authErrors     = new Counter('auth_errors');
 export const options = {
   scenarios: {
     // REQ18 — 
-    carga_sostenida: {
+    sustained_load: {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
@@ -35,7 +35,7 @@ export const options = {
       tags: { scenario: 'REQ18' }
     },
     // REQ19 
-    pico_de_carga: {
+    peak_load: {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
@@ -44,7 +44,7 @@ export const options = {
         { duration: '30s', target: 0  }  // ramp-down
       ],
       startTime: '1m40s',
-      tags: { scenario: 'REQ19_pico_carga' }
+      tags: { scenario: 'REQ19' }
     }
   },
 
