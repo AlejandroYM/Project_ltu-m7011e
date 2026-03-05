@@ -190,7 +190,6 @@ function App() {
       "banana foster":                  "https://images.unsplash.com/photo-1587314168485-3236d6710814?auto=format&fit=crop&w=800&q=80",
       "beef teriyaki bowl":             "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80",
     };
-    // FIX: recipe.imageUrl (MongoDB) priority
     return recipe.imageUrl || specificImages[nameKey] || categoryImages[recipe.category?.toLowerCase()] || categoryImages.default;
   };
 
@@ -234,12 +233,12 @@ function App() {
     });
   }, []);
 
-  const fetchRecommendations = async (userId, categoryOverride = null) => {
+  const fetchRecommendations = async (userId, categoryOverride = null, index = 0) => {
     if (!categoryOverride && !activeCategory) return;
     try {
       const token = await getValidToken();
       const category = categoryOverride || activeCategory;
-      const url = `https://ltu-m7011e-5.se/recommendations/${userId}?category=${category}`;
+      const url = `https://ltu-m7011e-5.se/recommendations/${userId}?category=${category}&index=${index}`;
       const res = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data?.length > 0 && res.data[0] !== "Select a category to see your recommendation.") {
         setRecommendations(res.data);
@@ -247,6 +246,15 @@ function App() {
     } catch (err) {
       console.error('fetchRecommendations error:', err.response?.status, err.response?.data || err.message);
     }
+  };
+
+  const handleNextRecommendation = async () => {
+    const category = activeCategory;
+    if (!category) return;
+    const currentIndex = recipeIndex[category] ?? 0;
+    const nextIndex = currentIndex + 1 > 9 ? 0 : currentIndex + 1; // wraps back at 10
+    setRecipeIndex(prev => ({ ...prev, [category]: nextIndex }));
+    await fetchRecommendations(keycloak.tokenParsed.sub, category, nextIndex);
   };
 
   const fetchData = async (userId) => {
@@ -272,7 +280,7 @@ function App() {
         }
       }
 
-      await fetchRecommendations(userId, resolvedCategory);
+      await fetchRecommendations(userId, resolvedCategory, 0);
     } catch (err) {
       console.error("Error loading data:", err);
     }
@@ -300,6 +308,8 @@ function App() {
 
   const updatePreferences = async (newPref) => {
     setActiveCategory(newPref);
+    // Reset index when changing category
+    setRecipeIndex(prev => ({ ...prev, [newPref]: 0 }));
     const loadId = toast.loading(`Creating ${newPref} menu...`);
 
     try {
@@ -314,7 +324,7 @@ function App() {
     }
 
     try {
-      await fetchRecommendations(keycloak.tokenParsed.sub, newPref);
+      await fetchRecommendations(keycloak.tokenParsed.sub, newPref, 0);
       toast.success(`Monthly meal plan updated!`, { id: loadId });
     } catch (err) {
       console.error('Error fetching recommendations after preference update:', err.message);
@@ -507,10 +517,43 @@ function App() {
           recommendations[0] !== "Select a category to see your recommendation." && (
           <div className="rec-banner">
             <div>
-              <div className="rec-banner-label">ChefMatch Recommends</div>
+              <div className="rec-banner-label">
+                ChefMatch Recommends
+                {activeCategory && recipeIndex[activeCategory] != null && recipeIndex[activeCategory] > 0 && (
+                  <span style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: '0.7rem',
+                    color: '#8c7d6e',
+                    marginLeft: '10px'
+                  }}>
+                    #{recipeIndex[activeCategory] + 1} of 10
+                  </span>
+                )}
+              </div>
               <div className="rec-banner-name">{recommendations[0]}</div>
             </div>
-            <div className="rec-banner-icon">✦</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button
+                onClick={handleNextRecommendation}
+                style={{
+                  background: 'transparent',
+                  border: '1.5px solid #c45c35',
+                  color: '#c45c35',
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: '0.72rem',
+                  fontWeight: '700',
+                  padding: '6px 14px',
+                  cursor: 'pointer',
+                  letterSpacing: '0.06em',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { e.target.style.background = '#c45c35'; e.target.style.color = '#f2ede6'; }}
+                onMouseLeave={e => { e.target.style.background = 'transparent'; e.target.style.color = '#c45c35'; }}
+              >
+                NEXT →
+              </button>
+              <div className="rec-banner-icon">✦</div>
+            </div>
           </div>
         )}
 
@@ -698,20 +741,17 @@ function App() {
         <div className="modal-overlay">
           <div className="modal-box detail-modal" style={{ maxWidth: '700px', width: '90%' }}>
 
-            {/* Header */}
             <div className="modal-header">
               <div className="modal-title" style={{ fontSize: '1.5rem' }}>{selectedRecipe.name}</div>
               <button className="modal-close" onClick={() => setSelectedRecipe(null)}>✕</button>
             </div>
 
-            {/* Image */}
             <img
               src={getRecipeImage(selectedRecipe)}
               alt={selectedRecipe.name}
               className="detail-img"
             />
 
-            {/* Meta row */}
             <div className="detail-meta-row">
               <div className="detail-meta-item">
                 <span>Category</span>
@@ -727,7 +767,6 @@ function App() {
               </div>
             </div>
 
-            {/* Rating panel */}
             <div className="rating-panel">
               <div className="rating-panel-title">
                 <span>Rate this recipe (0–10)</span>
@@ -749,12 +788,10 @@ function App() {
             </div>
 
             <div className="modal-body">
-              {/* Description */}
               <p style={{ fontFamily: "'IBM Plex Mono'", fontSize: '0.85rem', color: '#8c7d6e', lineHeight: '1.7', marginBottom: '24px', fontStyle: 'italic' }}>
                 {selectedRecipe.description}
               </p>
 
-              {/* Ingredients */}
               <div style={{ marginBottom: '24px' }}>
                 <div className="section-heading">Ingredients</div>
                 <div className="ingredients-grid">
@@ -767,7 +804,6 @@ function App() {
                 </div>
               </div>
 
-              {/* Instructions */}
               <div style={{ marginBottom: '24px' }}>
                 <div className="section-heading">Instructions</div>
                 <div className="instructions-block">
@@ -776,7 +812,6 @@ function App() {
               </div>
             </div>
 
-            {/* Actions */}
             <div className="detail-actions">
               {selectedRecipe._id &&
                selectedRecipe.userId === currentUserId ? (
