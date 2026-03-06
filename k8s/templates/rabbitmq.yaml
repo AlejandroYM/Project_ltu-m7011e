@@ -21,18 +21,10 @@ spec:
         - sh
         - -c
         - |
-          cat > /mnt/rabbitmq-config/advanced.config << 'ERLANG'
-          [{rabbitmq_management, [
-            {listener, [
-              {port, 15672},
-              {path_prefix, <<"/rabbitmq">>}
-            ]}
-          ]}].
-          ERLANG
           echo "default_user = admin" > /mnt/rabbitmq-config/rabbitmq.conf
           echo "default_pass = admin" >> /mnt/rabbitmq-config/rabbitmq.conf
           echo "[rabbitmq_management]." > /mnt/rabbitmq-config/enabled_plugins
-          echo "=== advanced.config ===" && cat /mnt/rabbitmq-config/advanced.config
+          echo "=== config ===" && cat /mnt/rabbitmq-config/rabbitmq.conf
         volumeMounts:
         - name: config-dir
           mountPath: /mnt/rabbitmq-config
