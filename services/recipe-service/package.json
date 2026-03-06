@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "jest --forceExit --testTimeout=10000",
+    "test": "jest --forceExit --detectOpenHandles",
     "test:coverage": "jest --coverage --forceExit --testTimeout=10000"
   },
   "dependencies": {
@@ -27,10 +27,12 @@
   },
   "devDependencies": {
     "jest": "^29.7.0",
+    "mongodb-memory-server": "^11.0.1",
     "supertest": "^6.3.4"
   },
   "jest": {
     "testEnvironment": "node",
+    "testTimeout": 30000,
     "testMatch": [
       "**/tests/**/*.test.js"
     ],

@@ -1,4 +1,3 @@
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -279,5 +278,7 @@ app.get('/metrics', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 8000;
-app.listen(PORT, () => console.log(`Server on port ${PORT}`));
+if (require.main === module) {
+  app.listen(PORT, () => console.log(`Server on port ${PORT}`));
+}
 module.exports = app;
