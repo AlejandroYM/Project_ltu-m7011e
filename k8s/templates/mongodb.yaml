@@ -10,6 +10,7 @@ spec:
   resources:
     requests:
       storage: 2Gi
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -26,18 +27,57 @@ spec:
       labels:
         app: mongo
     spec:
+      initContainers:
+      - name: prepare-mongo-tls
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          cat /certs/src/tls.crt /certs/src/tls.key > /certs/mongo/mongo.pem
+          cp  /certs/src/ca.crt                       /certs/mongo/ca.crt
+          chmod 600 /certs/mongo/mongo.pem
+          echo "✅ mongo.pem generado"
+        volumeMounts:
+        - name: mongodb-tls-src        # secret de cert-manager (read-only)
+          mountPath: /certs/src
+          readOnly: true
+        - name: mongo-tls-prepared     
+          mountPath: /certs/mongo
+
       containers:
       - name: mongo
         image: mongo:latest
         ports:
         - containerPort: 27017
+        args:
+        - "--tlsMode=requireTLS"
+        - "--tlsCertificateKeyFile=/certs/mongo/mongo.pem"
+        - "--tlsCAFile=/certs/mongo/ca.crt"
         volumeMounts:
         - name: mongo-data
           mountPath: /data/db
+        - name: mongo-tls-prepared     
+          mountPath: /certs/mongo
+          readOnly: true
+
       volumes:
       - name: mongo-data
         persistentVolumeClaim:
           claimName: mongo-pvc
+      - name: mongodb-tls-src
+        secret:
+          secretName: mongodb-tls-secret    
+          items:
+          - key: ca.crt
+            path: ca.crt
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+      - name: mongo-tls-prepared
+        emptyDir: {}
+
 ---
 apiVersion: v1
 kind: Service

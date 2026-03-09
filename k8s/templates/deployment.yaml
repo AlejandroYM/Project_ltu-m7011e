@@ -85,6 +85,12 @@ spec:
         {{- end }}
         {{- end }}
 
+        
+        volumeMounts:
+        - name: internal-ca
+          mountPath: /certs/internal-ca
+          readOnly: true
+
         # Readiness: only route traffic once /health returns 200
         readinessProbe:
           httpGet:
@@ -102,5 +108,14 @@ spec:
           initialDelaySeconds: 30
           periodSeconds: 15
           failureThreshold: 3
+
+      # ── ────────────────────────────────
+      volumes:
+      - name: internal-ca
+        secret:
+          secretName: internal-ca-secret  
+          items:
+          - key: ca.crt
+            path: ca.crt
 ---
 {{- end }}

@@ -21,25 +21,63 @@ spec:
         - sh
         - -c
         - |
-          echo "default_user = admin" > /mnt/rabbitmq-config/rabbitmq.conf
-          echo "default_pass = admin" >> /mnt/rabbitmq-config/rabbitmq.conf
+          # ── rabbitmq.conf con TLS ──────────────────────────────
+          cat > /mnt/rabbitmq-config/rabbitmq.conf << 'EOF'
+          # Credenciales (sobreescribe guest/guest)
+          default_user = admin
+          default_pass = admin
+
+          # Deshabilitar AMQP plano (5672)
+          listeners.tcp = none
+
+          # Habilitar AMQPS en puerto 5671
+          listeners.ssl.default = 5671
+          ssl_options.cacertfile   = /certs/rabbitmq/ca.crt
+          ssl_options.certfile     = /certs/rabbitmq/tls.crt
+          ssl_options.keyfile      = /certs/rabbitmq/tls.key
+          ssl_options.verify       = verify_none
+          ssl_options.fail_if_no_peer_cert = false
+
+          # Management UI sigue en 15672 (accesible via Ingress HTTPS)
+          management.listener.port = 15672
+          EOF
+
+          # ── plugins ───────────────────────────────────────────
           echo "[rabbitmq_management]." > /mnt/rabbitmq-config/enabled_plugins
-          echo "=== config ===" && cat /mnt/rabbitmq-config/rabbitmq.conf
+
+          echo "=== rabbitmq.conf ===" && cat /mnt/rabbitmq-config/rabbitmq.conf
         volumeMounts:
         - name: config-dir
           mountPath: /mnt/rabbitmq-config
+
       containers:
       - name: rabbitmq
         image: rabbitmq:3.12-management
         ports:
-        - containerPort: 5672
-        - containerPort: 15672
+        - name: amqps
+          containerPort: 5671          # AMQPS (cifrado)
+        - name: management
+          containerPort: 15672
         volumeMounts:
         - name: config-dir
           mountPath: /etc/rabbitmq
+        - name: rabbitmq-tls           # certificado generado por cert-manager
+          mountPath: /certs/rabbitmq
+          readOnly: true
+
       volumes:
       - name: config-dir
         emptyDir: {}
+      - name: rabbitmq-tls
+        secret:
+          secretName: rabbitmq-tls-secret   # creado por internal-ca.yaml
+          items:
+          - key: ca.crt
+            path: ca.crt
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
 
 ---
 apiVersion: v1
@@ -49,9 +87,9 @@ metadata:
   namespace: chefmatch
 spec:
   ports:
-  - name: amqp
-    port: 5672
-    targetPort: 5672
+  - name: amqps                        # puerto seguro
+    port: 5671
+    targetPort: 5671
   - name: management
     port: 15672
     targetPort: 15672
