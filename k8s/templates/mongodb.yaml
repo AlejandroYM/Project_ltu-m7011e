@@ -57,6 +57,7 @@ spec:
         - "--tlsMode=requireTLS"
         - "--tlsCertificateKeyFile=/certs/mongo/mongo.pem"
         - "--tlsCAFile=/certs/mongo/ca.crt"
+        - "--tlsAllowConnectionsWithoutCertificates"  # TLS obligatorio pero sin exigir cert de cliente
         volumeMounts:
         - name: mongo-data
           mountPath: /data/db
