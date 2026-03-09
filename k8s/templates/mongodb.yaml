@@ -28,6 +28,7 @@ spec:
         app: mongo
     spec:
       initContainers:
+      # MongoDB necesita cert + key en un único fichero PEM
       - name: prepare-mongo-tls
         image: busybox:1.36
         command:
@@ -36,13 +37,15 @@ spec:
         - |
           cat /certs/src/tls.crt /certs/src/tls.key > /certs/mongo/mongo.pem
           cp  /certs/src/ca.crt                       /certs/mongo/ca.crt
-          chmod 600 /certs/mongo/mongo.pem
-          echo "✅ mongo.pem generado"
+          chmod 400 /certs/mongo/mongo.pem
+          chmod 444 /certs/mongo/ca.crt
+          chown 999:999 /certs/mongo/mongo.pem /certs/mongo/ca.crt
+          echo "✅ mongo.pem generado con permisos correctos"
         volumeMounts:
         - name: mongodb-tls-src        # secret de cert-manager (read-only)
           mountPath: /certs/src
           readOnly: true
-        - name: mongo-tls-prepared     
+        - name: mongo-tls-prepared     # emptyDir donde escribimos el PEM
           mountPath: /certs/mongo
 
       containers:
@@ -57,7 +60,7 @@ spec:
         volumeMounts:
         - name: mongo-data
           mountPath: /data/db
-        - name: mongo-tls-prepared     
+        - name: mongo-tls-prepared     # PEM combinado listo para mongod
           mountPath: /certs/mongo
           readOnly: true
 
@@ -67,7 +70,7 @@ spec:
           claimName: mongo-pvc
       - name: mongodb-tls-src
         secret:
-          secretName: mongodb-tls-secret    
+          secretName: mongodb-tls-secret    # creado por internal-ca.yaml
           items:
           - key: ca.crt
             path: ca.crt
